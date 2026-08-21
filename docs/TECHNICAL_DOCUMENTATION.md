@@ -72,7 +72,6 @@ M-Run-2.0/
 │       ├── config/             # Environment configuration parser
 │       ├── db/                 # SQL database migrations & connection manager
 │       └── leaderboard/        # Redis ZSET weekly rankings with memory fallback
-├── app-rn/                     # React Native Schema & Type Parity Definitions
 ├── docker-compose.yml          # PostGIS 16 + Redis 7 + Go API orchestration
 └── Makefile                    # Unified build, test, and execution tasks
 ```

@@ -46,7 +46,6 @@ M-Run-2.0/
 ├── backend/                    # Go Cloud Service (PostGIS + Redis + JWT Auth)
 │   ├── cmd/api/                # HTTP server bootstrap and routing
 │   └── internal/               # Activity, Auth, DB, Config, and Leaderboard domains
-├── app-rn/                     # React Native Type & Schema Parity Definitions
 ├── docker-compose.yml          # PostGIS 16 + Redis 7 + Go API orchestration
 └── Makefile                    # Unified build, test, and execution tasks
 ```

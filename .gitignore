@@ -42,6 +42,9 @@ Thumbs.db
 
 # Local diagnostic/crash logs
 *.log
+log.txt
+router_log.txt
+analyze_output.txt
 build_output.txt
 Log 1.jpeg
 

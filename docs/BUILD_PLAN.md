@@ -236,9 +236,9 @@
 
 ### Phase 5 — Polish
 - [ ] `CQ-8` — Adopt or delete unused design-system components
-- [ ] `CQ-12` — Remove stray tracked debris files
-- [ ] `CQ-13` — Delete or properly scaffold `app-rn/`
-- [ ] `CQ-14` — Remove placeholder `LICENSE-AGPL`
+- [x] `CQ-12` — Remove stray tracked debris files
+- [x] `CQ-13` — Delete or properly scaffold `app-rn/` (deleted — orphaned, no build scaffolding, unreferenced by the real Flutter app)
+- [x] `CQ-14` — Remove placeholder `LICENSE-AGPL`
 - [ ] `UX-2` — Real Swahili translation pass for lesson content
 - [ ] `UX-4` — Fix ghost-result share-button no-op
 - [ ] `UX-5` — Localize + de-jargon remaining tracking screens, add Semantics
