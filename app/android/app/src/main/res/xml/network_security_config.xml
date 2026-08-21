@@ -2,11 +2,11 @@
 <network-security-config>
     <!-- Cleartext (HTTP) is only permitted to well-known local-development
          addresses: the Android emulator's host loopback (the default
-         API_BASE_URL -- see app/lib/core/network/api_client.dart) and
+         API_BASE_URL, see app/lib/core/network/api_client.dart) and
          localhost/127.0.0.1 for adb-reverse or physical-device dev setups.
          Every other domain, including any real production API host,
          requires HTTPS. Previously this was cleartextTrafficPermitted=
-         "true" for ALL domains (see docs/BUILD_PLAN.md SEC-3) -- fine for
+         "true" for ALL domains (see docs/BUILD_PLAN.md SEC-3), fine for
          local dev, but it meant a build pointed at a real backend by
          mistake (e.g. a misconfigured API_BASE_URL) would silently allow
          plaintext credentials there too. -->
