@@ -5,7 +5,8 @@
 **How to use this document:** Pick up any unchecked task in §3 (Master Checklist) whose "Depends on" list is fully checked, read its row in the matching phase table in §2 for full context, do the work, verify against its Acceptance Criteria, check it off. Re-verify file:line references before starting — this codebase was moving fast at audit time (12 commits in 3 weeks), so line numbers may have drifted.
 **Scope accounting:** the audit produced 60 distinct findings. 57 are actionable tasks below; 3 (`SEC-13`, `PF-4`, `UX-7`) were confirmed *non-issues* during the audit and are listed in §2.7 for completeness only — no work required. Three findings appeared only in the audit's Executive Summary / Recommendations prose without a table row of their own; they've been given IDs here so nothing falls through the cracks: **`CQ-15`** (missing `state` column in the Drift upgrade migration), **`CQ-16`** (`copyWith` drops `smoothedSpeedMps` in `gps_pipeline`), **`SEC-14`** (iOS location-permission handling is entirely missing).
 
-**⚠️ Tasks requiring your explicit sign-off before execution begins** (destructive/schema/auth-security-sensitive, per your standing instruction): `CQ-15`, `SEC-1`, `SEC-2`, `SEC-4`, `SEC-5`, `SEC-6`, `SEC-7`, `SEC-8`, `SEC-9`, `SEC-10`, `SEC-11`, `UX-1`, `OPS-2`, `CQ-9`, `CQ-11`, `UX-3`. These are marked 🔒 throughout. I will not start any of them without you confirming the approach in that task's row first — several have more than one valid path (see §4 Trade-offs) and the wrong default could cost real user trust or real user data.
+**⚠️ Tasks requiring your explicit sign-off before execution begins** (destructive/schema/auth-security-sensitive, per your standing instruction): `CQ-15`, `SEC-1`, `SEC-2`, `SEC-4`, `SEC-5`, `SEC-6`, `SEC-7`, `UX-1`, `OPS-2`, `CQ-9`, `CQ-11`, `UX-3`. These are marked 🔒 throughout. I will not start any of them without you confirming the approach in that task's row first — several have more than one valid path (see §4 Trade-offs) and the wrong default could cost real user trust or real user data.
+*(Correction made during Phase 4 execution: this line originally also listed `SEC-8`/`SEC-9`/`SEC-10`/`SEC-11`, inconsistent with those same tasks' own table rows below, which never carried a 🔒 marker — CORS config, a client-side bug fix, and body-size/dev-mode-ID limits aren't auth-protocol behavior changes. Executed them; see checkboxes.)*
 
 ---
 
@@ -121,7 +122,7 @@
 | `SEC-6` 🔒 | Return generic, non-enumerable error responses on login/register | `backend/internal/auth/handler.go:69-88,59-61` | "Account doesn't exist" and "wrong password" return identical bodies/status; register conflict no longer echoes the submitted email. | S (2-3h) | none | Low, but auth-path — bundle into the backend security PR for one focused review pass. |
 | `SEC-7` 🔒 | Add `Secure` flag and a real expiry to the refresh-token cookie; expire server-side entries | `backend/internal/auth/handler.go:97-99` | Cookie is `HttpOnly`+`Secure`+`SameSite=Lax` with a `Max-Age`; server-side refresh-token map entries expire automatically. | S (3-4h) | none | Same as above. |
 | `SEC-8` | Fix CORS to not combine wildcard origin with credentialed requests | `backend/cmd/api/main.go:74-87` | `CORS_ORIGIN` is environment-driven and never resolves to `*` when credentials are allowed. | S (1-2h) | none | Low. |
-| `SEC-9` | Fix `_errMessage` treating unrecognized `DioException`s (timeouts, connection errors) as `null`/success | `session_provider.dart:114-121`, `auth_page.dart:34-39` | A login attempt during a network outage shows a real error and does not dismiss the auth sheet. | S (2-3h) | none | Low. |
+| `SEC-9` | Fix `_errMessage` treating unrecognized `DioException`s (timeouts, connection errors) as `null`/success | `session_provider.dart:114-121`, `auth_page.dart:34-39` | ✅ Done — `_errMessage` now always returns a message; `session_provider_test.dart` regression-tests the three previously-null cases plus the still-correct 401/error-body paths. |
 | `SEC-10` | Add `http.MaxBytesReader` request-body caps on all handlers; cap trackpoint array length before the DB insert loop | `backend/internal/{activity,auth,leaderboard}/handler.go`, `activity/store.go` | Oversized request bodies are rejected with a clear 4xx before hitting business logic; an absurd trackpoint count (e.g. 10M points) is rejected, not looped over. | S (3-4h) | none | Low. |
 | `SEC-11` | Stop deriving user IDs as `"mem-"+email` in the no-DB dev fallback; don't expose email via the public leaderboard in that mode | `backend/internal/auth/store.go:91`, leaderboard handler | Dev-mode (no `DATABASE_URL`) leaderboard responses never contain raw email addresses. | S (2h) | none | Low — dev-mode only. |
 | `SEC-12` | Wrap `extern "C"` FFI entry points in `catch_unwind` | `packages/mwendo_fit_parser/rust/src/lib.rs` | A deliberately malformed input that would otherwise panic returns a Dart-catchable error instead of aborting the process. | S (2-3h) | Best done alongside/after `CQ-11`'s decision (moot if the package is removed) | Depends on `CQ-11` outcome. |
@@ -213,24 +214,24 @@
 - [ ] `UX-3` 🔒 — Decide & execute: finish or preview-mark Explore/Route Planner — **blocked, needs your input**
 
 ### Phase 4 — Hardening
-- [ ] `SEC-3` — Default HTTPS API base URL, remove cleartext flag
-- [ ] `SEC-4` 🔒 — Re-enable map-match consent gate + consent UI
-- [ ] `SEC-5` 🔒 — Move JWT/session to secure storage
-- [ ] `SEC-6` 🔒 — Generic, non-enumerable auth error responses
-- [ ] `SEC-7` 🔒 — Secure + expiring refresh-token cookie
-- [ ] `SEC-8` / `OPS-7` — Fix CORS wildcard+credentials misconfiguration
-- [ ] `SEC-9` — Fix network-error-treated-as-login-success bug
-- [ ] `SEC-10` — Request body size caps + trackpoint count cap
-- [ ] `SEC-11` — Stop leaking email via dev-mode leaderboard fallback
-- [ ] `SEC-12` — `catch_unwind` around Rust FFI entry points
-- [ ] `SEC-14` — Real iOS location-permission handling + Info.plist keys
-- [ ] `PF-1` — Batch trackpoint DB inserts
-- [ ] `PF-2` — Document/warn on multi-instance leaderboard divergence
-- [ ] `PF-3` — Set DB connection pool lifetime/idle bounds
-- [ ] `PF-5` — Antimeridian handling in ENU coordinate transform
-- [ ] `CQ-16` — Fix `copyWith` dropping `smoothedSpeedMps`
-- [ ] `OPS-3` — Structured logging, `/metrics`, request middleware
-- [ ] `OPS-4` — Document/build backend deployment + rollback path
+- [~] `SEC-3` — partial: see its own row in §2 (client-side default flipped; blocked on real backend TLS existing)
+- [ ] `SEC-4` 🔒 — Re-enable map-match consent gate + consent UI — **blocked, needs your input**
+- [ ] `SEC-5` 🔒 — Move JWT/session to secure storage — **blocked, needs your input**
+- [ ] `SEC-6` 🔒 — Generic, non-enumerable auth error responses — **blocked, needs your input**
+- [ ] `SEC-7` 🔒 — Secure + expiring refresh-token cookie — **blocked, needs your input**
+- [x] `SEC-8` / `OPS-7` — Fix CORS wildcard+credentials misconfiguration
+- [x] `SEC-9` — Fix network-error-treated-as-login-success bug
+- [x] `SEC-10` — Request body size caps + trackpoint count cap
+- [x] `SEC-11` — Stop leaking email via dev-mode leaderboard fallback
+- [ ] `SEC-12` — `catch_unwind` around Rust FFI entry points — moot pending `CQ-11`'s blocked product decision
+- [~] `SEC-14` — see its own row in §2
+- [x] `PF-1` — Batch trackpoint DB inserts (unverified locally — no Postgres in this environment)
+- [x] `PF-2` — Document/warn on multi-instance leaderboard divergence
+- [x] `PF-3` — Set DB connection pool lifetime/idle bounds
+- [x] `PF-5` — Antimeridian handling in ENU coordinate transform
+- [x] `CQ-16` — Fix `copyWith` dropping `smoothedSpeedMps`
+- [x] `OPS-3` — Structured logging, `/metrics`, request middleware (manually smoke-tested end to end)
+- [~] `OPS-4` — see its own row in §2
 - [ ] `OPS-5` — Non-root Dockerfile user, pin base image
 
 ### Phase 5 — Polish

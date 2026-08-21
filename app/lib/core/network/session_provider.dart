@@ -111,13 +111,27 @@ class Session extends Notifier<SessionState> {
     }
   }
 
-  String? _errMessage(DioException e) {
+  /// Always returns a real, non-null message for a failed auth request.
+  /// Previously fell through to `null` for anything it didn't recognize
+  /// (timeouts, connection errors, unexpected 5xx bodies) -- since callers
+  /// treat a `null` return as "login succeeded", that silently dismissed the
+  /// auth sheet as if signed in in exactly those cases.
+  String _errMessage(DioException e) {
     final data = e.response?.data;
-    if (data is Map && data['error'] is String) return data['error'];
-    if (data is Map && data['status'] is String) return data['status'];
+    if (data is Map && data['error'] is String) return data['error'] as String;
+    if (data is Map && data['status'] is String) return data['status'] as String;
     if (e.response?.statusCode == 401) return 'Invalid email or password';
     if (e.response?.statusCode == 409) return 'Account already exists';
-    return null;
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return 'Connection timed out. Check your internet connection and try again.';
+      case DioExceptionType.connectionError:
+        return 'Could not reach the server. Check your internet connection and try again.';
+      default:
+        return 'Something went wrong. Please try again.';
+    }
   }
 }
 
