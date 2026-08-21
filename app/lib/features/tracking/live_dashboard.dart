@@ -653,11 +653,11 @@ children: [
         );
       }
 
-      if (newlyGhost.isNotEmpty && mounted) {
+      if (newlyGhost.isNotEmpty) {
         setState(() => _celebrate = newlyGhost.first);
+      } else if (newly.isNotEmpty) {
+        setState(() => _celebrate = newly.first);
       }
-    } else if (newly.isNotEmpty && mounted) {
-      setState(() => _celebrate = newly.first);
     }
   }
 }
