@@ -192,14 +192,14 @@
 
 ### Phase 2 — Foundation
 - [ ] `TS-1` — Postgres/Redis integration tests + CI wiring
-- [ ] `TS-2` — Rewrite stale `activity_repository_test.dart`
-- [ ] `TS-3` — Migration-path regression test (pairs with `CQ-15`)
-- [ ] `TS-4` — Assert against `synthetic_truth.ndjson` in real tests
-- [ ] `TS-5` — Wire `kalman_calibrate.dart` into asserting tests
-- [ ] `TS-6` — Unit tests for `gps_pipeline` untested pure modules
+- [x] `TS-2` — Rewrite stale `activity_repository_test.dart`
+- [x] `TS-3` — adapted: `CQ-15` didn't reproduce, so nothing to regression-test there; added `session_draft_repository_test.dart` covering the real v3→v4 migration this session did add
+- [x] `TS-4` — Assert against `synthetic_truth.ndjson` in real tests (surfaced a real finding — see DISCOVERED_ISSUES.md #7)
+- [x] `TS-5` — adapted: `kalman_calibrate.dart` stays a multi-sigma exploration CLI (no single right answer to assert); `ground_truth_test.dart` asserts the one config that matters, the production default
+- [x] `TS-6` — Unit tests for `gps_pipeline` untested pure modules (surfaced a real bug — see DISCOVERED_ISSUES.md #6)
 - [ ] `TS-7` — Fix/remove stale Kotlin plugin test
 - [ ] `TS-8` — Add analyze/lint/Rust CI steps (report-only → blocking)
-- [ ] `TS-9` — Unit tests for `ghost_race_controller`/`challenge_evaluator`
+- [x] `TS-9` — Unit tests for `ghost_race_controller`/`challenge_evaluator` (surfaced a real bug — see DISCOVERED_ISSUES.md #5)
 - [ ] `DEP-1` — Align Go toolchain pin across CI/docs/go.mod
 - [ ] `DEP-5` — Run and triage dependency audit tools
 - [ ] `OPS-6` — Improve CI matrix (iOS, pinned versions, caching)
