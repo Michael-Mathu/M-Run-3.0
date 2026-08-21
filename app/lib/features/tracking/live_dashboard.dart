@@ -80,11 +80,6 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
 
     final isIdle = m.state == AppEngineState.idle;
     final isRecording = m.state == AppEngineState.recording;
-    // A recovered run sits in `recovering` with loaded points but no engine
-    // running. Show the primary Start/Resume CTA for it too, so resuming goes
-    // through the permission-gated start() path (which starts the engine).
-    final showStart =
-        isIdle || m.state == AppEngineState.recovering;
 
     // Start ghost race when run starts recording
     ref.listen<GhostRaceStateData>(ghostRaceControllerProvider, (prev, next) {
@@ -393,18 +388,12 @@ children: [
                 onDiscard: () => ref.read(trackingModelProvider.notifier).discardRecovery(),
               ),
             )
-          else if (showStart)
-            Positioned(
-              bottom: MediaQuery.of(context).padding.bottom + 72 + AppTheme.s32,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: _StartButton(
-                  onStart: () => _requestAndStart(ref, context),
-                ),
-              ),
-            )
-          else
+          // U-1: the idle-state Start button used to be positioned here too
+          // (a fixed bottom offset that landed on top of the activity
+          // grid) -- it's now rendered inline in the Column right after
+          // ActivityTypeSelector instead, so this overlay only needs to
+          // handle the recording/paused control bar.
+          else if (!isIdle)
             Positioned(
               bottom: MediaQuery.of(context).padding.bottom + 72 + AppTheme.s16,
               left: 0,
