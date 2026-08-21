@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -8,11 +7,11 @@ import 'package:mwendo_app/data/repositories/activity_repository.dart';
 import 'package:gps_pipeline/gps_pipeline.dart';
 
 import 'package:flutter/services.dart';
-import 'package:path/path.dart' as p;
 
+// This repository is Drift/SQLite-backed (see AppDatabase.saveRun/getAllRuns/
+// getRun/deleteRun) -- these tests exercise that real DB path directly,
+// rather than a JSON-file format the repository no longer uses.
 void main() {
-  late Directory tempDir;
-  late File tempFile;
   late ActivityRepository repository;
   late Directory dbDir;
 
@@ -37,20 +36,12 @@ void main() {
   });
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('mwendo_test');
-    tempFile = File(p.join(tempDir.path, 'activities.json'));
     final db = AppDatabase();
     try {
       await db.customStatement('DELETE FROM activity_points;');
       await db.customStatement('DELETE FROM activities;');
     } catch (_) {}
     repository = ActivityRepository(db);
-  });
-
-  tearDown(() async {
-    if (await tempDir.exists()) {
-      await tempDir.delete(recursive: true);
-    }
   });
 
   test('list() returns empty list when file does not exist', () async {
@@ -187,33 +178,98 @@ void main() {
     expect(await repository.list(), isEmpty);
   });
 
-  test('list() returns empty list and does not crash when file is corrupted JSON', () async {
-    await tempFile.writeAsString('{invalid json}');
-    final runs = await repository.list();
-    expect(runs, isEmpty);
-  });
+  test('save() with an empty rawFixes list stores a run with empty route/elevation/pace/times', () async {
+    final run = RunRecord.fromLegacy(
+      id: 'empty-run-1',
+      type: 'Morning Run',
+      startedAt: DateTime.parse('2026-07-12T09:00:00Z'),
+      distanceM: 0.0,
+      durationMs: 0,
+      movingTimeMs: 0,
+      calories: 0,
+      elevationGainM: 0.0,
+      avgHeartRate: 0,
+      avgCadence: 0,
+      rawFixes: const [],
+    );
 
-  test('list() is null-safe for missing optional list fields in older files', () async {
-    final oldRecordJson = {
-      'id': 'old-run-1',
-      'type': 'Morning Run',
-      'startedAt': '2026-07-12T09:00:00Z',
-      'distanceM': 5000.0,
-      'durationMs': 1500000,
-      'movingTimeMs': 1450000,
-      'calories': 300,
-      'elevationGainM': 50.0,
-      'avgHeartRate': 150,
-      'avgCadence': 175,
-    };
-    await tempFile.writeAsString(jsonEncode([oldRecordJson]));
+    await repository.save(run);
 
     final runs = await repository.list();
     expect(runs, hasLength(1));
-    expect(runs.first.id, 'old-run-1');
+    expect(runs.first.id, 'empty-run-1');
     expect(runs.first.route, isEmpty);
     expect(runs.first.elevation, isEmpty);
     expect(runs.first.pace, isEmpty);
     expect(runs.first.times, isEmpty);
+  });
+
+  test('save() called twice with the same id replaces the run and its points', () async {
+    final first = RunRecord.fromLegacy(
+      id: 'replace-run-1',
+      type: 'Morning Run',
+      startedAt: DateTime.parse('2026-07-12T09:00:00Z'),
+      distanceM: 1000.0,
+      durationMs: 300000,
+      movingTimeMs: 290000,
+      calories: 60,
+      elevationGainM: 5.0,
+      avgHeartRate: 130,
+      avgCadence: 160,
+      rawFixes: [
+        RawFix(
+          lat: 1.0,
+          lng: 2.0,
+          elevation: 100.0,
+          timestamp: DateTime.parse('2026-07-12T09:00:00Z'),
+          speedMps: 3.0,
+          accuracy: 10,
+        ),
+        RawFix(
+          lat: 1.05,
+          lng: 2.05,
+          elevation: 101.0,
+          timestamp: DateTime.parse('2026-07-12T09:01:00Z'),
+          speedMps: 3.0,
+          accuracy: 10,
+        ),
+      ],
+    );
+    await repository.save(first);
+
+    final replacement = RunRecord.fromLegacy(
+      id: 'replace-run-1',
+      type: 'Evening Run',
+      startedAt: DateTime.parse('2026-07-12T09:00:00Z'),
+      distanceM: 5000.0,
+      durationMs: 1500000,
+      movingTimeMs: 1450000,
+      calories: 300,
+      elevationGainM: 50.0,
+      avgHeartRate: 150,
+      avgCadence: 175,
+      rawFixes: [
+        RawFix(
+          lat: 9.0,
+          lng: 9.0,
+          elevation: 200.0,
+          timestamp: DateTime.parse('2026-07-12T09:00:00Z'),
+          speedMps: 5.0,
+          accuracy: 10,
+        ),
+      ],
+    );
+    await repository.save(replacement);
+
+    final runs = await repository.list();
+    expect(runs, hasLength(1));
+    expect(runs.first.id, 'replace-run-1');
+    expect(runs.first.type, 'Evening Run');
+    expect(runs.first.distanceM, 5000.0);
+    // The first run's second point must not linger after the replacement's
+    // batch insert -- this is what saveRun's delete-then-insert (now inside
+    // one transaction) is responsible for.
+    expect(runs.first.route, hasLength(1));
+    expect(runs.first.route.first.latitude, 9.0);
   });
 }
