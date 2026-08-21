@@ -345,6 +345,26 @@ class L10n {
     // every loss to a ghost showed the literal text "ghost_held_you_off"
     // as the result screen's headline instead of a real sentence.
     'ghost_held_you_off': {'en': 'The ghost held you off!', 'sw': 'Mzuka amekuzuia!'},
+    // The following keys were found missing during the same sweep (grep
+    // every L10n.tr('key')/ref.tr('key') call site across app/lib, diff
+    // against this map) -- each fell through to L10n.tr's raw-key fallback:
+    // activity_detail_page.dart's share tooltip/heading showed the literal
+    // text "share" (passes as readable English by luck, but was never
+    // actually translated for Swahili), its "not found" empty state showed
+    // "activity_not_found"/"activity_not_found_body" verbatim, and its
+    // legend-of-the-day card heading showed "learning_insight" verbatim.
+    // ghost_drawer.dart's degraded-GPS-signal label showed "degraded"
+    // verbatim (docs/BUILD_PLAN.md UX-6).
+    'share': {'en': 'Share', 'sw': 'Shiriki'},
+    'learning_insight': {'en': 'Learning Insight', 'sw': 'Ufahamu wa Kujifunza'},
+    'activity_not_found': {'en': 'Activity not found', 'sw': 'Shughuli haikupatikana'},
+    'activity_not_found_body': {
+      'en': 'This activity may have been deleted or is no longer available.',
+      'sw': 'Huenda shughuli hii ilifutwa au haipatikani tena.',
+    },
+    'degraded': {'en': 'Signal degraded', 'sw': 'Mtandao dhaifu'},
+    // UX-6: remaining hardcoded strings.
+    'route_analysis': {'en': 'Route Analysis', 'sw': 'Uchambuzi wa Njia'},
     'your_time': {'en': 'Your time', 'sw': 'Muda wako'},
     'ghost_time': {'en': 'Ghost time', 'sw': 'Muda wa mzuka'},
     'close': {'en': 'Close', 'sw': 'Funga'},
@@ -371,6 +391,13 @@ class L10n {
     final lang = locale == AppLocale.swahili ? 'sw' : 'en';
     return _strings[key]?[lang] ?? _strings[key]?['en'] ?? key;
   }
+
+  /// Reliable existence check for tests -- `tr()` itself can't be used for
+  /// this, since it falls back to returning the raw key on a miss, and a
+  /// short common-word key (e.g. 'km', 'of', 'vs') can have a real English
+  /// value that's byte-identical to its own key, which looks the same as a
+  /// miss from the outside. Test-only; not called from production code.
+  static bool hasKey(String key) => _strings.containsKey(key);
 }
 
 extension L10nRef on WidgetRef {

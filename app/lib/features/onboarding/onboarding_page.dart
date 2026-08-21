@@ -135,13 +135,13 @@ class _Slide extends StatelessWidget {
   final IconData icon;
   final String title;
   final String body;
-  final String? hint;
+  final String hint;
   const _Slide({
     required this.emoji,
     required this.icon,
     required this.title,
     required this.body,
-    this.hint,
+    required this.hint,
   });
 
   @override
@@ -179,7 +179,7 @@ class _Slide extends StatelessWidget {
               children: [
                 Icon(icon, size: 16, color: AppTheme.brand),
                 const SizedBox(width: AppTheme.s6),
-                Text('GPS · ${hint ?? 'Learn more'}',
+                Text('GPS · $hint',
                     style: text.labelSmall!.copyWith(color: AppTheme.brand)),
               ],
             ),

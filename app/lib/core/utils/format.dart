@@ -30,3 +30,13 @@ String formatClock(DateTime dt) {
   final m = dt.minute.toString().padLeft(2, '0');
   return '$h:$m';
 }
+
+/// Zero-padded DD/MM/YYYY, e.g. "07/03/2026" not "7/3/2026". Previously
+/// activity_detail_page.dart built this inline without padding, which reads
+/// ambiguously (is "3/7" March 7th or July 3rd?) -- padding removes that
+/// ambiguity regardless of locale.
+String formatDate(DateTime dt) {
+  final d = dt.day.toString().padLeft(2, '0');
+  final m = dt.month.toString().padLeft(2, '0');
+  return '$d/$m/${dt.year}';
+}

@@ -54,7 +54,7 @@ class ActivityDetailPage extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.analytics_outlined),
-            tooltip: 'Route Analysis',
+            tooltip: L10n.tr('route_analysis', locale),
             onPressed: () => context.push('/route-analysis/${run.id}'),
           ),
           IconButton(
@@ -83,7 +83,7 @@ class ActivityDetailPage extends ConsumerWidget {
                 Text(a.type, style: text.headlineLarge),
                 const SizedBox(height: AppTheme.s4),
                 Text(
-                  '${a.startedAt.day}/${a.startedAt.month}/${a.startedAt.year}',
+                  formatDate(a.startedAt),
                   style: text.bodyMedium!
                       .copyWith(color: cs.onSurface.withValues(alpha: 0.6)),
                 ),

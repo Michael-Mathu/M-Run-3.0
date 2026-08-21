@@ -380,7 +380,7 @@ class _SplitComparisonTable extends StatelessWidget {
               children: [
                 SizedBox(width: 40, child: Text('#', style: text.labelMedium!.copyWith(color: cs.onSurfaceVariant))),
                 Expanded(child: Text(L10n.tr('you', locale), style: text.labelMedium!.copyWith(color: cs.onSurfaceVariant), textAlign: TextAlign.center)),
-                Expanded(child: Text(L10n.tr('ghost', locale), style: text.labelMedium!.copyWith(color: cs.onSurfaceVariant), textAlign: TextAlign.center)),
+                Expanded(child: Text(L10n.tr('ghost_label', locale), style: text.labelMedium!.copyWith(color: cs.onSurfaceVariant), textAlign: TextAlign.center)),
                 Expanded(child: Text(L10n.tr('delta', locale), style: text.labelMedium!.copyWith(color: cs.onSurfaceVariant), textAlign: TextAlign.center)),
                 SizedBox(width: 40, child: Text(L10n.tr('status', locale), style: text.labelMedium!.copyWith(color: cs.onSurfaceVariant), textAlign: TextAlign.center)),
               ],
