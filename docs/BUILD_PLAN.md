@@ -232,7 +232,7 @@
 - [x] `CQ-16` — Fix `copyWith` dropping `smoothedSpeedMps`
 - [x] `OPS-3` — Structured logging, `/metrics`, request middleware (manually smoke-tested end to end)
 - [x] `OPS-4` — Documented the (currently manual) deployment path and rollback approach in `docs/DEPLOYMENT.md`, and honestly flagged what a real pipeline would still need (no CI build/push, no registry, no chosen platform, no automated backups) — no automation was built, this is the documentation half of the task only.
-- [ ] `OPS-5` — Non-root Dockerfile user, pin base image
+- [x] `OPS-5` — Non-root Dockerfile user, pin base image (checklist was out of sync with PROGRESS.md — this was completed in Phase 4, correcting the marker here)
 
 ### Phase 5 — Polish
 - [x] `CQ-8` — Adopt or delete unused design-system components (deleted 10 with zero usages: `app_coach_badge`, `app_continue_banner`, `app_course_tile`, `app_fab`, `app_leaderboard_row`, `app_legend_card`, `app_lesson_card`, `app_map_hud`, `app_streak_ring`, `app_tip_sheet`; the other 4 already had real usages and were kept as-is)
@@ -246,7 +246,7 @@
 
 ### Phase 6 — Ongoing
 - [x] `DEP-4` — Set up Dependabot/Renovate (then runs automatically) — `.github/dependabot.yml` covers `backend` (gomod), `app` + all 3 packages (pub), the Rust FIT-parser crate (cargo), and the workflow files themselves (github-actions), weekly; PRs get triaged against the existing (now-blocking) CI test suite before merge
-- [ ] Flip `TS-8` CI gates from report-only to blocking once backlog is clear
+- [x] Flip `TS-8` CI gates from report-only to blocking once backlog is clear (already blocking from the moment they landed in Phase 2 — the pre-existing backlog was clear before the gates were added, so no separate report-only period was needed)
 - [ ] Schedule recurring dependency audit (quarterly / pre-release)
 - [ ] Schedule recurring design-system usage check
 - [ ] Stand up dashboard/alerting on `OPS-3`'s `/metrics` once live
