@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/mwendo/backend/internal/auth"
 	"github.com/mwendo/backend/internal/activity"
+	"github.com/mwendo/backend/internal/auth"
 )
 
 var board *Leaderboard

@@ -43,7 +43,9 @@ func TestAPIFlowInMemory(t *testing.T) {
 	if login.StatusCode != 200 {
 		t.Fatalf("login: %d", login.StatusCode)
 	}
-	var loginRes struct{ AccessToken string `json:"access_token"` }
+	var loginRes struct {
+		AccessToken string `json:"access_token"`
+	}
 	json.NewDecoder(login.Body).Decode(&loginRes)
 	if loginRes.AccessToken == "" {
 		t.Fatal("no access token")
@@ -51,9 +53,9 @@ func TestAPIFlowInMemory(t *testing.T) {
 
 	// Create an activity.
 	create := do(t, h, "POST", "/api/v1/activities", loginRes.AccessToken, map[string]any{
-		"type":        "run",
-		"started_at":  "2026-07-08T06:00:00Z",
-		"distance_m":  5000,
+		"type":           "run",
+		"started_at":     "2026-07-08T06:00:00Z",
+		"distance_m":     5000,
 		"moving_time_ms": 1500000,
 		"trackpoints": []map[string]any{
 			{"lat": -1.29, "lng": 36.82, "elevation": 10, "speed_mps": 3.1, "timestamp": "2026-07-08T06:00:00Z"},
@@ -65,7 +67,7 @@ func TestAPIFlowInMemory(t *testing.T) {
 		t.Fatalf("create activity: %d %s", create.StatusCode, b)
 	}
 	var act struct {
-		ID    string `json:"id"`
+		ID    string      `json:"id"`
 		Route [][]float64 `json:"route"`
 	}
 	json.NewDecoder(create.Body).Decode(&act)

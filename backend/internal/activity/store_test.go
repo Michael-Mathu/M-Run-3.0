@@ -9,9 +9,9 @@ import (
 func sample() ActivityInput {
 	now := time.Now()
 	return ActivityInput{
-		Type:      "run",
-		StartedAt: now,
-		DistanceM: 5000,
+		Type:         "run",
+		StartedAt:    now,
+		DistanceM:    5000,
 		MovingTimeMs: 1500000,
 		Trackpoints: []Trackpoint{
 			{Lat: -1.29, Lng: 36.82, Elevation: 10, SpeedMps: 3.1, Timestamp: now},

@@ -21,9 +21,9 @@ type Store interface {
 }
 
 type User struct {
-	ID         string    `json:"id"`
-	Email      string    `json:"email"`
-	Password   string    `json:"-"`
+	ID        string    `json:"id"`
+	Email     string    `json:"email"`
+	Password  string    `json:"-"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -88,9 +88,9 @@ func (s *MemoryStore) Create(ctx context.Context, email, passwordHash string) (U
 		return User{}, ErrConflict{Email: email}
 	}
 	u := User{
-		ID:         "mem-" + email,
-		Email:      email,
-		Password:   passwordHash,
+		ID:        "mem-" + email,
+		Email:     email,
+		Password:  passwordHash,
 		CreatedAt: time.Now(),
 	}
 	s.users[email] = u
