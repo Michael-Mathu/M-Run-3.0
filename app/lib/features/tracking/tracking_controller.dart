@@ -500,27 +500,11 @@ class TrackingModel extends Notifier<TrackingState> {
       if (p.cadence != null) { cadenceSum += p.cadence!; cadenceCount++; }
     }
 
-    double finalDistanceM = 0;
-    PipelineResult? prev;
-    for (final r in results) {
-      if (r.filterStatus == FilterStatus.filtered) {
-        if (prev != null) {
-          finalDistanceM += _haversine(
-            prev.smoothedLat ?? prev.raw.lat,
-            prev.smoothedLng ?? prev.raw.lng,
-            r.smoothedLat ?? r.raw.lat,
-            r.smoothedLng ?? r.raw.lng,
-          );
-        }
-        prev = r;
-      }
-    }
-    
     return RunRecord.fromFiltered(
       id: RunRecord.newId(),
       type: type,
       startedAt: rawFixes.isNotEmpty ? rawFixes.first.timestamp : DateTime.now(),
-      distanceM: finalDistanceM,
+      distanceM: _recomputeFilteredDistanceM(results),
       durationMs: state.elapsedMs,
       movingTimeMs: state.movingTimeMs > 0 ? state.movingTimeMs : state.elapsedMs,
       calories: state.calories,
@@ -579,29 +563,13 @@ class TrackingModel extends Notifier<TrackingState> {
         
         if (_draftId != null) {
           final filtered = _pipeline.reprocess(_rawFixes);
-          
-          double finalDistanceM = 0;
-          PipelineResult? prev;
-          for (final r in filtered) {
-            if (r.filterStatus == FilterStatus.filtered) {
-              if (prev != null) {
-                finalDistanceM += _haversine(
-                  prev.smoothedLat ?? prev.raw.lat,
-                  prev.smoothedLng ?? prev.raw.lng,
-                  r.smoothedLat ?? r.raw.lat,
-                  r.smoothedLng ?? r.raw.lng,
-                );
-              }
-              prev = r;
-            }
-          }
 
           final draft = SessionDraft(
             id: _draftId!,
             rawFixes: _rawFixes.toList(growable: false),
             filteredResults: filtered,
             filterVersion: _pipeline.trackVersion,
-            filteredDistanceM: finalDistanceM,
+            filteredDistanceM: _recomputeFilteredDistanceM(filtered),
             durationMs: state.elapsedMs,
             movingTimeMs: state.movingTimeMs,
             elevationGainM: _elevationGain,
@@ -666,6 +634,31 @@ class TrackingModel extends Notifier<TrackingState> {
 }
 
 final trackingModelProvider = NotifierProvider<TrackingModel, TrackingState>(TrackingModel.new);
+
+/// Sums haversine distance between consecutive `filtered`-status results,
+/// skipping stationary/gap/rejected ones. Shared by [TrackingModel.
+/// buildRunRecord] and [TrackingModel.stop] so their final distance figure
+/// (the one saved to the completed activity / session draft) is computed
+/// identically rather than by two independently-maintained copies of the
+/// same loop.
+double _recomputeFilteredDistanceM(List<PipelineResult> results) {
+  double distanceM = 0;
+  PipelineResult? prev;
+  for (final r in results) {
+    if (r.filterStatus == FilterStatus.filtered) {
+      if (prev != null) {
+        distanceM += _haversine(
+          prev.smoothedLat ?? prev.raw.lat,
+          prev.smoothedLng ?? prev.raw.lng,
+          r.smoothedLat ?? r.raw.lat,
+          r.smoothedLng ?? r.raw.lng,
+        );
+      }
+      prev = r;
+    }
+  }
+  return distanceM;
+}
 
 double _haversine(double lat1, double lon1, double lat2, double lon2) {
   const r = 6371000.0;

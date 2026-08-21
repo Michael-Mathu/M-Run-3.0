@@ -207,7 +207,7 @@
 - [x] `CQ-5` — Remove duplicate provider/permission-helper declarations
 - [x] `CQ-6` — Remove dead duplicate models and dead `main()`
 - [x] `CQ-7` — De-duplicate `_recommendTier`/card-builder logic (added a smoke test for the card consolidation — no way to visually verify pixel-equivalence in this environment)
-- [ ] `CQ-9` 🔒 — Split `tracking_controller.dart` into focused services — **adding direct unit test coverage for `TrackingModel` first as a safety net (not in original plan, judged necessary — see PROGRESS.md)**
+- [~] `CQ-9` — partial: de-duplicated the distance-recompute loop (the one piece of this task with a safe, mechanical, verifiable fix) into `_recomputeFilteredDistanceM`. The larger "split into 3+ focused services" restructuring is **deferred, not attempted** — see PROGRESS.md for why (no way to test the GPS-engine-coupled paths in this environment, and refactoring 700 lines of safety-relevant crash-recovery/tracking code without a way to verify behavior preservation is worse than leaving it as-is).
 - [x] `CQ-10` — Backend handlers/stores to struct-based DI
 - [ ] `CQ-11` 🔒 — Decide & execute: finish or remove FIT parser — **blocked, needs your input**
 - [ ] `UX-3` 🔒 — Decide & execute: finish or preview-mark Explore/Route Planner — **blocked, needs your input**
