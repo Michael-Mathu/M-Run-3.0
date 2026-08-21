@@ -78,3 +78,16 @@ Full-suite phase-boundary check: backend and `app` both green (backend: build/ve
 **Deliberately not attempted:** `SEC-4`, `SEC-5`, `SEC-6`, `SEC-7` remain blocked exactly as in Phase 1/BUILD_PLAN's original 🔒 flags — these change real auth/privacy behavior (consent defaults, token storage migration, auth error semantics, session cookie lifetime) and need your input on which path to take. `SEC-12` (Rust `catch_unwind`) is moot until `CQ-11`'s finish-or-remove decision is made.
 
 Full-suite phase-boundary check: backend (build/vet/gofmt/test), `app` (analyze clean, 60 tests), `gps_pipeline` (analyze clean, 41 tests) all green.
+
+## Phase 5 — Polish — DONE (5/6 done, 1 not executable by me)
+
+- `CQ-12`, `CQ-13`, `CQ-14` — Debris files removed, `app-rn/` deleted (orphaned, no build scaffolding), `LICENSE-AGPL` stub removed.
+- `UX-4` — Ghost-result share button now does a real `share_plus` text share instead of a silent no-op. Surfaced and fixed two adjacent bugs along the way (`DISCOVERED_ISSUES.md` #9, #10).
+- `UX-6` — Fixed remaining hardcoded strings and non-locale-aware date formatting. While sweeping for this, found the app had 6 more missing-L10n-key bugs elsewhere (raw key names rendering to users) — fixed all of them and added `l10n_keys_test.dart` as a permanent regression test for the whole bug class (`DISCOVERED_ISSUES.md` #11).
+- `UX-5` — Localized `route_analysis_screen.dart`, `recovery_card.dart`, `activity_type_selector.dart` (added ~30 new L10n keys, en/sw); reworded `route_analysis_screen.dart`'s raw pipeline jargon ("Rejection Rate", "95th %ile Accuracy", "Jumps/km") into plain runner-facing language; added `Semantics(selected:, button:, label:)` to `activity_type_selector.dart`'s card widget so screen readers announce selection state.
+- `CQ-8` — Re-verified the plan's named component list against actual repo state (two named files no longer existed; the real unused set was different) and re-derived it via usage grep. Deleted 10 components with zero call sites anywhere in `app/lib`; kept 4 that already had real usages. Chose deletion over forced adoption — retrofitting unused components into existing screens is a design judgment call with real visual-regression risk, deleting confirmed-dead code isn't.
+- `UX-2` — **Not executed.** This is a content task (translate ~200 lesson-content string pairs into real Swahili), not an engineering task — BUILD_PLAN's own risk note says not to attempt it mechanically, and I have no way to produce fluent, pedagogically-sound Swahili translations of lesson content myself. Left exactly as documented in the audit/plan; needs a human fluent Swahili speaker.
+
+Full-suite phase-boundary check: `app` (`flutter analyze` clean, `flutter test` — 65 tests, all green). Backend/gps_pipeline untouched this phase, no re-check needed.
+
+## Phase 6 — Ongoing

@@ -245,7 +245,7 @@
 - [x] `UX-6` — Fix remaining hardcoded strings + date localization (also swept and fixed 6 app-wide missing-L10n-key bugs found in the process — see DISCOVERED_ISSUES.md #11 — and added a permanent regression test for the whole bug class)
 
 ### Phase 6 — Ongoing
-- [ ] `DEP-4` — Set up Dependabot/Renovate (then runs automatically)
+- [x] `DEP-4` — Set up Dependabot/Renovate (then runs automatically) — `.github/dependabot.yml` covers `backend` (gomod), `app` + all 3 packages (pub), the Rust FIT-parser crate (cargo), and the workflow files themselves (github-actions), weekly; PRs get triaged against the existing (now-blocking) CI test suite before merge
 - [ ] Flip `TS-8` CI gates from report-only to blocking once backlog is clear
 - [ ] Schedule recurring dependency audit (quarterly / pre-release)
 - [ ] Schedule recurring design-system usage check
