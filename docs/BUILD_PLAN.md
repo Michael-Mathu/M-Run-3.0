@@ -235,7 +235,7 @@
 - [ ] `OPS-5` — Non-root Dockerfile user, pin base image
 
 ### Phase 5 — Polish
-- [ ] `CQ-8` — Adopt or delete unused design-system components
+- [x] `CQ-8` — Adopt or delete unused design-system components (deleted 10 with zero usages: `app_coach_badge`, `app_continue_banner`, `app_course_tile`, `app_fab`, `app_leaderboard_row`, `app_legend_card`, `app_lesson_card`, `app_map_hud`, `app_streak_ring`, `app_tip_sheet`; the other 4 already had real usages and were kept as-is)
 - [x] `CQ-12` — Remove stray tracked debris files
 - [x] `CQ-13` — Delete or properly scaffold `app-rn/` (deleted — orphaned, no build scaffolding, unreferenced by the real Flutter app)
 - [x] `CQ-14` — Remove placeholder `LICENSE-AGPL`
