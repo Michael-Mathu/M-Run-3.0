@@ -25,6 +25,36 @@ class ExplorePage extends ConsumerWidget {
           },
           child: CustomScrollView(
             slivers: [
+              // F-6/U-8: this tab has no backend to source real data from
+              // yet (see explore_provider.dart) -- say so explicitly rather
+              // than presenting fabricated routes/segments/leaderboards as
+              // if they were real.
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(AppTheme.s16, AppTheme.s16, AppTheme.s16, 0),
+                sliver: SliverToBoxAdapter(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppTheme.s12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.warning.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppTheme.r12),
+                      border: Border.all(color: AppTheme.warning.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline_rounded, color: AppTheme.warning, size: 18),
+                        const SizedBox(width: AppTheme.s8),
+                        Expanded(
+                          child: Text(
+                            L10n.tr('explore_preview_banner', locale),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(AppTheme.s16, AppTheme.s16, AppTheme.s16, 0),
                 sliver: SliverToBoxAdapter(

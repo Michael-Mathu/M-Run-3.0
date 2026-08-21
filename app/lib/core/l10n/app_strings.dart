@@ -282,6 +282,12 @@ class L10n {
     'explore_no_routes': {'en': 'No routes available', 'sw': 'Hakuna njia zinazopatikana'},
     'explore_no_segments': {'en': 'No segments available', 'sw': 'Hakuna sehemu zinazopatikana'},
     'explore_no_leaderboards': {'en': 'No leaderboards yet', 'sw': 'Hakuna chati ya wachezaji bado'},
+    // F-6: no backend route/segment/leaderboard data exists yet -- this
+    // banner says so honestly instead of presenting sample data as real.
+    'explore_preview_banner': {
+      'en': 'Preview — the routes, segments, and leaderboards below are examples, not real data yet.',
+      'sw': 'Onyesho — njia, sehemu, na chati za wachezaji hapa chini ni mifano, si data halisi bado.',
+    },
 
     // ---- Legend of the day card ----
     'legend_of_week': {'en': 'LEGEND OF THE WEEK', 'sw': 'SHUJAA WA WIKI'},

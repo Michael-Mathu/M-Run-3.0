@@ -98,12 +98,18 @@ class ExploreNotifier extends Notifier<ExploreData> {
 
 final exploreProvider = NotifierProvider<ExploreNotifier, ExploreData>(ExploreNotifier.new);
 
-// Sample data for explore - will be replaced with real data from repository
+// F-6/U-8: this tab currently has no backend to source real routes,
+// segments, or leaderboards from -- there is no such endpoint anywhere in
+// backend/internal. Building that (route storage, geometry, a real
+// leaderboard) is a real backend feature, not a copy fix, so it's out of
+// scope here. What IS in scope: not presenting fabricated data as if it
+// were real. explore_page.dart now shows an explicit "Preview" banner
+// above this content in both locales (AUDIT_2.md F-6).
 final _sampleRoutes = [
   RouteData(
     slug: 'marathon-kenya-standard',
     name: 'Marathon Standard',
-    description: 'Kenyan flag green marathon course, close to actual course',
+    description: 'A full marathon course modeled on a standard Kenyan road race',
     distance: 42195,
     elevationGain: 2800,
     estimatedTime: 150,
@@ -111,7 +117,7 @@ final _sampleRoutes = [
   RouteData(
     slug: 'half-marathon-nairobi',
     name: 'Half Marathon Nairobi',
-    description: 'Through CBD Nairobi landmarks, finish at CBD landmarks',
+    description: 'A half marathon route through Nairobi CBD landmarks',
     distance: 21097,
     elevationGain: 1500,
     estimatedTime: 85,
