@@ -270,7 +270,7 @@ class _YouPageState extends ConsumerState<YouPage> {
                         title: L10n.tr('emergency_contacts', locale),
                         subtitle: contacts.isEmpty
                             ? L10n.tr('not_set', locale)
-                            : '${contacts.length} ${L10n.tr('emergency_contacts', locale)}',
+                            : '${contacts.length} ${contacts.length == 1 ? L10n.tr('emergency_contact_singular', locale) : L10n.tr('emergency_contacts', locale)}',
                         onTap: () => _EmergencyContactsSheet.show(context, ref),
                       ),
                       _SettingTile(
@@ -576,6 +576,14 @@ class _LangTile extends StatelessWidget {
             selected: {locale},
             showSelectedIcon: false,
             onSelectionChanged: (s) => ref.read(localeProvider.notifier).set(s.first),
+            // U-7: the M3 default selected-segment fill (colorScheme.secondaryContainer)
+            // reads as an unrelated muted olive against the app's orange accent used
+            // everywhere else (FAB, primary buttons, streak/level chips). Pin it to
+            // the same brand accent so the toggle reads as part of the same system.
+            style: SegmentedButton.styleFrom(
+              selectedBackgroundColor: AppTheme.brand,
+              selectedForegroundColor: Colors.white,
+            ),
             segments: const [
               ButtonSegment(value: AppLocale.english, label: Text('EN')),
               ButtonSegment(value: AppLocale.swahili, label: Text('SW')),

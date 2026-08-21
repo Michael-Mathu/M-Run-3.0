@@ -608,7 +608,7 @@ class _CompareRow extends StatelessWidget {
           children: [
             SizedBox(width: 92, child: Text(label, style: text.labelMedium!.copyWith(fontWeight: FontWeight.w700))),
             Expanded(
-              child: Text(L10n.tr('no_distance_logged', locale).replaceFirst('{label}', label),
+              child: Text(L10n.trParams('no_distance_logged', locale, {'label': label}),
                   style: text.bodySmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.5))),
             ),
             Text(legendTime, style: text.bodySmall!.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
@@ -709,7 +709,7 @@ class _CommunitySection extends StatelessWidget {
                   children: [
                     Text('$athleteCount+', style: text.titleLarge!.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
                     const SizedBox(height: AppTheme.s2),
-                    Text(L10n.tr('athletes_trained_with_legend', locale).replaceFirst('{name}', legend.name),
+                    Text(L10n.trParams('athletes_trained_with_legend', locale, {'name': legend.name}),
                         style: text.bodySmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.6))),
                   ],
                 ),

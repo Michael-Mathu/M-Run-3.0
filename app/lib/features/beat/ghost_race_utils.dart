@@ -32,7 +32,6 @@ final progress = userDistanceM / totalDistanceM;
 double ghostProjectedFinishTime(
     GhostPace ghost, double userDistanceM, double userElapsedMs) {
   final elapsedSeconds = userElapsedMs / 1000;
-  ghostExpectedTimeAtDistance(ghost, userDistanceM);
 
   if (userDistanceM >= ghost.distanceKm * 1000) return elapsedSeconds;
 

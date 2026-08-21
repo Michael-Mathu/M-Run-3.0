@@ -125,7 +125,14 @@ SectionTitle(L10n.tr('continue_learning', locale),
                       actionLabel: L10n.tr('see_all', locale),
                       onAction: () => context.go('/learn')),
                   const SizedBox(height: AppTheme.s4),
-                  _LearnRow(locale: locale),
+                  // U-6: when the empty-activity state below is showing its own
+                  // "How to Start Running" promo, don't repeat that same course
+                  // here -- a brand-new user with zero runs would otherwise see
+                  // the identical course card twice on one screen.
+                  _LearnRow(
+                    locale: locale,
+                    excludeSlug: recent.value?.isEmpty ?? false ? 'how-to-start-running' : null,
+                  ),
                   const SizedBox(height: AppTheme.s12),
                   SectionTitle(L10n.tr('recent_activity', locale),
                       actionLabel: L10n.tr('see_all', locale),
@@ -541,13 +548,14 @@ class _AllDoneCard extends ConsumerWidget {
 
 class _LearnRow extends StatelessWidget {
   final AppLocale locale;
-  const _LearnRow({required this.locale});
+  final String? excludeSlug;
+  const _LearnRow({required this.locale, this.excludeSlug});
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
-    final picks = courses.take(3).toList();
+    final picks = courses.where((c) => c.slug != excludeSlug).take(3).toList();
     return SizedBox(
       height: 92,
       child: ListView.separated(

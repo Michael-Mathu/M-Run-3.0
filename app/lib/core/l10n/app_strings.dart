@@ -62,7 +62,7 @@ class L10n {
     'lessons': {'en': 'lessons', 'sw': 'masomo'},
     'mark_complete': {'en': 'Mark complete', 'sw': 'Weka alama ya kukamilika'},
     'completed': {'en': 'Completed', 'sw': 'Imekamilika'},
-    'start_run': {'en': 'Go for a run', 'sw': 'Nenda ukimbi'},
+    'start_run': {'en': 'Go for a run', 'sw': 'Nenda ukimbie'},
     'challenge_me': {'en': 'Challenge me', 'sw': 'Nishindanishe'},
     'race_this_ghost': {'en': 'Race this ghost', 'sw': 'Shindana na mzuka'},
     'knowledge_streak': {'en': 'Knowledge streak', 'sw': 'Msururu wa Elimu'},
@@ -83,7 +83,7 @@ class L10n {
     'cat_fun': {'en': 'Fun', 'sw': 'Mchezo'},
     'cat_school': {'en': 'School', 'sw': 'Shule'},
     'cat_knowledge': {'en': 'Learn', 'sw': 'Jifunze'},
-    'go_for_a_run': {'en': 'Go for a run', 'sw': 'Nenda ukimbi'},
+    'go_for_a_run': {'en': 'Go for a run', 'sw': 'Nenda ukimbie'},
     'open_academy': {'en': 'Open the Academy', 'sw': 'Fungua Chuo'},
     'reward': {'en': 'Reward', 'sw': 'Tuzo'},
     'badge': {'en': 'Badge', 'sw': 'Beji'},
@@ -97,7 +97,7 @@ class L10n {
     'delete': {'en': 'Delete', 'sw': 'Futa'},
     'cancel': {'en': 'Cancel', 'sw': 'Ghairi'},
     'nothing_recorded': {'en': 'Nothing recorded yet', 'sw': 'Hakuna kilichorekodiwa bado'},
-    'first_run_prompt': {'en': 'Head out for your first run.', 'sw': 'Tokea kwa mbio yako ya kwanza.'},
+    'first_run_prompt': {'en': 'Head out for your first run.', 'sw': 'Anza mbio yako ya kwanza.'},
     'runner': {'en': 'Runner', 'sw': 'Mkimbiaji'},
     'distance': {'en': 'Distance', 'sw': 'Umbali'},
     'runs': {'en': 'Runs', 'sw': 'Mbio'},
@@ -109,11 +109,12 @@ class L10n {
     'light': {'en': 'Light', 'sw': 'Mwangaza'},
     'system': {'en': 'System', 'sw': 'Mfumo'},
     'emergency_contacts': {'en': 'Emergency contacts', 'sw': 'Anwani za dharura'},
+    'emergency_contact_singular': {'en': 'Emergency contact', 'sw': 'Anwani ya dharura'},
     'not_set': {'en': 'Not set', 'sw': 'Haijaseti'},
     'export_data': {'en': 'Export data', 'sw': 'Hamisha data'},
     'no_runs_yet': {'en': 'No runs yet', 'sw': 'Hakuna mbio bado'},
     'routes_will_show': {'en': 'Your routes will show up here.', 'sw': 'Njia zako zitaonekana hapa.'},
-    'all_caught_up': {'en': 'All caught up!', 'sw': 'Umekwisha yote!'},
+    'all_caught_up': {'en': 'All caught up!', 'sw': 'Umemaliza zote!'},
     'browse_more': {'en': 'Browse more challenges to keep the momentum.', 'sw': 'Tazama changamoto zaidi kuendelea.'},
     'this_week': {'en': 'This week', 'sw': 'Wiki hii'},
     'best': {'en': 'Best', 'sw': 'Bora'},
@@ -183,7 +184,7 @@ class L10n {
       'sw': 'Maendeleo yako yaliharibika na yamerudishwa.'
     },
     'sos_button': {'en': 'Emergency SOS', 'sw': 'SOS ya Dharura'},
-    'stop_run': {'en': 'Stop run', 'sw': 'Sita mbio'},
+    'stop_run': {'en': 'Stop run', 'sw': 'Simamisha mbio'},
     'pause_run': {'en': 'Pause run', 'sw': 'Sitisha mbio'},
     'resume_run': {'en': 'Resume run', 'sw': 'Endelea mbio'},
     'start_run_control': {'en': 'Start run', 'sw': 'Anza mbio'},
@@ -209,7 +210,7 @@ class L10n {
     'start_running_to_compare': {'en': 'Start running to compare!', 'sw': 'Anza kukimbia kulinganisha!'},
     'log_distance_to_compare': {'en': 'Log a 5K, 10K, half or marathon and see how you stack up.', 'sw': 'Rekodi 5K, 10K, nusu au marathon uone jinsi unavyojilinganisha.'},
     'country': {'en': 'Country', 'sw': 'Nchi'},
-    'discipline': {'en': 'Discipline', 'sw': 'Nidhamu'},
+    'discipline': {'en': 'Discipline', 'sw': 'Mchezo'},
     'era': {'en': 'Era', 'sw': 'Zama'},
     'ghost_label': {'en': 'Ghost', 'sw': 'Mzuka'},
     'ready': {'en': 'Ready', 'sw': 'Tayari'},
@@ -222,8 +223,6 @@ class L10n {
     'sending_sos': {'en': 'Sending SOS', 'sw': 'Inatuma SOS'},
     'alerting_contacts': {'en': 'Alerting contacts in ', 'sw': 'Inatahadharisha anwani katika '},
 'ok': {'en': 'OK', 'sw': 'Sawa'},
-    'ghost_held_off': {'en': '{name} held you off — you: {userPace} /km, ghost: {ghostPace} /km', 'sw': '{name} amekuzuia — wewe: {userPace} /km, mzuka: {ghostPace} /km'},
-    'you_beat_ghost': {'en': 'You beat {name}! 🏆 ({userPace} vs {ghostPace} /km)', 'sw': 'Umemshinda {name}! 🏆 ({userPace} dhidi ya {ghostPace} /km)'},
 
     // ---- Onboarding (Phase 2 audit) ----
     'onboarding_skip': {'en': 'Skip', 'sw': 'Ruka'},
@@ -430,14 +429,26 @@ class L10n {
     'm_behind': {'en': 'm behind', 'sw': 'm nyuma'},
     'm_ahead': {'en': 'm ahead', 'sw': 'm mbele'},
     'meters': {'en': 'm', 'sw': 'm'},
-    'kilocalories': {'en': 'kcal', 'sw': 'kilokalori'},
-    'recenter_map': {'en': 'Re-center map', 'sw': 'Rudisha ramani katik'},
+    'kilocalories': {'en': 'kcal', 'sw': 'kkal'},
+    'recenter_map': {'en': 'Re-center map', 'sw': 'Weka ramani katikati'},
     'zoom_label': {'en': 'Zoom', 'sw': 'Zoom'},
   };
 
   static String tr(String key, AppLocale locale) {
     final lang = locale == AppLocale.swahili ? 'sw' : 'en';
     return _strings[key]?[lang] ?? _strings[key]?['en'] ?? key;
+  }
+
+  /// Like [tr], but substitutes `{placeholder}` markers in the resolved
+  /// string with values from [params]. A key that declares a placeholder
+  /// with no matching entry in [params] is a programmer error -- callers
+  /// should keep the key's `{name}` markers and this map's keys in sync.
+  static String trParams(String key, AppLocale locale, Map<String, String> params) {
+    var result = tr(key, locale);
+    for (final entry in params.entries) {
+      result = result.replaceAll('{${entry.key}}', entry.value);
+    }
+    return result;
   }
 
   /// Reliable existence check for tests -- `tr()` itself can't be used for

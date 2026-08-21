@@ -247,9 +247,15 @@ class GhostRaceRacingData extends GhostRaceStateData {
     this.paceGapSecPerKm = 0,
   });
 
+  // F-5: ghostPosition is genuinely nullable (computeGhostPosition returns
+  // null when the route/distance is momentarily invalid), so `?? this.x`
+  // could never actually clear a stale marker back to null. `_unset` lets
+  // callers distinguish "don't touch this field" from "set it to null".
+  static const Object _unset = Object();
+
   GhostRaceRacingData copyWith({
     List<SplitComparison>? splitComparisons,
-    LatLng? ghostPosition,
+    Object? ghostPosition = _unset,
     double? deltaSeconds,
     double? projectedFinishSeconds,
     int? currentSplitIndex,
@@ -260,7 +266,7 @@ class GhostRaceRacingData extends GhostRaceStateData {
         ghost: ghost,
         tier: tier,
         splitComparisons: splitComparisons ?? this.splitComparisons,
-        ghostPosition: ghostPosition ?? this.ghostPosition,
+        ghostPosition: identical(ghostPosition, _unset) ? this.ghostPosition : ghostPosition as LatLng?,
         deltaSeconds: deltaSeconds ?? this.deltaSeconds,
         projectedFinishSeconds: projectedFinishSeconds ?? this.projectedFinishSeconds,
         currentSplitIndex: currentSplitIndex ?? this.currentSplitIndex,
