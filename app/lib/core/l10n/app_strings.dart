@@ -220,8 +220,29 @@ class L10n {
     'gps_poor': {'en': 'GPS Poor', 'sw': 'GPS Dhaifu'},
     'no_emergency_contacts': {'en': 'No emergency contacts', 'sw': 'Hakuna anwani za dharura'},
     'sos_prompt': {'en': 'Set up emergency contacts in Settings to use SOS.', 'sw': 'Weka anwani za dharura kwenye Mipangilio kutumia SOS.'},
-    'sending_sos': {'en': 'Sending SOS', 'sw': 'Inatuma SOS'},
-    'alerting_contacts': {'en': 'Alerting contacts in ', 'sw': 'Inatahadharisha anwani katika '},
+    // F-1: SOS never auto-sends -- it opens the device's SMS composer with
+    // contacts and location prefilled, and the user still taps send. The
+    // copy below says so honestly instead of claiming "Sending".
+    'prepare_sos': {'en': 'Prepare emergency message', 'sw': 'Andaa Ujumbe wa Dharura'},
+    'opening_messages': {
+      'en': 'Opening your messaging app with your contacts and location…',
+      'sw': 'Inafungua programu yako ya ujumbe na anwani na eneo lako…',
+    },
+    'message_ready_title': {'en': 'Message ready', 'sw': 'Ujumbe Uko Tayari'},
+    'sos_opened_body': {
+      'en': 'Your messaging app is open with your contacts and location filled in. Review it and tap send.',
+      'sw': 'Programu yako ya ujumbe imefunguliwa ikiwa na anwani na eneo lako. Angalia kisha gusa tuma.',
+    },
+    'sos_failed_title': {'en': "Couldn't open messaging app", 'sw': 'Imeshindwa Kufungua Programu ya Ujumbe'},
+    'sos_failed_body': {
+      'en': "We couldn't open your messaging app automatically. Call {name} directly instead.",
+      'sw': 'Hatukuweza kufungua programu yako ya ujumbe. Mpigie {name} moja kwa moja badala yake.',
+    },
+    'call_now': {'en': 'Call now', 'sw': 'Piga sasa'},
+    'call_failed': {
+      'en': "Couldn't open the phone dialer either. Please call or message your contact manually.",
+      'sw': 'Imeshindwa kufungua simu pia. Tafadhali mpigie au mtumie ujumbe mwenyewe.',
+    },
 'ok': {'en': 'OK', 'sw': 'Sawa'},
 
     // ---- Onboarding (Phase 2 audit) ----
@@ -344,6 +365,14 @@ class L10n {
     // every loss to a ghost showed the literal text "ghost_held_you_off"
     // as the result screen's headline instead of a real sentence.
     'ghost_held_you_off': {'en': 'The ghost held you off!', 'sw': 'Mzuka amekuzuia!'},
+    // F-3: shown instead of a win/loss headline when the run stopped short
+    // of the ghost's distance -- a pace comparison over a partial distance
+    // isn't a real result, so this must not read as either a win or a loss.
+    'race_incomplete': {'en': 'Race incomplete', 'sw': 'Mbio Hazijakamilika'},
+    'race_incomplete_body': {
+      'en': "You stopped before covering the full {distance}, so this run doesn't count as a win or a loss against the ghost.",
+      'sw': 'Ulisimama kabla ya kufikisha {distance} nzima, kwa hivyo mbio hii haihesabiwi kama ushindi au hasara dhidi ya mzuka.',
+    },
     // The following keys were found missing during the same sweep (grep
     // every L10n.tr('key')/ref.tr('key') call site across app/lib, diff
     // against this map) -- each fell through to L10n.tr's raw-key fallback:

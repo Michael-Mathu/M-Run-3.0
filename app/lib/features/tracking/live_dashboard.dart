@@ -225,7 +225,15 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
                   ],
                 ),
               ),
-              if (isIdle)
+              // U-1: the Start button used to be an absolutely-positioned
+              // overlay with a fixed offset from the bottom of the screen,
+              // sized for a much shorter selector sheet than the current
+              // 2x2 activity grid -- it landed visually on top of the
+              // Walk/Cycle row instead of below the whole sheet. Rendering
+              // it inline right after the selector, inside the same
+              // Column, means it can never overlap the grid regardless of
+              // how tall the sheet's content is.
+              if (isIdle) ...[
                 ActivityTypeSelector(
                   selectedProfile: m.profile,
                   onSelected: (profile) {
@@ -233,6 +241,22 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
                     ref.read(trackingModelProvider.notifier).setProfile(profile);
                   },
                 ),
+                Container(
+                  width: double.infinity,
+                  color: cs.surface,
+                  padding: EdgeInsets.fromLTRB(
+                    AppTheme.s24,
+                    0,
+                    AppTheme.s24,
+                    MediaQuery.of(context).padding.bottom + AppTheme.s20,
+                  ),
+                  child: Center(
+                    child: _StartButton(
+                      onStart: () => _requestAndStart(ref, context),
+                    ),
+                  ),
+                ),
+              ],
               // Bottom panel - only show metrics when not idle
               if (!isIdle)
                 Expanded(
@@ -587,13 +611,26 @@ children: [
     List<dynamic> newlyGhost = [];
     bool distanceChanged = false;
     
+    bool ghostDidNotFinish = false;
     if (ghost != null && ghostRaceState is GhostRaceRacingData) {
       final finalDistanceM = record.distanceM;
       distanceChanged = distanceM > 0 && (finalDistanceM - distanceM).abs() > (distanceM * 0.02);
-      
+
+      // F-3: a "win" previously only compared average pace, with no check
+      // that the user actually covered the ghost's distance -- stopping a
+      // marathon-ghost race after 150m at a fast pace registered as a full
+      // win. Require finishing (within a small GPS/filtering tolerance,
+      // matching the 2% band already used for distanceChanged above)
+      // before pace is even considered.
+      final ghostDistanceM = ghost.distanceKm * 1000;
+      final completedDistance = finalDistanceM >= ghostDistanceM * 0.97;
+      ghostDidNotFinish = !completedDistance;
+
       final userAvg = (elapsedMs / 60000) / (finalDistanceM / 1000);
-      final beat = userAvg <= ghost.avgPaceMinPerKm;
-      newlyGhost = ref.read(gamificationProvider.notifier).recordBeatLegend(ghost, beat);
+      final beat = completedDistance && userAvg <= ghost.avgPaceMinPerKm;
+      newlyGhost = completedDistance
+          ? ref.read(gamificationProvider.notifier).recordBeatLegend(ghost, beat)
+          : [];
 
       // Update the record with ghost data before saving (if needed)
       record = record.copyWith(
@@ -637,6 +674,7 @@ children: [
             GoRouter.of(context).go('/ghost-result/${ghost.id}', extra: {
               'tier': finished.tier.name,
               'won': finished.result == GhostRaceResult.win,
+              'didNotFinish': ghostDidNotFinish,
               'elapsedMs': finished.userElapsedMs,
               'recalculated': distanceChanged,
               'splits': finished.splitComparisons.map((s) => {
@@ -981,22 +1019,90 @@ class _SosButton extends ConsumerWidget {
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop) Navigator.of(dlg).pop();
         },
-        child: _SosCountdownDialog(onComplete: () {
+        child: _SosCountdownDialog(onComplete: () async {
           Navigator.of(dlg).pop();
-          _sendSos(ref);
+          final result = await _sendSos(ref);
+          if (context.mounted) _showSosOutcome(context, ref, result);
         }),
       ),
     );
   }
 
-  Future<void> _sendSos(WidgetRef ref) async {
+  Future<SosResult> _sendSos(WidgetRef ref) async {
     final contacts = ref.read(safetyContactsProvider);
     final notifier = ref.read(trackingModelProvider.notifier);
     final pts = notifier.points;
     final last = pts.isNotEmpty ? pts.last : null;
     final lat = last?.lat ?? kDefaultCenter.latitude;
     final lng = last?.lng ?? kDefaultCenter.longitude;
-    await SafetyService.sendSos(contacts, lat, lng);
+    return SafetyService.sendSos(contacts, lat, lng);
+  }
+
+  // F-1: on-device testing found the previous flow claimed "Sending SOS" /
+  // "Alerting contacts" and then, when the SMS composer failed to launch,
+  // silently returned to the map with no signal at all -- the worst
+  // possible outcome for a safety feature. This surfaces both outcomes
+  // honestly: success opens the composer (user still has to tap send, so
+  // say that), failure offers a one-tap call to the first contact instead
+  // of just failing silently.
+  void _showSosOutcome(BuildContext context, WidgetRef ref, SosResult result) {
+    final locale = ref.read(localeProvider);
+    final cs = Theme.of(context).colorScheme;
+    final surface = Theme.of(context).dialogTheme.backgroundColor ?? cs.surface;
+    final contacts = ref.read(safetyContactsProvider);
+
+    if (result == SosResult.opened) {
+      showDialog(
+        context: context,
+        builder: (dlg) => AlertDialog(
+          backgroundColor: surface,
+          title: Text(L10n.tr('message_ready_title', locale), style: TextStyle(color: cs.onSurface)),
+          content: Text(L10n.tr('sos_opened_body', locale), style: TextStyle(color: cs.onSurfaceVariant)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dlg).pop(),
+              child: Text(L10n.tr('ok', locale)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final firstContact = contacts.isNotEmpty ? contacts.first : null;
+    showDialog(
+      context: context,
+      builder: (dlg) => AlertDialog(
+        backgroundColor: surface,
+        title: Text(L10n.tr('sos_failed_title', locale), style: TextStyle(color: cs.onSurface)),
+        content: Text(
+          firstContact != null
+              ? L10n.trParams('sos_failed_body', locale, {'name': firstContact.name})
+              : L10n.tr('sos_prompt', locale),
+          style: TextStyle(color: cs.onSurfaceVariant),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dlg).pop(),
+            child: Text(L10n.tr('cancel', locale)),
+          ),
+          if (firstContact != null)
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: context.tokens.sos),
+              onPressed: () async {
+                Navigator.of(dlg).pop();
+                final called = await SafetyService.callContact(firstContact);
+                if (!called && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(L10n.tr('call_failed', locale))),
+                  );
+                }
+              },
+              child: Text(L10n.tr('call_now', locale)),
+            ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1059,7 +1165,7 @@ class _SosCountdownDialogState extends ConsumerState<_SosCountdownDialog> {
         AppTheme.s24,
         AppTheme.s16,
       ),
-      title: Text(L10n.tr('sending_sos', locale),
+      title: Text(L10n.tr('prepare_sos', locale),
           style: TextStyle(color: cs.onSurface)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1088,7 +1194,7 @@ class _SosCountdownDialogState extends ConsumerState<_SosCountdownDialog> {
           ),
           const SizedBox(height: AppTheme.s16),
           Text(
-            L10n.tr('alerting_contacts', locale),
+            L10n.tr('opening_messages', locale),
             style: TextStyle(color: cs.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),

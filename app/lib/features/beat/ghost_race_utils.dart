@@ -21,8 +21,15 @@ final progress = userDistanceM / totalDistanceM;
     return ghost.splits.take(lowerIndex + 1).fold(0.0, (a, b) => a + b);
   }
 
-  final lowerTime = ghost.splits.take(lowerIndex + 1).fold(0.0, (a, b) => a + b);
-  final upperTime = ghost.splits.take(upperIndex + 1).fold(0.0, (a, b) => a + b);
+  // F-4: lowerTime is the cumulative time at the START of lowerIndex (the
+  // split the runner is currently inside of), not through it -- take(n)
+  // sums the first n splits, i.e. splits[0..n-1]. The old code used
+  // take(lowerIndex + 1) here, which already included the in-progress
+  // split, and take(upperIndex + 1) for upperTime, which pulled in the
+  // split *after* that -- together overstating the interpolated time by
+  // roughly one full split for most of a race. See DISCOVERED_ISSUES.md #5.
+  final lowerTime = ghost.splits.take(lowerIndex).fold(0.0, (a, b) => a + b);
+  final upperTime = ghost.splits.take(lowerIndex + 1).fold(0.0, (a, b) => a + b);
   final t = exactSplitIndex - lowerIndex;
 
   return lowerTime + (upperTime - lowerTime) * t;

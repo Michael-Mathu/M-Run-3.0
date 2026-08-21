@@ -229,6 +229,7 @@ GoRouter makeRouter(Ref ref) {
               ghostId: state.pathParameters['ghostId']!,
               tierName: extra['tier'] as String? ?? 'goat',
               userWon: extra['won'] as bool? ?? false,
+              didNotFinish: extra['didNotFinish'] as bool? ?? false,
               userElapsedMs: extra['elapsedMs'] as int? ?? 0,
               recalculated: extra['recalculated'] as bool? ?? false,
               splitsJson: jsonEncode(extra['splits'] ?? []),

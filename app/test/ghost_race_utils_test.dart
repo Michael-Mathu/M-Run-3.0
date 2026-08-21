@@ -35,28 +35,24 @@ void main() {
     });
 
     test(
-      'KNOWN BUG: interpolation inside a split overshoots by roughly one '
-      'split — see DISCOVERED_ISSUES.md #5. At 12.5% of the race (500m of '
-      '4000m, 100s/km flat pace), a runner should be ~50s in; the function '
-      'currently returns 150s because it interpolates between '
-      "splits.take(lowerIndex+1) and take(upperIndex+1) — both already "
-      'include the split the runner is still inside of, instead of using '
-      'take(lowerIndex) as the pre-split baseline. This test locks in the '
-      'CURRENT (buggy) value so a fix is a visible, deliberate diff here, '
-      'not a silent behavior change.',
+      'FIXED (was DISCOVERED_ISSUES.md #5): at 12.5% of the race (500m of '
+      '4000m, 100s/km flat pace), a runner should be ~50s in. The '
+      'interpolation previously overstated this by roughly one split '
+      '(returned 150s) because it summed take(lowerIndex+1) as the '
+      'pre-split baseline, which already included the split the runner is '
+      'still inside of.',
       () {
         final g = _flatGhost();
-        expect(ghostExpectedTimeAtDistance(g, 500), 150.0);
+        expect(ghostExpectedTimeAtDistance(g, 500), 50.0);
       },
     );
 
     test(
-      'KNOWN BUG (same root cause): at an exact split boundary (half '
-      'distance = 2 of 4 splits done), expected time should be 200s but '
-      'returns 300s.',
+      'FIXED (same root cause): at an exact split boundary (half distance '
+      '= 2 of 4 splits done), expected time is 200s.',
       () {
         final g = _flatGhost();
-        expect(ghostExpectedTimeAtDistance(g, 2000), 300.0);
+        expect(ghostExpectedTimeAtDistance(g, 2000), 200.0);
       },
     );
   });

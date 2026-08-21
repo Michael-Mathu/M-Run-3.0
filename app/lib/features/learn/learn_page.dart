@@ -25,7 +25,9 @@ class LearnPage extends ConsumerWidget {
       body: CustomScrollView(
         slivers: [
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(AppTheme.s24, AppTheme.s8, AppTheme.s24, AppTheme.s24),
+            // U-4: a touch more breathing room between the app bar and the
+            // hero title -- s8 read as flush/cramped against the bar.
+            padding: const EdgeInsets.fromLTRB(AppTheme.s24, AppTheme.s16, AppTheme.s24, AppTheme.s24),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 Text(L10n.tr('academy', locale), style: text.headlineMedium),

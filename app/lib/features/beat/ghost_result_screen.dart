@@ -17,6 +17,7 @@ class GhostResultScreen extends ConsumerWidget {
   final String ghostId;
   final String tierName;
   final bool userWon;
+  final bool didNotFinish;
   final int userElapsedMs;
   final bool recalculated;
   final String splitsJson;
@@ -27,6 +28,7 @@ class GhostResultScreen extends ConsumerWidget {
     required this.ghostId,
     required this.tierName,
     required this.userWon,
+    this.didNotFinish = false,
     required this.userElapsedMs,
     this.recalculated = false,
     required this.splitsJson,
@@ -86,12 +88,12 @@ return Scaffold(
           SliverAppBar(
             expandedHeight: 320,
             pinned: true,
-            backgroundColor: userWon ? activeGhost.accent.withValues(alpha: 0.9) : cs.surface,
+            backgroundColor: userWon && !didNotFinish ? activeGhost.accent.withValues(alpha: 0.9) : cs.surface,
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: userWon
+                    colors: userWon && !didNotFinish
                         ? [activeGhost.accent.withValues(alpha: 0.9), activeGhost.accent.withValues(alpha: 0.5)]
                         : [cs.surface, cs.surfaceContainerHighest],
                     begin: Alignment.topLeft,
@@ -108,9 +110,14 @@ return Scaffold(
                         children: [
                           const SizedBox(height: 44),
                           Text(
-                            userWon ? L10n.tr('you_beat', locale) : L10n.tr('ghost_held_you_off', locale),
+                            // F-3: a partial-distance run is neither a win nor a
+                            // loss against the ghost -- showing "you lost" here
+                            // would be its own kind of misleading result.
+                            didNotFinish
+                                ? L10n.tr('race_incomplete', locale)
+                                : (userWon ? L10n.tr('you_beat', locale) : L10n.tr('ghost_held_you_off', locale)),
                             style: text.headlineMedium!.copyWith(
-                              color: userWon ? Colors.white : cs.onSurface,
+                              color: userWon && !didNotFinish ? Colors.white : cs.onSurface,
                               fontWeight: FontWeight.w800,
                               height: 1.2,
                             ),
@@ -122,9 +129,17 @@ return Scaffold(
                           Text(
                             activeGhost.name,
                             style: text.titleLarge!.copyWith(
-                              color: userWon ? Colors.white.withValues(alpha: 0.9) : cs.onSurfaceVariant,
+                              color: userWon && !didNotFinish ? Colors.white.withValues(alpha: 0.9) : cs.onSurfaceVariant,
                             ),
                           ),
+                          if (didNotFinish) ...[
+                            const SizedBox(height: AppTheme.s8),
+                            Text(
+                              L10n.trParams('race_incomplete_body', locale, {'distance': activeGhost.distanceLabel}),
+                              style: text.bodyMedium!.copyWith(color: cs.onSurfaceVariant),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
                           const SizedBox(height: AppTheme.s16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -133,14 +148,14 @@ return Scaffold(
                                 icon: Icons.timer_rounded,
                                 label: L10n.tr('your_time', locale),
                                 value: formatDuration(userElapsedMs),
-                                color: userWon ? Colors.white : cs.onSurface,
+                                color: userWon && !didNotFinish ? Colors.white : cs.onSurface,
                               ),
                               const SizedBox(width: AppTheme.s16),
                               _StatChip(
                                 icon: Icons.emoji_events_rounded,
                                 label: L10n.tr('ghost_time', locale),
                                 value: formatDuration(activeGhost.totalSeconds * 1000),
-                                color: userWon ? Colors.white : cs.onSurface,
+                                color: userWon && !didNotFinish ? Colors.white : cs.onSurface,
                               ),
                             ],
                           ),
@@ -216,7 +231,9 @@ return Scaffold(
                   ),
                   const SizedBox(height: AppTheme.s24),
 
-                  // Action buttons
+                  // Action buttons. F-3: "Try harder tier" implies you cleared
+                  // this one -- doesn't make sense to offer on a run that
+                  // didn't even cover the distance, so just offer a rematch.
                   Row(
                     children: [
                       Expanded(
@@ -230,24 +247,26 @@ return Scaffold(
                           style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: AppTheme.s16)),
                         ),
                       ),
-                      const SizedBox(width: AppTheme.s12),
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: () {
-                            // Try harder tier
-                            final nextTier = _nextTier(tier);
-                            if (nextTier != null) {
-                              context.push('/beat/$ghostId');
-                            }
-                          },
-                          icon: const Icon(Icons.trending_up_rounded),
-                          label: Text(L10n.tr('try_harder_tier', locale)),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppTheme.brand,
-                            padding: const EdgeInsets.symmetric(vertical: AppTheme.s16),
+                      if (!didNotFinish) ...[
+                        const SizedBox(width: AppTheme.s12),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              // Try harder tier
+                              final nextTier = _nextTier(tier);
+                              if (nextTier != null) {
+                                context.push('/beat/$ghostId');
+                              }
+                            },
+                            icon: const Icon(Icons.trending_up_rounded),
+                            label: Text(L10n.tr('try_harder_tier', locale)),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppTheme.brand,
+                              padding: const EdgeInsets.symmetric(vertical: AppTheme.s16),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: AppTheme.s12),
@@ -256,11 +275,13 @@ return Scaffold(
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: () => SharePlus.instance.share(ShareParams(
-                        text: userWon
-                            ? '${L10n.tr('you_beat', locale)} ${activeGhost.name} — '
-                                '${formatDuration(userElapsedMs)} via Mwendo!'
-                            : '${L10n.tr('ghost_held_you_off', locale)} '
-                                '${activeGhost.name} (${formatDuration(userElapsedMs)}) via Mwendo!',
+                        text: didNotFinish
+                            ? '${L10n.tr('race_incomplete', locale)}: ${activeGhost.name} via Mwendo!'
+                            : (userWon
+                                ? '${L10n.tr('you_beat', locale)} ${activeGhost.name} — '
+                                    '${formatDuration(userElapsedMs)} via Mwendo!'
+                                : '${L10n.tr('ghost_held_you_off', locale)} '
+                                    '${activeGhost.name} (${formatDuration(userElapsedMs)}) via Mwendo!'),
                       )),
                       icon: const Icon(Icons.share_rounded),
                       label: Text(L10n.tr('share_result', locale)),

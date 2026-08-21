@@ -74,6 +74,27 @@ void main() {
     expect(tester.takeException(), isNull, reason: 'the header must not overflow on a real phone-width screen');
   });
 
+  testWidgets('a did-not-finish run shows "Race incomplete", not a win/loss headline (F-3)', (tester) async {
+    await tester.pumpWidget(wrap(const GhostResultScreen(
+      ghostId: 'kipchoge-marathon',
+      tierName: 'bronze',
+      userWon: true, // even if pace alone would have "won" -- distance wasn't covered
+      didNotFinish: true,
+      userElapsedMs: 60000,
+      splitsJson: '[]',
+      routePointsJson: '[]',
+    )));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Race incomplete'), findsOneWidget);
+    expect(find.text('You beat the ghost!'), findsNothing);
+    expect(find.text('The ghost held you off!'), findsNothing);
+    expect(find.textContaining('Marathon'), findsWidgets);
+    // "Try harder tier" implies clearing this tier -- shouldn't be offered
+    // on a run that didn't cover the distance.
+    expect(find.text('Try a harder tier'), findsNothing);
+  });
+
   testWidgets('real split data decodes into a populated comparison table, not zero rows', (tester) async {
     final splits = jsonEncode([
       {'index': 0, 'ghostTime': 300.0, 'userTime': 290.0, 'delta': -10.0, 'isAhead': true, 'progress': 1.0},
