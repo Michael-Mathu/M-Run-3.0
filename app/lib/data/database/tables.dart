@@ -43,9 +43,13 @@ class SessionDrafts extends Table {
   DateTimeColumn get createdAt => dateTime().named('created_at')();
   DateTimeColumn get finalizedAt => dateTime().named('finalized_at').nullable()();
   IntColumn get schemaVersion => integer().named('schema_version')();
-  
+
   TextColumn get matchStatus => text().named('match_status').nullable()();
   RealColumn get matchedDistanceM => real().named('matched_distance_m').nullable()();
+
+  // v4: the ActivityProfile a recovered run should resume with — was
+  // computed but never persisted, so recovery always defaulted to Run.
+  TextColumn get activityType => text().named('activity_type').nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -66,6 +70,14 @@ class SessionPoints extends Table {
   TextColumn get filterStatus => text().named('filter_status').nullable()();
   RealColumn get smoothedLat => real().named('smoothed_lat').nullable()();
   RealColumn get smoothedLng => real().named('smoothed_lng').nullable()();
+
+  // v4: previously dropped on recovery — see DISCOVERED_ISSUES.md #1.
+  IntColumn get heartRate => integer().named('heart_rate').nullable()();
+  IntColumn get cadence => integer().nullable()();
+  IntColumn get satelliteCount => integer().named('satellite_count').nullable()();
+  TextColumn get provider => text().nullable()();
+  BoolColumn get isMocked => boolean().named('is_mocked').withDefault(const Constant(false))();
+  TextColumn get fixType => text().named('fix_type').nullable()();
 
   @override
   Set<Column> get primaryKey => {draftId, seq};

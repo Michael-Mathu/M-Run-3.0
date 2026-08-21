@@ -17,7 +17,7 @@ class AppDatabase extends _$AppDatabase {
   factory AppDatabase() => _instance ??= AppDatabase._();
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -38,6 +38,15 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(activities, activities.metricSource);
             await m.createTable(sessionDrafts);
             await m.createTable(sessionPoints);
+          }
+          if (from < 4) {
+            await m.addColumn(sessionDrafts, sessionDrafts.activityType);
+            await m.addColumn(sessionPoints, sessionPoints.heartRate);
+            await m.addColumn(sessionPoints, sessionPoints.cadence);
+            await m.addColumn(sessionPoints, sessionPoints.satelliteCount);
+            await m.addColumn(sessionPoints, sessionPoints.provider);
+            await m.addColumn(sessionPoints, sessionPoints.isMocked);
+            await m.addColumn(sessionPoints, sessionPoints.fixType);
           }
         },
       );

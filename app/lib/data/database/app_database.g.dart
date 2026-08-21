@@ -2096,6 +2096,17 @@ class $SessionDraftsTable extends SessionDrafts
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _activityTypeMeta = const VerificationMeta(
+    'activityType',
+  );
+  @override
+  late final GeneratedColumn<String> activityType = GeneratedColumn<String>(
+    'activity_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2111,6 +2122,7 @@ class $SessionDraftsTable extends SessionDrafts
     schemaVersion,
     matchStatus,
     matchedDistanceM,
+    activityType,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2230,6 +2242,15 @@ class $SessionDraftsTable extends SessionDrafts
         ),
       );
     }
+    if (data.containsKey('activity_type')) {
+      context.handle(
+        _activityTypeMeta,
+        activityType.isAcceptableOrUnknown(
+          data['activity_type']!,
+          _activityTypeMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2291,6 +2312,10 @@ class $SessionDraftsTable extends SessionDrafts
         DriftSqlType.double,
         data['${effectivePrefix}matched_distance_m'],
       ),
+      activityType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}activity_type'],
+      ),
     );
   }
 
@@ -2315,6 +2340,7 @@ class SessionDraftEntity extends DataClass
   final int schemaVersion;
   final String? matchStatus;
   final double? matchedDistanceM;
+  final String? activityType;
   const SessionDraftEntity({
     required this.id,
     required this.status,
@@ -2329,6 +2355,7 @@ class SessionDraftEntity extends DataClass
     required this.schemaVersion,
     this.matchStatus,
     this.matchedDistanceM,
+    this.activityType,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2351,6 +2378,9 @@ class SessionDraftEntity extends DataClass
     }
     if (!nullToAbsent || matchedDistanceM != null) {
       map['matched_distance_m'] = Variable<double>(matchedDistanceM);
+    }
+    if (!nullToAbsent || activityType != null) {
+      map['activity_type'] = Variable<String>(activityType);
     }
     return map;
   }
@@ -2376,6 +2406,9 @@ class SessionDraftEntity extends DataClass
       matchedDistanceM: matchedDistanceM == null && nullToAbsent
           ? const Value.absent()
           : Value(matchedDistanceM),
+      activityType: activityType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(activityType),
     );
   }
 
@@ -2398,6 +2431,7 @@ class SessionDraftEntity extends DataClass
       schemaVersion: serializer.fromJson<int>(json['schemaVersion']),
       matchStatus: serializer.fromJson<String?>(json['matchStatus']),
       matchedDistanceM: serializer.fromJson<double?>(json['matchedDistanceM']),
+      activityType: serializer.fromJson<String?>(json['activityType']),
     );
   }
   @override
@@ -2417,6 +2451,7 @@ class SessionDraftEntity extends DataClass
       'schemaVersion': serializer.toJson<int>(schemaVersion),
       'matchStatus': serializer.toJson<String?>(matchStatus),
       'matchedDistanceM': serializer.toJson<double?>(matchedDistanceM),
+      'activityType': serializer.toJson<String?>(activityType),
     };
   }
 
@@ -2434,6 +2469,7 @@ class SessionDraftEntity extends DataClass
     int? schemaVersion,
     Value<String?> matchStatus = const Value.absent(),
     Value<double?> matchedDistanceM = const Value.absent(),
+    Value<String?> activityType = const Value.absent(),
   }) => SessionDraftEntity(
     id: id ?? this.id,
     status: status ?? this.status,
@@ -2450,6 +2486,7 @@ class SessionDraftEntity extends DataClass
     matchedDistanceM: matchedDistanceM.present
         ? matchedDistanceM.value
         : this.matchedDistanceM,
+    activityType: activityType.present ? activityType.value : this.activityType,
   );
   SessionDraftEntity copyWithCompanion(SessionDraftsCompanion data) {
     return SessionDraftEntity(
@@ -2482,6 +2519,9 @@ class SessionDraftEntity extends DataClass
       matchedDistanceM: data.matchedDistanceM.present
           ? data.matchedDistanceM.value
           : this.matchedDistanceM,
+      activityType: data.activityType.present
+          ? data.activityType.value
+          : this.activityType,
     );
   }
 
@@ -2500,7 +2540,8 @@ class SessionDraftEntity extends DataClass
           ..write('finalizedAt: $finalizedAt, ')
           ..write('schemaVersion: $schemaVersion, ')
           ..write('matchStatus: $matchStatus, ')
-          ..write('matchedDistanceM: $matchedDistanceM')
+          ..write('matchedDistanceM: $matchedDistanceM, ')
+          ..write('activityType: $activityType')
           ..write(')'))
         .toString();
   }
@@ -2520,6 +2561,7 @@ class SessionDraftEntity extends DataClass
     schemaVersion,
     matchStatus,
     matchedDistanceM,
+    activityType,
   );
   @override
   bool operator ==(Object other) =>
@@ -2537,7 +2579,8 @@ class SessionDraftEntity extends DataClass
           other.finalizedAt == this.finalizedAt &&
           other.schemaVersion == this.schemaVersion &&
           other.matchStatus == this.matchStatus &&
-          other.matchedDistanceM == this.matchedDistanceM);
+          other.matchedDistanceM == this.matchedDistanceM &&
+          other.activityType == this.activityType);
 }
 
 class SessionDraftsCompanion extends UpdateCompanion<SessionDraftEntity> {
@@ -2554,6 +2597,7 @@ class SessionDraftsCompanion extends UpdateCompanion<SessionDraftEntity> {
   final Value<int> schemaVersion;
   final Value<String?> matchStatus;
   final Value<double?> matchedDistanceM;
+  final Value<String?> activityType;
   final Value<int> rowid;
   const SessionDraftsCompanion({
     this.id = const Value.absent(),
@@ -2569,6 +2613,7 @@ class SessionDraftsCompanion extends UpdateCompanion<SessionDraftEntity> {
     this.schemaVersion = const Value.absent(),
     this.matchStatus = const Value.absent(),
     this.matchedDistanceM = const Value.absent(),
+    this.activityType = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SessionDraftsCompanion.insert({
@@ -2585,6 +2630,7 @@ class SessionDraftsCompanion extends UpdateCompanion<SessionDraftEntity> {
     required int schemaVersion,
     this.matchStatus = const Value.absent(),
     this.matchedDistanceM = const Value.absent(),
+    this.activityType = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        status = Value(status),
@@ -2605,6 +2651,7 @@ class SessionDraftsCompanion extends UpdateCompanion<SessionDraftEntity> {
     Expression<int>? schemaVersion,
     Expression<String>? matchStatus,
     Expression<double>? matchedDistanceM,
+    Expression<String>? activityType,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2621,6 +2668,7 @@ class SessionDraftsCompanion extends UpdateCompanion<SessionDraftEntity> {
       if (schemaVersion != null) 'schema_version': schemaVersion,
       if (matchStatus != null) 'match_status': matchStatus,
       if (matchedDistanceM != null) 'matched_distance_m': matchedDistanceM,
+      if (activityType != null) 'activity_type': activityType,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2639,6 +2687,7 @@ class SessionDraftsCompanion extends UpdateCompanion<SessionDraftEntity> {
     Value<int>? schemaVersion,
     Value<String?>? matchStatus,
     Value<double?>? matchedDistanceM,
+    Value<String?>? activityType,
     Value<int>? rowid,
   }) {
     return SessionDraftsCompanion(
@@ -2655,6 +2704,7 @@ class SessionDraftsCompanion extends UpdateCompanion<SessionDraftEntity> {
       schemaVersion: schemaVersion ?? this.schemaVersion,
       matchStatus: matchStatus ?? this.matchStatus,
       matchedDistanceM: matchedDistanceM ?? this.matchedDistanceM,
+      activityType: activityType ?? this.activityType,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2701,6 +2751,9 @@ class SessionDraftsCompanion extends UpdateCompanion<SessionDraftEntity> {
     if (matchedDistanceM.present) {
       map['matched_distance_m'] = Variable<double>(matchedDistanceM.value);
     }
+    if (activityType.present) {
+      map['activity_type'] = Variable<String>(activityType.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2723,6 +2776,7 @@ class SessionDraftsCompanion extends UpdateCompanion<SessionDraftEntity> {
           ..write('schemaVersion: $schemaVersion, ')
           ..write('matchStatus: $matchStatus, ')
           ..write('matchedDistanceM: $matchedDistanceM, ')
+          ..write('activityType: $activityType, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2879,6 +2933,76 @@ class $SessionPointsTable extends SessionPoints
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _heartRateMeta = const VerificationMeta(
+    'heartRate',
+  );
+  @override
+  late final GeneratedColumn<int> heartRate = GeneratedColumn<int>(
+    'heart_rate',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cadenceMeta = const VerificationMeta(
+    'cadence',
+  );
+  @override
+  late final GeneratedColumn<int> cadence = GeneratedColumn<int>(
+    'cadence',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _satelliteCountMeta = const VerificationMeta(
+    'satelliteCount',
+  );
+  @override
+  late final GeneratedColumn<int> satelliteCount = GeneratedColumn<int>(
+    'satellite_count',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _providerMeta = const VerificationMeta(
+    'provider',
+  );
+  @override
+  late final GeneratedColumn<String> provider = GeneratedColumn<String>(
+    'provider',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isMockedMeta = const VerificationMeta(
+    'isMocked',
+  );
+  @override
+  late final GeneratedColumn<bool> isMocked = GeneratedColumn<bool>(
+    'is_mocked',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_mocked" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _fixTypeMeta = const VerificationMeta(
+    'fixType',
+  );
+  @override
+  late final GeneratedColumn<String> fixType = GeneratedColumn<String>(
+    'fix_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     draftId,
@@ -2895,6 +3019,12 @@ class $SessionPointsTable extends SessionPoints
     filterStatus,
     smoothedLat,
     smoothedLng,
+    heartRate,
+    cadence,
+    satelliteCount,
+    provider,
+    isMocked,
+    fixType,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3022,6 +3152,45 @@ class $SessionPointsTable extends SessionPoints
         ),
       );
     }
+    if (data.containsKey('heart_rate')) {
+      context.handle(
+        _heartRateMeta,
+        heartRate.isAcceptableOrUnknown(data['heart_rate']!, _heartRateMeta),
+      );
+    }
+    if (data.containsKey('cadence')) {
+      context.handle(
+        _cadenceMeta,
+        cadence.isAcceptableOrUnknown(data['cadence']!, _cadenceMeta),
+      );
+    }
+    if (data.containsKey('satellite_count')) {
+      context.handle(
+        _satelliteCountMeta,
+        satelliteCount.isAcceptableOrUnknown(
+          data['satellite_count']!,
+          _satelliteCountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('provider')) {
+      context.handle(
+        _providerMeta,
+        provider.isAcceptableOrUnknown(data['provider']!, _providerMeta),
+      );
+    }
+    if (data.containsKey('is_mocked')) {
+      context.handle(
+        _isMockedMeta,
+        isMocked.isAcceptableOrUnknown(data['is_mocked']!, _isMockedMeta),
+      );
+    }
+    if (data.containsKey('fix_type')) {
+      context.handle(
+        _fixTypeMeta,
+        fixType.isAcceptableOrUnknown(data['fix_type']!, _fixTypeMeta),
+      );
+    }
     return context;
   }
 
@@ -3087,6 +3256,30 @@ class $SessionPointsTable extends SessionPoints
         DriftSqlType.double,
         data['${effectivePrefix}smoothed_lng'],
       ),
+      heartRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}heart_rate'],
+      ),
+      cadence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cadence'],
+      ),
+      satelliteCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}satellite_count'],
+      ),
+      provider: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}provider'],
+      ),
+      isMocked: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_mocked'],
+      )!,
+      fixType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fix_type'],
+      ),
     );
   }
 
@@ -3111,6 +3304,12 @@ class SessionPoint extends DataClass implements Insertable<SessionPoint> {
   final String? filterStatus;
   final double? smoothedLat;
   final double? smoothedLng;
+  final int? heartRate;
+  final int? cadence;
+  final int? satelliteCount;
+  final String? provider;
+  final bool isMocked;
+  final String? fixType;
   const SessionPoint({
     required this.draftId,
     required this.seq,
@@ -3126,6 +3325,12 @@ class SessionPoint extends DataClass implements Insertable<SessionPoint> {
     this.filterStatus,
     this.smoothedLat,
     this.smoothedLng,
+    this.heartRate,
+    this.cadence,
+    this.satelliteCount,
+    this.provider,
+    required this.isMocked,
+    this.fixType,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3154,6 +3359,22 @@ class SessionPoint extends DataClass implements Insertable<SessionPoint> {
     if (!nullToAbsent || smoothedLng != null) {
       map['smoothed_lng'] = Variable<double>(smoothedLng);
     }
+    if (!nullToAbsent || heartRate != null) {
+      map['heart_rate'] = Variable<int>(heartRate);
+    }
+    if (!nullToAbsent || cadence != null) {
+      map['cadence'] = Variable<int>(cadence);
+    }
+    if (!nullToAbsent || satelliteCount != null) {
+      map['satellite_count'] = Variable<int>(satelliteCount);
+    }
+    if (!nullToAbsent || provider != null) {
+      map['provider'] = Variable<String>(provider);
+    }
+    map['is_mocked'] = Variable<bool>(isMocked);
+    if (!nullToAbsent || fixType != null) {
+      map['fix_type'] = Variable<String>(fixType);
+    }
     return map;
   }
 
@@ -3181,6 +3402,22 @@ class SessionPoint extends DataClass implements Insertable<SessionPoint> {
       smoothedLng: smoothedLng == null && nullToAbsent
           ? const Value.absent()
           : Value(smoothedLng),
+      heartRate: heartRate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(heartRate),
+      cadence: cadence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cadence),
+      satelliteCount: satelliteCount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(satelliteCount),
+      provider: provider == null && nullToAbsent
+          ? const Value.absent()
+          : Value(provider),
+      isMocked: Value(isMocked),
+      fixType: fixType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fixType),
     );
   }
 
@@ -3204,6 +3441,12 @@ class SessionPoint extends DataClass implements Insertable<SessionPoint> {
       filterStatus: serializer.fromJson<String?>(json['filterStatus']),
       smoothedLat: serializer.fromJson<double?>(json['smoothedLat']),
       smoothedLng: serializer.fromJson<double?>(json['smoothedLng']),
+      heartRate: serializer.fromJson<int?>(json['heartRate']),
+      cadence: serializer.fromJson<int?>(json['cadence']),
+      satelliteCount: serializer.fromJson<int?>(json['satelliteCount']),
+      provider: serializer.fromJson<String?>(json['provider']),
+      isMocked: serializer.fromJson<bool>(json['isMocked']),
+      fixType: serializer.fromJson<String?>(json['fixType']),
     );
   }
   @override
@@ -3224,6 +3467,12 @@ class SessionPoint extends DataClass implements Insertable<SessionPoint> {
       'filterStatus': serializer.toJson<String?>(filterStatus),
       'smoothedLat': serializer.toJson<double?>(smoothedLat),
       'smoothedLng': serializer.toJson<double?>(smoothedLng),
+      'heartRate': serializer.toJson<int?>(heartRate),
+      'cadence': serializer.toJson<int?>(cadence),
+      'satelliteCount': serializer.toJson<int?>(satelliteCount),
+      'provider': serializer.toJson<String?>(provider),
+      'isMocked': serializer.toJson<bool>(isMocked),
+      'fixType': serializer.toJson<String?>(fixType),
     };
   }
 
@@ -3242,6 +3491,12 @@ class SessionPoint extends DataClass implements Insertable<SessionPoint> {
     Value<String?> filterStatus = const Value.absent(),
     Value<double?> smoothedLat = const Value.absent(),
     Value<double?> smoothedLng = const Value.absent(),
+    Value<int?> heartRate = const Value.absent(),
+    Value<int?> cadence = const Value.absent(),
+    Value<int?> satelliteCount = const Value.absent(),
+    Value<String?> provider = const Value.absent(),
+    bool? isMocked,
+    Value<String?> fixType = const Value.absent(),
   }) => SessionPoint(
     draftId: draftId ?? this.draftId,
     seq: seq ?? this.seq,
@@ -3257,6 +3512,14 @@ class SessionPoint extends DataClass implements Insertable<SessionPoint> {
     filterStatus: filterStatus.present ? filterStatus.value : this.filterStatus,
     smoothedLat: smoothedLat.present ? smoothedLat.value : this.smoothedLat,
     smoothedLng: smoothedLng.present ? smoothedLng.value : this.smoothedLng,
+    heartRate: heartRate.present ? heartRate.value : this.heartRate,
+    cadence: cadence.present ? cadence.value : this.cadence,
+    satelliteCount: satelliteCount.present
+        ? satelliteCount.value
+        : this.satelliteCount,
+    provider: provider.present ? provider.value : this.provider,
+    isMocked: isMocked ?? this.isMocked,
+    fixType: fixType.present ? fixType.value : this.fixType,
   );
   SessionPoint copyWithCompanion(SessionPointsCompanion data) {
     return SessionPoint(
@@ -3282,6 +3545,14 @@ class SessionPoint extends DataClass implements Insertable<SessionPoint> {
       smoothedLng: data.smoothedLng.present
           ? data.smoothedLng.value
           : this.smoothedLng,
+      heartRate: data.heartRate.present ? data.heartRate.value : this.heartRate,
+      cadence: data.cadence.present ? data.cadence.value : this.cadence,
+      satelliteCount: data.satelliteCount.present
+          ? data.satelliteCount.value
+          : this.satelliteCount,
+      provider: data.provider.present ? data.provider.value : this.provider,
+      isMocked: data.isMocked.present ? data.isMocked.value : this.isMocked,
+      fixType: data.fixType.present ? data.fixType.value : this.fixType,
     );
   }
 
@@ -3301,7 +3572,13 @@ class SessionPoint extends DataClass implements Insertable<SessionPoint> {
           ..write('rejectReason: $rejectReason, ')
           ..write('filterStatus: $filterStatus, ')
           ..write('smoothedLat: $smoothedLat, ')
-          ..write('smoothedLng: $smoothedLng')
+          ..write('smoothedLng: $smoothedLng, ')
+          ..write('heartRate: $heartRate, ')
+          ..write('cadence: $cadence, ')
+          ..write('satelliteCount: $satelliteCount, ')
+          ..write('provider: $provider, ')
+          ..write('isMocked: $isMocked, ')
+          ..write('fixType: $fixType')
           ..write(')'))
         .toString();
   }
@@ -3322,6 +3599,12 @@ class SessionPoint extends DataClass implements Insertable<SessionPoint> {
     filterStatus,
     smoothedLat,
     smoothedLng,
+    heartRate,
+    cadence,
+    satelliteCount,
+    provider,
+    isMocked,
+    fixType,
   );
   @override
   bool operator ==(Object other) =>
@@ -3340,7 +3623,13 @@ class SessionPoint extends DataClass implements Insertable<SessionPoint> {
           other.rejectReason == this.rejectReason &&
           other.filterStatus == this.filterStatus &&
           other.smoothedLat == this.smoothedLat &&
-          other.smoothedLng == this.smoothedLng);
+          other.smoothedLng == this.smoothedLng &&
+          other.heartRate == this.heartRate &&
+          other.cadence == this.cadence &&
+          other.satelliteCount == this.satelliteCount &&
+          other.provider == this.provider &&
+          other.isMocked == this.isMocked &&
+          other.fixType == this.fixType);
 }
 
 class SessionPointsCompanion extends UpdateCompanion<SessionPoint> {
@@ -3358,6 +3647,12 @@ class SessionPointsCompanion extends UpdateCompanion<SessionPoint> {
   final Value<String?> filterStatus;
   final Value<double?> smoothedLat;
   final Value<double?> smoothedLng;
+  final Value<int?> heartRate;
+  final Value<int?> cadence;
+  final Value<int?> satelliteCount;
+  final Value<String?> provider;
+  final Value<bool> isMocked;
+  final Value<String?> fixType;
   final Value<int> rowid;
   const SessionPointsCompanion({
     this.draftId = const Value.absent(),
@@ -3374,6 +3669,12 @@ class SessionPointsCompanion extends UpdateCompanion<SessionPoint> {
     this.filterStatus = const Value.absent(),
     this.smoothedLat = const Value.absent(),
     this.smoothedLng = const Value.absent(),
+    this.heartRate = const Value.absent(),
+    this.cadence = const Value.absent(),
+    this.satelliteCount = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.isMocked = const Value.absent(),
+    this.fixType = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SessionPointsCompanion.insert({
@@ -3391,6 +3692,12 @@ class SessionPointsCompanion extends UpdateCompanion<SessionPoint> {
     this.filterStatus = const Value.absent(),
     this.smoothedLat = const Value.absent(),
     this.smoothedLng = const Value.absent(),
+    this.heartRate = const Value.absent(),
+    this.cadence = const Value.absent(),
+    this.satelliteCount = const Value.absent(),
+    this.provider = const Value.absent(),
+    this.isMocked = const Value.absent(),
+    this.fixType = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : draftId = Value(draftId),
        seq = Value(seq),
@@ -3416,6 +3723,12 @@ class SessionPointsCompanion extends UpdateCompanion<SessionPoint> {
     Expression<String>? filterStatus,
     Expression<double>? smoothedLat,
     Expression<double>? smoothedLng,
+    Expression<int>? heartRate,
+    Expression<int>? cadence,
+    Expression<int>? satelliteCount,
+    Expression<String>? provider,
+    Expression<bool>? isMocked,
+    Expression<String>? fixType,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3433,6 +3746,12 @@ class SessionPointsCompanion extends UpdateCompanion<SessionPoint> {
       if (filterStatus != null) 'filter_status': filterStatus,
       if (smoothedLat != null) 'smoothed_lat': smoothedLat,
       if (smoothedLng != null) 'smoothed_lng': smoothedLng,
+      if (heartRate != null) 'heart_rate': heartRate,
+      if (cadence != null) 'cadence': cadence,
+      if (satelliteCount != null) 'satellite_count': satelliteCount,
+      if (provider != null) 'provider': provider,
+      if (isMocked != null) 'is_mocked': isMocked,
+      if (fixType != null) 'fix_type': fixType,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3452,6 +3771,12 @@ class SessionPointsCompanion extends UpdateCompanion<SessionPoint> {
     Value<String?>? filterStatus,
     Value<double?>? smoothedLat,
     Value<double?>? smoothedLng,
+    Value<int?>? heartRate,
+    Value<int?>? cadence,
+    Value<int?>? satelliteCount,
+    Value<String?>? provider,
+    Value<bool>? isMocked,
+    Value<String?>? fixType,
     Value<int>? rowid,
   }) {
     return SessionPointsCompanion(
@@ -3469,6 +3794,12 @@ class SessionPointsCompanion extends UpdateCompanion<SessionPoint> {
       filterStatus: filterStatus ?? this.filterStatus,
       smoothedLat: smoothedLat ?? this.smoothedLat,
       smoothedLng: smoothedLng ?? this.smoothedLng,
+      heartRate: heartRate ?? this.heartRate,
+      cadence: cadence ?? this.cadence,
+      satelliteCount: satelliteCount ?? this.satelliteCount,
+      provider: provider ?? this.provider,
+      isMocked: isMocked ?? this.isMocked,
+      fixType: fixType ?? this.fixType,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3518,6 +3849,24 @@ class SessionPointsCompanion extends UpdateCompanion<SessionPoint> {
     if (smoothedLng.present) {
       map['smoothed_lng'] = Variable<double>(smoothedLng.value);
     }
+    if (heartRate.present) {
+      map['heart_rate'] = Variable<int>(heartRate.value);
+    }
+    if (cadence.present) {
+      map['cadence'] = Variable<int>(cadence.value);
+    }
+    if (satelliteCount.present) {
+      map['satellite_count'] = Variable<int>(satelliteCount.value);
+    }
+    if (provider.present) {
+      map['provider'] = Variable<String>(provider.value);
+    }
+    if (isMocked.present) {
+      map['is_mocked'] = Variable<bool>(isMocked.value);
+    }
+    if (fixType.present) {
+      map['fix_type'] = Variable<String>(fixType.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3541,6 +3890,12 @@ class SessionPointsCompanion extends UpdateCompanion<SessionPoint> {
           ..write('filterStatus: $filterStatus, ')
           ..write('smoothedLat: $smoothedLat, ')
           ..write('smoothedLng: $smoothedLng, ')
+          ..write('heartRate: $heartRate, ')
+          ..write('cadence: $cadence, ')
+          ..write('satelliteCount: $satelliteCount, ')
+          ..write('provider: $provider, ')
+          ..write('isMocked: $isMocked, ')
+          ..write('fixType: $fixType, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4517,6 +4872,7 @@ typedef $$SessionDraftsTableCreateCompanionBuilder =
       required int schemaVersion,
       Value<String?> matchStatus,
       Value<double?> matchedDistanceM,
+      Value<String?> activityType,
       Value<int> rowid,
     });
 typedef $$SessionDraftsTableUpdateCompanionBuilder =
@@ -4534,6 +4890,7 @@ typedef $$SessionDraftsTableUpdateCompanionBuilder =
       Value<int> schemaVersion,
       Value<String?> matchStatus,
       Value<double?> matchedDistanceM,
+      Value<String?> activityType,
       Value<int> rowid,
     });
 
@@ -4608,6 +4965,11 @@ class $$SessionDraftsTableFilterComposer
 
   ColumnFilters<double> get matchedDistanceM => $composableBuilder(
     column: $table.matchedDistanceM,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get activityType => $composableBuilder(
+    column: $table.activityType,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -4685,6 +5047,11 @@ class $$SessionDraftsTableOrderingComposer
     column: $table.matchedDistanceM,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get activityType => $composableBuilder(
+    column: $table.activityType,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SessionDraftsTableAnnotationComposer
@@ -4750,6 +5117,11 @@ class $$SessionDraftsTableAnnotationComposer
     column: $table.matchedDistanceM,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get activityType => $composableBuilder(
+    column: $table.activityType,
+    builder: (column) => column,
+  );
 }
 
 class $$SessionDraftsTableTableManager
@@ -4800,6 +5172,7 @@ class $$SessionDraftsTableTableManager
                 Value<int> schemaVersion = const Value.absent(),
                 Value<String?> matchStatus = const Value.absent(),
                 Value<double?> matchedDistanceM = const Value.absent(),
+                Value<String?> activityType = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionDraftsCompanion(
                 id: id,
@@ -4815,6 +5188,7 @@ class $$SessionDraftsTableTableManager
                 schemaVersion: schemaVersion,
                 matchStatus: matchStatus,
                 matchedDistanceM: matchedDistanceM,
+                activityType: activityType,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -4832,6 +5206,7 @@ class $$SessionDraftsTableTableManager
                 required int schemaVersion,
                 Value<String?> matchStatus = const Value.absent(),
                 Value<double?> matchedDistanceM = const Value.absent(),
+                Value<String?> activityType = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionDraftsCompanion.insert(
                 id: id,
@@ -4847,6 +5222,7 @@ class $$SessionDraftsTableTableManager
                 schemaVersion: schemaVersion,
                 matchStatus: matchStatus,
                 matchedDistanceM: matchedDistanceM,
+                activityType: activityType,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -4890,6 +5266,12 @@ typedef $$SessionPointsTableCreateCompanionBuilder =
       Value<String?> filterStatus,
       Value<double?> smoothedLat,
       Value<double?> smoothedLng,
+      Value<int?> heartRate,
+      Value<int?> cadence,
+      Value<int?> satelliteCount,
+      Value<String?> provider,
+      Value<bool> isMocked,
+      Value<String?> fixType,
       Value<int> rowid,
     });
 typedef $$SessionPointsTableUpdateCompanionBuilder =
@@ -4908,6 +5290,12 @@ typedef $$SessionPointsTableUpdateCompanionBuilder =
       Value<String?> filterStatus,
       Value<double?> smoothedLat,
       Value<double?> smoothedLng,
+      Value<int?> heartRate,
+      Value<int?> cadence,
+      Value<int?> satelliteCount,
+      Value<String?> provider,
+      Value<bool> isMocked,
+      Value<String?> fixType,
       Value<int> rowid,
     });
 
@@ -4987,6 +5375,36 @@ class $$SessionPointsTableFilterComposer
 
   ColumnFilters<double> get smoothedLng => $composableBuilder(
     column: $table.smoothedLng,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get heartRate => $composableBuilder(
+    column: $table.heartRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get cadence => $composableBuilder(
+    column: $table.cadence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get satelliteCount => $composableBuilder(
+    column: $table.satelliteCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isMocked => $composableBuilder(
+    column: $table.isMocked,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fixType => $composableBuilder(
+    column: $table.fixType,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5069,6 +5487,36 @@ class $$SessionPointsTableOrderingComposer
     column: $table.smoothedLng,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get heartRate => $composableBuilder(
+    column: $table.heartRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get cadence => $composableBuilder(
+    column: $table.cadence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get satelliteCount => $composableBuilder(
+    column: $table.satelliteCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isMocked => $composableBuilder(
+    column: $table.isMocked,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fixType => $composableBuilder(
+    column: $table.fixType,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SessionPointsTableAnnotationComposer
@@ -5129,6 +5577,26 @@ class $$SessionPointsTableAnnotationComposer
     column: $table.smoothedLng,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get heartRate =>
+      $composableBuilder(column: $table.heartRate, builder: (column) => column);
+
+  GeneratedColumn<int> get cadence =>
+      $composableBuilder(column: $table.cadence, builder: (column) => column);
+
+  GeneratedColumn<int> get satelliteCount => $composableBuilder(
+    column: $table.satelliteCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get provider =>
+      $composableBuilder(column: $table.provider, builder: (column) => column);
+
+  GeneratedColumn<bool> get isMocked =>
+      $composableBuilder(column: $table.isMocked, builder: (column) => column);
+
+  GeneratedColumn<String> get fixType =>
+      $composableBuilder(column: $table.fixType, builder: (column) => column);
 }
 
 class $$SessionPointsTableTableManager
@@ -5176,6 +5644,12 @@ class $$SessionPointsTableTableManager
                 Value<String?> filterStatus = const Value.absent(),
                 Value<double?> smoothedLat = const Value.absent(),
                 Value<double?> smoothedLng = const Value.absent(),
+                Value<int?> heartRate = const Value.absent(),
+                Value<int?> cadence = const Value.absent(),
+                Value<int?> satelliteCount = const Value.absent(),
+                Value<String?> provider = const Value.absent(),
+                Value<bool> isMocked = const Value.absent(),
+                Value<String?> fixType = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionPointsCompanion(
                 draftId: draftId,
@@ -5192,6 +5666,12 @@ class $$SessionPointsTableTableManager
                 filterStatus: filterStatus,
                 smoothedLat: smoothedLat,
                 smoothedLng: smoothedLng,
+                heartRate: heartRate,
+                cadence: cadence,
+                satelliteCount: satelliteCount,
+                provider: provider,
+                isMocked: isMocked,
+                fixType: fixType,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -5210,6 +5690,12 @@ class $$SessionPointsTableTableManager
                 Value<String?> filterStatus = const Value.absent(),
                 Value<double?> smoothedLat = const Value.absent(),
                 Value<double?> smoothedLng = const Value.absent(),
+                Value<int?> heartRate = const Value.absent(),
+                Value<int?> cadence = const Value.absent(),
+                Value<int?> satelliteCount = const Value.absent(),
+                Value<String?> provider = const Value.absent(),
+                Value<bool> isMocked = const Value.absent(),
+                Value<String?> fixType = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionPointsCompanion.insert(
                 draftId: draftId,
@@ -5226,6 +5712,12 @@ class $$SessionPointsTableTableManager
                 filterStatus: filterStatus,
                 smoothedLat: smoothedLat,
                 smoothedLng: smoothedLng,
+                heartRate: heartRate,
+                cadence: cadence,
+                satelliteCount: satelliteCount,
+                provider: provider,
+                isMocked: isMocked,
+                fixType: fixType,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

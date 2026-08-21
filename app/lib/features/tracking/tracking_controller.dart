@@ -235,7 +235,7 @@ class TrackingModel extends Notifier<TrackingState> {
 
       _pts.clear();
       _displaySegments.clear();
-      _pipeline.reset();
+      _pipeline = GpsPipeline(profile: draft.activityType);
 
       // Reconstruct filtered points silently
       for (final p in _rawFixes) {
@@ -303,6 +303,7 @@ class TrackingModel extends Notifier<TrackingState> {
         movingTimeMs: draft.movingTimeMs,
         elevationGainM: _elevationGain,
         pointCount: _pts.length,
+        profile: draft.activityType,
       );
     } catch (_) {
       // corrupt/partial snapshot — ignore, treat as unrecoverable

@@ -10,9 +10,6 @@ final sessionDraftRepositoryProvider = Provider<SessionDraftRepository>((ref) {
 });
 
 /// The subset of a [SessionDraft] needed to resume an interrupted run.
-/// Deliberately lighter than [SessionDraft]: `SessionPoints` doesn't persist
-/// heartRate/cadence/satelliteCount/provider/isMocked/fixType, so those are
-/// not recoverable — see DISCOVERED_ISSUES.md.
 class RecoverableDraft {
   final String id;
   final List<RawFix> rawFixes;
@@ -20,6 +17,7 @@ class RecoverableDraft {
   final int durationMs;
   final int movingTimeMs;
   final double elevationGainM;
+  final ActivityProfile activityType;
 
   RecoverableDraft({
     required this.id,
@@ -28,6 +26,7 @@ class RecoverableDraft {
     required this.durationMs,
     required this.movingTimeMs,
     required this.elevationGainM,
+    required this.activityType,
   });
 }
 
@@ -50,7 +49,8 @@ class SessionDraftRepository {
         createdAt: Value(draft.createdAt),
         matchStatus: Value(draft.matchStatus),
         matchedDistanceM: Value(draft.matchedDistanceM),
-        schemaVersion: const Value(3),
+        activityType: Value(draft.activityType.name),
+        schemaVersion: const Value(4),
       ));
 
       await (_db.delete(_db.sessionPoints)..where((pt) => pt.draftId.equals(draft.id))).go();
@@ -71,6 +71,12 @@ class SessionDraftRepository {
           accuracy: Value(fix.accuracy.toInt()),
           hdop: Value(fix.hdop),
           speedMps: Value(fix.speedMps),
+          heartRate: Value(fix.heartRate),
+          cadence: Value(fix.cadence),
+          satelliteCount: Value(fix.satelliteCount),
+          provider: Value(fix.provider),
+          isMocked: Value(fix.isMocked),
+          fixType: Value(fix.fixType),
         ));
       }
 
@@ -126,8 +132,24 @@ class SessionDraftRepository {
               speedMps: pt.speedMps,
               accuracy: pt.accuracy,
               hdop: pt.hdop,
+              heartRate: pt.heartRate,
+              cadence: pt.cadence,
+              satelliteCount: pt.satelliteCount,
+              provider: pt.provider,
+              isMocked: pt.isMocked,
+              fixType: pt.fixType ?? 'unknown',
             ))
         .toList();
+
+    ActivityProfile activityType = ActivityProfile.run;
+    if (row.activityType != null) {
+      for (final p in ActivityProfile.values) {
+        if (p.name == row.activityType) {
+          activityType = p;
+          break;
+        }
+      }
+    }
 
     return RecoverableDraft(
       id: row.id,
@@ -136,6 +158,7 @@ class SessionDraftRepository {
       durationMs: row.durationMs,
       movingTimeMs: row.movingTimeMs,
       elevationGainM: row.elevationGainM,
+      activityType: activityType,
     );
   }
 
