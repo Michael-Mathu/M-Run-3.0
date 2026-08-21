@@ -12,6 +12,18 @@ final mapMatchJobProvider = Provider<MapMatchJob>((ref) {
   );
 });
 
+// ponytail: this job writes matchStatus/matchedDistanceM/smoothedLat/
+// smoothedLng onto the SessionDrafts/SessionPoints rows it's given, but
+// nothing in the app currently reads those columns back out (checked --
+// no repository or screen queries them). It's also fired fire-and-forget
+// from TrackingModel.stop() just before the draft row is deleted (crash
+// recovery no longer needs it once the run is saved), so most of the time
+// this job's writes now land on an already-deleted row and silently no-op.
+// Neither behavior is new -- the writes were already unread before the
+// crash-recovery fix -- but it means this job is currently dead work.
+// Either wire a reader (e.g. show map-matched distance/route on
+// route_analysis_screen.dart) or remove the write path; see
+// DISCOVERED_ISSUES.md #3.
 class MapMatchJob {
   final AppDatabase _db;
   final MatchProvider _provider;
