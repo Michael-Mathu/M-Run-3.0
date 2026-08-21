@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -42,15 +44,39 @@ class GhostResultScreen extends ConsumerWidget {
     final text = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
 
-    // Parse route points
+    // Parse route points, encoded by app_router.dart as [{'lat':, 'lng':}, ...]
     List<latlong.LatLng> routePoints = [];
     try {
-      final decoded = routePointsJson;
-      if (decoded.isNotEmpty && decoded != '[]') {
-        // Parse JSON array of lat/lng pairs
-        // Simplified - in production use jsonDecode
-      }
-    } catch (_) {}
+      final decoded = jsonDecode(routePointsJson) as List<dynamic>;
+      routePoints = decoded
+          .map((e) => latlong.LatLng(
+                (e['lat'] as num).toDouble(),
+                (e['lng'] as num).toDouble(),
+              ))
+          .toList();
+    } catch (_) {
+      // malformed/empty payload — fall back to an empty route
+    }
+
+    // Parse split comparisons, encoded by app_router.dart as
+    // [{'index':, 'ghostTime':, 'userTime':, 'delta':, 'isAhead':, 'progress':}, ...]
+    List<SplitComparison> splitComparisons = [];
+    try {
+      final decoded = jsonDecode(splitsJson) as List<dynamic>;
+      splitComparisons = decoded
+          .map((e) => SplitComparison(
+                splitIndex: (e['index'] as num).toInt(),
+                splitNumber: (e['index'] as num).toInt() + 1,
+                ghostSplitTime: (e['ghostTime'] as num).toDouble(),
+                userProjectedSplitTime: (e['userTime'] as num).toDouble(),
+                deltaSeconds: (e['delta'] as num).toDouble(),
+                isAhead: e['isAhead'] as bool? ?? false,
+                progressInSplit: (e['progress'] as num?)?.toDouble() ?? 0.0,
+              ))
+          .toList();
+    } catch (_) {
+      // malformed/empty payload — fall back to an empty split table
+    }
 
 return Scaffold(
       body: CustomScrollView(
@@ -169,7 +195,7 @@ return Scaffold(
                   // Split comparison table
                   _SplitComparisonTable(
                     ghost: activeGhost,
-                    splitComparisons: const [],
+                    splitComparisons: splitComparisons,
                     userElapsedMs: userElapsedMs,
                     locale: locale,
                   ),
@@ -179,7 +205,7 @@ return Scaffold(
                   _SummaryStats(
                     ghost: activeGhost,
                     userElapsedMs: userElapsedMs,
-                    splitComparisons: const [],
+                    splitComparisons: splitComparisons,
                     locale: locale,
                   ),
                   const SizedBox(height: AppTheme.s24),
