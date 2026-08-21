@@ -145,6 +145,7 @@ class PipelineResult {
   PipelineResult copyWith({
     double? smoothedLat,
     double? smoothedLng,
+    double? smoothedSpeedMps,
     FilterStatus? filterStatus,
     RejectReason? rejectReason,
     double? innovationDistance,
@@ -155,6 +156,7 @@ class PipelineResult {
       trackVersion: trackVersion,
       smoothedLat: smoothedLat ?? this.smoothedLat,
       smoothedLng: smoothedLng ?? this.smoothedLng,
+      smoothedSpeedMps: smoothedSpeedMps ?? this.smoothedSpeedMps,
       filterStatus: filterStatus ?? this.filterStatus,
       rejectReason: rejectReason ?? this.rejectReason,
       innovationDistance: innovationDistance ?? this.innovationDistance,

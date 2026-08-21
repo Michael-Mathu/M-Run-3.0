@@ -58,18 +58,19 @@ void main() {
       expect(lng2, closeTo(lng, 1e-9));
     });
 
-    test(
-      'KNOWN GAP (docs/BUILD_PLAN.md PF-5): no antimeridian wraparound. A '
-      'fix near +-180 deg longitude produces a wildly wrong local offset '
-      'instead of the true short distance, because dLng is a raw '
-      'subtraction with no +-360 correction. Locks in current behavior so '
-      'PF-5 shows up as a deliberate diff here, not a silent change.',
-      () {
-        // True distance from 179.9 to -179.9 longitude at the equator is
-        // ~22km (crossing the antimeridian), not ~40,000km.
-        final (east, _) = CoordinateUtil.toEnu(0, 179.9, 0, -179.9);
-        expect(east.abs(), greaterThan(1000000)); // wildly wrong today
-      },
-    );
+    test('regression (docs/BUILD_PLAN.md PF-5): antimeridian crossing resolves to the true short distance', () {
+      // True distance from 179.9 to -179.9 longitude at the equator is
+      // ~22.2km (crossing the antimeridian), not the ~40,000km a raw
+      // subtraction of the two longitudes would imply.
+      final (east, _) = CoordinateUtil.toEnu(0, 179.9, 0, -179.9);
+      expect(east.abs(), closeTo(22239, 50));
+    });
+
+    test('fromEnu normalizes a result longitude that crosses the antimeridian back into [-180, 180]', () {
+      // Origin near +180, offset east by ~22.2km -- the raw sum would land
+      // just past +180 without wraparound.
+      final (_, lng) = CoordinateUtil.fromEnu(0, 179.9, 22239, 0);
+      expect(lng, closeTo(-179.9, 0.01));
+    });
   });
 }
