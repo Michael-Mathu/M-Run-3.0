@@ -191,7 +191,7 @@
 - [ ] `OPS-2` 🔒 — Replace debug-APK release with signed release build — **blocked, needs a real keystore + your input**
 
 ### Phase 2 — Foundation
-- [ ] `TS-1` — Postgres/Redis integration tests + CI wiring
+- [x] `TS-1` — Postgres/Redis integration tests + CI wiring (code written and compile/skip-verified; the actual Postgres/Redis runs are **unexecuted** — no Docker in this environment. First real verification happens on the next CI run.)
 - [x] `TS-2` — Rewrite stale `activity_repository_test.dart`
 - [x] `TS-3` — adapted: `CQ-15` didn't reproduce, so nothing to regression-test there; added `session_draft_repository_test.dart` covering the real v3→v4 migration this session did add
 - [x] `TS-4` — Assert against `synthetic_truth.ndjson` in real tests (surfaced a real finding — see DISCOVERED_ISSUES.md #7)
