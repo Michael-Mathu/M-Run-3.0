@@ -50,3 +50,31 @@ Full-suite phase-boundary check: backend (`go build`/`vet`/`gofmt`/`test`), `app
 - `CQ-11`, `UX-3` — **Blocked**, unchanged from Phase 1: both need a product decision (finish vs. remove/preview-mark) that isn't mine to make.
 
 Full-suite phase-boundary check: backend and `app` both green (backend: build/vet/gofmt/test; app: analyze clean, 55 tests).
+
+## Phase 4 — Hardening — DONE (15/19 done or partial, 4 blocked)
+
+**Backend (verified via real test runs, plus one live smoke test):**
+- `SEC-8`/`OPS-7` — CORS no longer sends `Allow-Credentials` alongside a wildcard origin.
+- `SEC-10` — `http.MaxBytesReader` caps on auth (1MB) and activity (5MB) bodies; 50,000-trackpoint cap on activity creation.
+- `SEC-11` — `MemoryStore`'s dev-mode user IDs are now opaque random values, not `"mem-"+email` (was leaking email via the public leaderboard).
+- `PF-1` — Batched trackpoint inserts (500 rows/statement) instead of one `ExecContext` per point. Exercised by the existing (locally-skipped, no Postgres) integration test — will be verified on the next CI run.
+- `PF-2` — Expanded the in-memory-leaderboard startup log and documented the multi-instance divergence risk.
+- `PF-3` — Confirmed `ConnMaxLifetime`/`ConnMaxIdleTime` are set (landed in an earlier commit).
+- `OPS-3` — Added structured JSON request logging (`log/slog`) and a stdlib-only `/api/v1/metrics` endpoint. **Manually smoke-tested by actually running the server** (falls back to in-memory stores, no Postgres/Redis needed) and confirming real log lines and correctly-incrementing counters via curl.
+- `OPS-5` — Dockerfile now runs as a non-root user, pinned to `alpine:3.21` instead of floating `latest`. Not locally buildable (no `docker` in this environment).
+- `OPS-4` — Documented the (manual, non-automated) deployment/rollback path in the new `docs/DEPLOYMENT.md`, honest about what's missing (CI build/push, a registry, a chosen platform, backups).
+
+**Flutter (verified via real test runs):**
+- `SEC-9` — `_errMessage` now always returns a message instead of `null` for timeouts/connection errors/unrecognized responses, which previously made a failed login look like a success. New `session_provider_test.dart` covers all the previously-broken cases plus the still-correct ones.
+- `SEC-3` — **Partial.** The Dart-side HTTPS default is genuinely blocked (no HTTPS backend exists anywhere in this repo to point to; flipping it would just break local dev). What *was* real and fixable: Android's cleartext policy was a blanket allow-everywhere; scoped it to a `network_security_config.xml` `domain-config` covering only `10.0.2.2`/`localhost`/`127.0.0.1`, with everything else now requiring HTTPS. Not build-verified (no Android toolchain here).
+
+**gps_pipeline (verified via real test runs):**
+- `PF-5` — Fixed antimeridian wraparound in `toEnu`/`fromEnu`; the "KNOWN GAP" test from Phase 2 is now a real regression test asserting the correct ~22.2km distance instead of the old ~40,000km bug.
+- `CQ-16` — Fixed `copyWith` dropping `smoothedSpeedMps`; new `models_test.dart` regression-tests it.
+
+**iOS (code written, not build-verified — no Xcode/macOS in this environment):**
+- `SEC-14` — Rewrote `MwendoGpsEnginePlugin.swift`'s `startRecording` to actually check/request authorization (previously it never did, matching the audit's "near-certain crash risk" framing) and added the missing authorization-change/error delegates. **Correction to the original audit finding**: re-reading the files before touching them, the real app's `Info.plist` (`app/ios/Runner/Info.plist`) already had the required usage-description keys and `UIBackgroundModes` — only the plugin's own standalone `example/` app was missing them (lower real-world severity than originally stated). Added the keys there too for consistency.
+
+**Deliberately not attempted:** `SEC-4`, `SEC-5`, `SEC-6`, `SEC-7` remain blocked exactly as in Phase 1/BUILD_PLAN's original 🔒 flags — these change real auth/privacy behavior (consent defaults, token storage migration, auth error semantics, session cookie lifetime) and need your input on which path to take. `SEC-12` (Rust `catch_unwind`) is moot until `CQ-11`'s finish-or-remove decision is made.
+
+Full-suite phase-boundary check: backend (build/vet/gofmt/test), `app` (analyze clean, 60 tests), `gps_pipeline` (analyze clean, 41 tests) all green.
