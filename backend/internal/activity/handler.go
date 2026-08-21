@@ -3,12 +3,26 @@ package activity
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/mwendo/backend/internal/auth"
 )
+
+// maxRequestBodyBytes caps how much a caller can send us in one request
+// body -- without this, an authenticated (or, for other endpoints,
+// unauthenticated) caller could send an arbitrarily large JSON payload and
+// exhaust server memory/decode time. 5MB comfortably covers a very long
+// multi-hour activity's trackpoints with headroom.
+const maxRequestBodyBytes = 5 << 20 // 5MB
+
+// maxTrackpoints caps how many trackpoints a single activity can carry.
+// 50,000 points is generous (at 1 point/sec that's ~13.8 hours), well
+// beyond any real single activity, while still bounding the per-request
+// insert loop in DBStore.Create.
+const maxTrackpoints = 50000
 
 // API holds the activity domain's dependencies as struct fields instead of
 // package-level globals, so multiple instances can run independently.
@@ -30,6 +44,7 @@ func (a *API) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, list)
 	case "POST":
+		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
 		var in ActivityInput
 		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 			http.Error(w, "invalid", http.StatusBadRequest)
@@ -37,6 +52,10 @@ func (a *API) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 		if in.StartedAt.IsZero() {
 			http.Error(w, "started_at required", http.StatusBadRequest)
+			return
+		}
+		if len(in.Trackpoints) > maxTrackpoints {
+			http.Error(w, fmt.Sprintf("too many trackpoints (max %d)", maxTrackpoints), http.StatusBadRequest)
 			return
 		}
 		act, err := a.Store.Create(r.Context(), userID, in)

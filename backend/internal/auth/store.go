@@ -2,7 +2,9 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"sync"
 	"time"
@@ -88,13 +90,23 @@ func (s *MemoryStore) Create(ctx context.Context, email, passwordHash string) (U
 		return User{}, ErrConflict{Email: email}
 	}
 	u := User{
-		ID:        "mem-" + email,
+		ID:        newMemID(),
 		Email:     email,
 		Password:  passwordHash,
 		CreatedAt: time.Now(),
 	}
 	s.users[email] = u
 	return u, nil
+}
+
+// newMemID generates an opaque id for MemoryStore accounts. Previously this
+// was "mem-"+email, which leaked the user's email address through the
+// public, unauthenticated /api/v1/leaderboard endpoint's user_id field
+// whenever the server ran without DATABASE_URL configured.
+func newMemID() string {
+	b := make([]byte, 8)
+	rand.Read(b)
+	return "mem-" + hex.EncodeToString(b)
 }
 
 func (s *MemoryStore) GetByEmail(ctx context.Context, email string) (User, error) {

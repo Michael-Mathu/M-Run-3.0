@@ -87,6 +87,8 @@ export CORS_ORIGIN="*"
 go run ./cmd/api
 ```
 
+> **Scaling beyond one instance:** if `REDIS_URL` is unset, the leaderboard falls back to an in-memory map that lives entirely inside one process. That's fine for local dev or a single-instance deployment, but running more than one API instance behind a load balancer *without* Redis means each instance shows a different, diverging leaderboard — there is no shared state between them. Set `REDIS_URL` before scaling horizontally.
+
 ---
 
 ## 4. Build & Compilation Pipelines

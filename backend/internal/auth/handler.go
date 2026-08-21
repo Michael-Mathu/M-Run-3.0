@@ -34,6 +34,11 @@ func NewAPI(s Store, jwtSecret []byte) *API {
 	return &API{store: s, jwtSecret: jwtSecret}
 }
 
+// maxAuthBodyBytes caps auth request bodies (just email+password) well
+// above any legitimate size, to stop an unauthenticated caller from
+// sending an arbitrarily large payload to /auth/register or /auth/login.
+const maxAuthBodyBytes = 1 << 20 // 1MB
+
 type Claims struct {
 	UserID string `json:"user_id"`
 	jwt.RegisteredClaims
@@ -50,6 +55,7 @@ func (a *API) newAccessToken(userID string) (string, error) {
 }
 
 func (a *API) Register(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodyBytes)
 	var req struct{ Email, Password string }
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid", http.StatusBadRequest)
@@ -76,6 +82,7 @@ func (a *API) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) Login(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodyBytes)
 	var req struct{ Email, Password string }
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid", http.StatusBadRequest)

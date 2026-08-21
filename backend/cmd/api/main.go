@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -43,7 +44,11 @@ func buildHandler(cfg config.Config) http.Handler {
 
 	board := leaderboard.New(cfg.RedisURL)
 	if cfg.RedisURL == "" {
-		log.Println("REDIS_URL not set: leaderboard runs in-memory")
+		log.Println("REDIS_URL not set: leaderboard runs in-memory. " +
+			"This state is per-process -- if you run more than one instance " +
+			"of this API behind a load balancer without Redis, each instance " +
+			"will show a different, diverging leaderboard. Set REDIS_URL " +
+			"before scaling beyond a single instance.")
 	}
 
 	authAPI := auth.NewAPI(authStore, cfg.JWTSecret)
@@ -54,6 +59,8 @@ func buildHandler(cfg config.Config) http.Handler {
 	mux.HandleFunc("/api/v1/health", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{"status":"ok","database":%t,"version":"1.0.0"}`, usingDB)
 	})
+	m := &metrics{}
+	mux.HandleFunc("/api/v1/metrics", m.handler)
 	mux.HandleFunc("/api/v1/auth/register", authAPI.Register)
 	mux.HandleFunc("/api/v1/auth/login", authAPI.Login)
 	mux.HandleFunc("/api/v1/auth/refresh", authAPI.Refresh)
@@ -65,19 +72,26 @@ func buildHandler(cfg config.Config) http.Handler {
 	mux.Handle("/api/v1/leaderboard/submit", authAPI.AuthMiddleware(http.HandlerFunc(leaderboardAPI.SubmitHandler)))
 
 	// B3: CORS so the Flutter web build can call the API from the browser.
-	handler := corsMiddleware(mux)
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	handler := corsMiddleware(observabilityMiddleware(m, logger, mux))
 	return handler
 }
 
-// corsMiddleware adds permissive CORS headers and handles preflight requests,
-// making the API usable from the web client as well as mobile.
+// corsMiddleware adds CORS headers and handles preflight requests, making
+// the API usable from the web client as well as mobile.
 func corsMiddleware(next http.Handler) http.Handler {
 	allowed := envOr("CORS_ORIGIN", "*")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", allowed)
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		// A wildcard origin combined with Allow-Credentials is an invalid
+		// combination browsers reject anyway (credentialed cross-origin
+		// requests never work against "*"); only send it once a real,
+		// specific CORS_ORIGIN is configured.
+		if allowed != "*" {
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		}
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return

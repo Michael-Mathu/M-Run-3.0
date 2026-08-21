@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -23,6 +24,10 @@ func Open(databaseURL string) (*sql.DB, error) {
 	}
 	conn.SetMaxOpenConns(25)
 	conn.SetMaxIdleConns(5)
+	// Without these, connections behind a load balancer/pgbouncer can go
+	// stale over long uptime and start erroring instead of being recycled.
+	conn.SetConnMaxLifetime(30 * time.Minute)
+	conn.SetConnMaxIdleTime(5 * time.Minute)
 	if err := conn.Ping(); err != nil {
 		return nil, fmt.Errorf("postgres ping: %w", err)
 	}

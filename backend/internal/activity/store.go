@@ -113,19 +113,9 @@ func (s *DBStore) Create(ctx context.Context, userID string, in ActivityInput) (
 	}
 
 	if routeVal != nil {
-		stmt, err := tx.PrepareContext(ctx, `
-			INSERT INTO trackpoints (id, activity_id, seq, geom, elevation_m, speed_mps, ts)
-			VALUES ($1,$2,$3,ST_MakePoint($4,$5)::geography,$6,$7,$8)`)
-		if err != nil {
+		if err := insertTrackpointsBatched(ctx, tx, id, in.Trackpoints); err != nil {
 			return Activity{}, err
 		}
-		for i, p := range in.Trackpoints {
-			if _, err := stmt.ExecContext(ctx, newID(), id, i, p.Lng, p.Lat, p.Elevation, p.SpeedMps, p.Timestamp); err != nil {
-				stmt.Close()
-				return Activity{}, err
-			}
-		}
-		stmt.Close()
 	}
 
 	// Maintain a "longest_run" personal record for this user.
@@ -143,6 +133,41 @@ func (s *DBStore) Create(ctx context.Context, userID string, in ActivityInput) (
 		return Activity{}, err
 	}
 	return s.Get(ctx, id, userID, 0)
+}
+
+// trackpointBatchSize bounds how many trackpoint rows go into one INSERT
+// statement -- large enough to meaningfully cut round-trips for a long
+// activity, small enough to stay well under Postgres's parameter-per-query
+// limit (8 params/row here, so 500 rows is 4000 params).
+const trackpointBatchSize = 500
+
+// insertTrackpointsBatched replaces the previous one-INSERT-per-point loop
+// (N round-trips for an N-point activity) with chunked multi-row INSERTs.
+func insertTrackpointsBatched(ctx context.Context, tx *sql.Tx, activityID string, pts []Trackpoint) error {
+	for start := 0; start < len(pts); start += trackpointBatchSize {
+		end := start + trackpointBatchSize
+		if end > len(pts) {
+			end = len(pts)
+		}
+		chunk := pts[start:end]
+
+		var sb strings.Builder
+		sb.WriteString("INSERT INTO trackpoints (id, activity_id, seq, geom, elevation_m, speed_mps, ts) VALUES ")
+		args := make([]interface{}, 0, len(chunk)*8)
+		for i, p := range chunk {
+			if i > 0 {
+				sb.WriteString(",")
+			}
+			base := i * 8
+			fmt.Fprintf(&sb, "($%d,$%d,$%d,ST_MakePoint($%d,$%d)::geography,$%d,$%d,$%d)",
+				base+1, base+2, base+3, base+4, base+5, base+6, base+7, base+8)
+			args = append(args, newID(), activityID, start+i, p.Lng, p.Lat, p.Elevation, p.SpeedMps, p.Timestamp)
+		}
+		if _, err := tx.ExecContext(ctx, sb.String(), args...); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *DBStore) List(ctx context.Context, userID string, limit int) ([]Activity, error) {
