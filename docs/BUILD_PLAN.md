@@ -231,7 +231,7 @@
 - [x] `PF-5` — Antimeridian handling in ENU coordinate transform
 - [x] `CQ-16` — Fix `copyWith` dropping `smoothedSpeedMps`
 - [x] `OPS-3` — Structured logging, `/metrics`, request middleware (manually smoke-tested end to end)
-- [~] `OPS-4` — see its own row in §2
+- [x] `OPS-4` — Documented the (currently manual) deployment path and rollback approach in `docs/DEPLOYMENT.md`, and honestly flagged what a real pipeline would still need (no CI build/push, no registry, no chosen platform, no automated backups) — no automation was built, this is the documentation half of the task only.
 - [ ] `OPS-5` — Non-root Dockerfile user, pin base image
 
 ### Phase 5 — Polish
