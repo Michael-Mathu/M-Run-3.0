@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -18,7 +19,11 @@ import (
 // real deployment would persist them (e.g. Redis) to survive restarts.
 var store Store
 var jwtSecret []byte
-var refreshTokens = make(map[string]string)
+
+// refreshTokens maps refresh token -> user ID. sync.Map because Login/
+// Refresh/Logout can run concurrently across requests; a plain map here
+// previously caused a fatal "concurrent map writes" crash under load.
+var refreshTokens sync.Map
 
 func Init(s Store, secret []byte) {
 	store = s
@@ -93,7 +98,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	refresh := randomToken()
-	refreshTokens[refresh] = user.ID
+	refreshTokens.Store(refresh, user.ID)
 	http.SetCookie(w, &http.Cookie{
 		Name: "refresh_token", Value: refresh, HttpOnly: true, SameSite: http.SameSiteLaxMode,
 	})
@@ -106,12 +111,12 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing", http.StatusUnauthorized)
 		return
 	}
-	userID, ok := refreshTokens[cookie.Value]
+	val, ok := refreshTokens.Load(cookie.Value)
 	if !ok {
 		http.Error(w, "invalid", http.StatusUnauthorized)
 		return
 	}
-	access, err := newAccessToken(userID)
+	access, err := newAccessToken(val.(string))
 	if err != nil {
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
@@ -121,7 +126,7 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 
 func Logout(w http.ResponseWriter, r *http.Request) {
 	if cookie, _ := r.Cookie("refresh_token"); cookie != nil {
-		delete(refreshTokens, cookie.Value)
+		refreshTokens.Delete(cookie.Value)
 	}
 	http.SetCookie(w, &http.Cookie{Name: "refresh_token", Value: "", HttpOnly: true})
 	writeJSON(w, map[string]string{"status": "ok"})
