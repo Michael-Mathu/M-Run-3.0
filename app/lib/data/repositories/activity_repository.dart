@@ -47,8 +47,6 @@ class ActivityRepository {
 
 }
 
-final appDatabaseProvider = Provider<AppDatabase>((ref) => AppDatabase());
-
 final activityRepositoryProvider = Provider<ActivityRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return ActivityRepository(db);
