@@ -13,6 +13,23 @@ import 'package:mwendo_app/features/learn/data/legends.dart';
 import 'package:mwendo_app/data/models/run_record.dart';
 import 'package:mwendo_app/data/repositories/activity_repository.dart';
 
+/// Recommends the hardest tier of [ghost] the user could realistically beat,
+/// based on their personal best for that distance (or null if no PB / the
+/// user could already beat the GOAT tier).
+DifficultyTier? _recommendedTierFor(GhostPace ghost, Map<String, int> pbMap) {
+  final userPb = pbMap[ghost.distanceLabel];
+  if (userPb == null) return null;
+
+  // Find the hardest tier the user could realistically beat.
+  for (final tier in DifficultyTier.values.reversed) {
+    final scaled = (ghost.totalSeconds * tier.factor).round();
+    if (userPb <= scaled) {
+      return tier == DifficultyTier.goat ? null : DifficultyTier.values[tier.index + 1];
+    }
+  }
+  return DifficultyTier.bronze;
+}
+
 class BeatLegendsPage extends ConsumerStatefulWidget {
   final String? id;
   const BeatLegendsPage({super.key, this.id});
@@ -148,7 +165,7 @@ class _BeatLegendsPageState extends ConsumerState<BeatLegendsPage> {
                   tier: _tier,
                   onChanged: (t) => setState(() => _tier = t),
                   activeGhost: _selected,
-                  recommendedTier: _recommendTier(_selected, pbMap),
+                  recommendedTier: _recommendedTierFor(_selected, pbMap),
                 ),
                 const SizedBox(height: AppTheme.s20),
               ]),
@@ -223,20 +240,6 @@ Text(L10n.tr('seconds_per_km', locale),
     if (km < 15) return '10K';
     return 'Marathon';
   }
-
-  DifficultyTier? _recommendTier(GhostPace ghost, Map<String, int> pbMap) {
-    final userPb = pbMap[ghost.distanceLabel];
-    if (userPb == null) return null;
-
-    // Find the hardest tier the user could realistically beat
-    for (final tier in DifficultyTier.values.reversed) {
-      final scaled = (ghost.totalSeconds * tier.factor).round();
-      if (userPb <= scaled) {
-        return tier == DifficultyTier.goat ? null : DifficultyTier.values[tier.index + 1];
-      }
-    }
-    return DifficultyTier.bronze;
-  }
 }
 
 class _DistanceFilterTabs extends StatelessWidget {
@@ -256,23 +259,11 @@ class _DistanceFilterTabs extends StatelessWidget {
     required this.selectedGhost,
   });
 
-  DifficultyTier? get _recommendedTier {
-    final userPb = pbMap[selectedGhost.distanceLabel];
-    if (userPb == null) return null;
-    for (final tier in DifficultyTier.values.reversed) {
-      final scaled = (selectedGhost.totalSeconds * tier.factor).round();
-      if (userPb <= scaled) {
-        return tier == DifficultyTier.goat ? null : DifficultyTier.values[tier.index + 1];
-      }
-    }
-    return DifficultyTier.bronze;
-  }
-
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
-    final recommendedTier = _recommendedTier;
+    final recommendedTier = _recommendedTierFor(selectedGhost, pbMap);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -13,10 +13,13 @@ class ActivityTypeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(24.0),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24.0)),
       ),
       child: Column(
@@ -25,154 +28,208 @@ class ActivityTypeSelector extends StatelessWidget {
         children: [
           Text(
             'Select Activity',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
           ),
           const SizedBox(height: 24),
-          _buildMainCard(context, ActivityProfile.run, 'Run', Icons.directions_run),
+          _ActivityCard(
+            isSelected: selectedProfile == ActivityProfile.run,
+            onTap: () => onSelected(ActivityProfile.run),
+            icon: Icons.directions_run,
+            label: 'Run',
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+            borderRadius: 16,
+            borderWidth: 2,
+            unselectedBackground: colorScheme.surfaceContainerHighest,
+            unselectedBorderColor: Colors.transparent,
+            iconSize: 32,
+            textStyle: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            layout: _CardLayout.row,
+            showCheckIcon: true,
+            checkIconSize: 24,
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _buildSmallCard(context, ActivityProfile.walk, 'Walk', Icons.directions_walk)),
+              Expanded(
+                child: _ActivityCard(
+                  isSelected: selectedProfile == ActivityProfile.walk,
+                  onTap: () => onSelected(ActivityProfile.walk),
+                  icon: Icons.directions_walk,
+                  label: 'Walk',
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  unselectedBackground: colorScheme.surfaceContainerHighest,
+                  unselectedBorderColor: Colors.transparent,
+                  iconSize: 28,
+                  textStyle: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                  layout: _CardLayout.column,
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _buildSmallCard(context, ActivityProfile.cycle, 'Cycle', Icons.directions_bike)),
+              Expanded(
+                child: _ActivityCard(
+                  isSelected: selectedProfile == ActivityProfile.cycle,
+                  onTap: () => onSelected(ActivityProfile.cycle),
+                  icon: Icons.directions_bike,
+                  label: 'Cycle',
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  unselectedBackground: colorScheme.surfaceContainerHighest,
+                  unselectedBorderColor: Colors.transparent,
+                  iconSize: 28,
+                  textStyle: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                  layout: _CardLayout.column,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildSmallCard(context, ActivityProfile.hike, 'Hike', Icons.terrain)),
+              Expanded(
+                child: _ActivityCard(
+                  isSelected: selectedProfile == ActivityProfile.hike,
+                  onTap: () => onSelected(ActivityProfile.hike),
+                  icon: Icons.terrain,
+                  label: 'Hike',
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  unselectedBackground: colorScheme.surfaceContainerHighest,
+                  unselectedBorderColor: Colors.transparent,
+                  iconSize: 28,
+                  textStyle: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                  layout: _CardLayout.column,
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _buildSmallCard(context, ActivityProfile.drive, 'Drive', Icons.directions_car)),
+              Expanded(
+                child: _ActivityCard(
+                  isSelected: selectedProfile == ActivityProfile.drive,
+                  onTap: () => onSelected(ActivityProfile.drive),
+                  icon: Icons.directions_car,
+                  label: 'Drive',
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  unselectedBackground: colorScheme.surfaceContainerHighest,
+                  unselectedBorderColor: Colors.transparent,
+                  iconSize: 28,
+                  textStyle: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                  layout: _CardLayout.column,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 24),
-          _buildIndoorCard(context, ActivityProfile.indoorPoor, 'Indoor / Poor Signal', Icons.home),
+          _ActivityCard(
+            isSelected: selectedProfile == ActivityProfile.indoorPoor,
+            onTap: () => onSelected(ActivityProfile.indoorPoor),
+            icon: Icons.home,
+            label: 'Indoor / Poor Signal',
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            borderRadius: 12,
+            borderWidth: 1,
+            unselectedBackground: colorScheme.surfaceContainerLow,
+            unselectedBorderColor: colorScheme.outlineVariant,
+            iconSize: 24,
+            textStyle: theme.textTheme.bodyLarge,
+            layout: _CardLayout.row,
+            showCheckIcon: true,
+            checkIconSize: 20,
+          ),
           const SizedBox(height: 16),
         ],
       ),
     );
   }
+}
 
-  Widget _buildMainCard(BuildContext context, ActivityProfile profile, String label, IconData icon) {
-    final isSelected = selectedProfile == profile;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+enum _CardLayout { row, column }
 
-    return InkWell(
-      onTap: () => onSelected(profile),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-        decoration: BoxDecoration(
-          color: isSelected ? colorScheme.primaryContainer : colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? colorScheme.primary : Colors.transparent,
-            width: 2,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 32,
-              color: isSelected ? colorScheme.onPrimaryContainer : colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 16),
-            Text(
-              label,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: isSelected ? colorScheme.onPrimaryContainer : colorScheme.onSurface,
-              ),
-            ),
-            const Spacer(),
-            if (isSelected)
-              Icon(Icons.check_circle, color: colorScheme.primary),
-          ],
-        ),
-      ),
-    );
-  }
+/// Shared selectable-card chrome for [ActivityTypeSelector]'s three visual
+/// variants (main/small/indoor), which previously duplicated the same
+/// InkWell+Container+BoxDecoration skeleton with only sizing/color/layout
+/// differing between them.
+class _ActivityCard extends StatelessWidget {
+  final bool isSelected;
+  final VoidCallback onTap;
+  final IconData icon;
+  final String label;
+  final EdgeInsetsGeometry padding;
+  final double borderRadius;
+  final double borderWidth;
+  final Color unselectedBackground;
+  final Color unselectedBorderColor;
+  final double iconSize;
+  final TextStyle? textStyle;
+  final _CardLayout layout;
+  final bool showCheckIcon;
+  final double checkIconSize;
 
-  Widget _buildSmallCard(BuildContext context, ActivityProfile profile, String label, IconData icon) {
-    final isSelected = selectedProfile == profile;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+  const _ActivityCard({
+    required this.isSelected,
+    required this.onTap,
+    required this.icon,
+    required this.label,
+    required this.padding,
+    required this.borderRadius,
+    required this.borderWidth,
+    required this.unselectedBackground,
+    required this.unselectedBorderColor,
+    required this.iconSize,
+    required this.textStyle,
+    required this.layout,
+    this.showCheckIcon = false,
+    this.checkIconSize = 24,
+  });
 
-    return InkWell(
-      onTap: () => onSelected(profile),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? colorScheme.primaryContainer : colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? colorScheme.primary : Colors.transparent,
-            width: 2,
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 28,
-              color: isSelected ? colorScheme.onPrimaryContainer : colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: isSelected ? colorScheme.onPrimaryContainer : colorScheme.onSurface,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final iconColor = isSelected ? colorScheme.onPrimaryContainer : colorScheme.onSurfaceVariant;
+    final labelColor = isSelected ? colorScheme.onPrimaryContainer : colorScheme.onSurface;
 
-  Widget _buildIndoorCard(BuildContext context, ActivityProfile profile, String label, IconData icon) {
-    final isSelected = selectedProfile == profile;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final iconWidget = Icon(icon, size: iconSize, color: iconColor);
+    final labelWidget = Text(label, style: textStyle?.copyWith(color: labelColor));
+
+    final content = layout == _CardLayout.row
+        ? Row(
+            children: [
+              iconWidget,
+              const SizedBox(width: 16),
+              labelWidget,
+              const Spacer(),
+              if (showCheckIcon && isSelected)
+                Icon(Icons.check_circle, color: colorScheme.primary, size: checkIconSize),
+            ],
+          )
+        : Column(
+            children: [
+              iconWidget,
+              const SizedBox(height: 8),
+              labelWidget,
+            ],
+          );
 
     return InkWell(
-      onTap: () => onSelected(profile),
-      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(borderRadius),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        padding: padding,
         decoration: BoxDecoration(
-          color: isSelected ? colorScheme.primaryContainer : colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(12),
+          color: isSelected ? colorScheme.primaryContainer : unselectedBackground,
+          borderRadius: BorderRadius.circular(borderRadius),
           border: Border.all(
-            color: isSelected ? colorScheme.primary : colorScheme.outlineVariant,
-            width: 1,
+            color: isSelected ? colorScheme.primary : unselectedBorderColor,
+            width: borderWidth,
           ),
         ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 24,
-              color: isSelected ? colorScheme.onPrimaryContainer : colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 16),
-            Text(
-              label,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: isSelected ? colorScheme.onPrimaryContainer : colorScheme.onSurface,
-              ),
-            ),
-            const Spacer(),
-            if (isSelected)
-              Icon(Icons.check_circle, color: colorScheme.primary, size: 20),
-          ],
-        ),
+        child: content,
       ),
     );
   }
