@@ -1,12 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 
 import '../../data/models/run_record.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 import 'package:mwendo_app/data/models/session_draft.dart';
 import 'package:mwendo_app/data/repositories/session_draft_repository.dart';
 import 'package:mwendo_gps_engine/mwendo_gps_engine.dart';
@@ -173,13 +170,6 @@ class TrackingModel extends Notifier<TrackingState> {
 
   String? _draftId;
 
-  File _recoveryFile() {
-    // ponytail: a single JSON file is the simplest crash-recovery store; swap
-    // for the Drift-backed table when ActivityRepository is migrated.
-    final dir = Directory.systemTemp;
-    return File(p.join(dir.path, 'mwendo_recovery.json'));
-  }
-
   Future<void> _writeRecovery() async {
     try {
       if (_draftId == null) return;
@@ -205,64 +195,48 @@ class TrackingModel extends Notifier<TrackingState> {
     }
   }
 
-  Future<void> _clearRecovery() async {
+  /// Removes the on-disk draft — call once a run has been finalized (saved
+  /// as a completed activity) or explicitly discarded by the user, so it
+  /// stops being offered for recovery. [draftId] lets callers pass the id
+  /// captured before `_draftId` was cleared for the next run.
+  Future<void> _clearRecovery([String? draftId]) async {
+    final id = draftId ?? _draftId;
+    if (id == null) return;
     try {
-      final f = _recoveryFile();
-      if (await f.exists()) await f.delete();
-    } catch (e) {
-      // Log but don't crash - recovery file may be locked by antivirus/etc.
-      // Will be cleaned up on next successful run.
+      await ref.read(sessionDraftRepositoryProvider).deleteDraft(id);
+    } catch (_) {
+      // best-effort cleanup — a leftover row is harmless, just re-offered
+      // as recoverable next launch.
     }
   }
 
-  /// True if a previously interrupted run was found on disk.
+  /// True if a previously interrupted run was journaled to the DB and is
+  /// still awaiting finalization.
   Future<bool> hasRecoverableRun() async {
     try {
-      final f = _recoveryFile();
-      if (!await f.exists()) return false;
-      final raw = await f.readAsString();
-      final j = jsonDecode(raw) as Map<String, dynamic>;
-      return (j['rawFixes'] as List?)?.isNotEmpty ?? (j['points'] as List?)?.isNotEmpty ?? false;
+      final draft = await ref.read(sessionDraftRepositoryProvider).getRecoverable();
+      return draft != null && draft.rawFixes.isNotEmpty;
     } catch (_) {
       return false;
     }
   }
 
-/// Load an interrupted run from disk and resume it in a `recovering` state.
+  /// Load an interrupted run from the Drift-backed draft journal and resume
+  /// it in a `recovering` state.
   Future<void> restoreInterrupted() async {
     try {
-      final f = _recoveryFile();
-      if (!await f.exists()) return;
-      final j = jsonDecode(await f.readAsString()) as Map<String, dynamic>;
-      
-      final fixesList = (j['rawFixes'] as List?) ?? (j['points'] as List?) ?? [];
-      
-      final pts = fixesList
-              .map((e) => RawFix(
-                    lat: (e['lat'] as num).toDouble(),
-                    lng: (e['lng'] as num).toDouble(),
-                    elevation: (e['elevation'] as num).toDouble(),
-                    timestamp: DateTime.parse(e['timestamp'] as String),
-                    speedMps: (e['speed'] as num).toDouble(),
-                    heartRate: e['hr'] as int?,
-                    cadence: e['cadence'] as int?,
-                    accuracy: (e['accuracy'] as num?)?.toInt() ?? 0,
-                    hdop: (e['hdop'] as num?)?.toDouble(),
-                    satelliteCount: e['satelliteCount'] as int?,
-                    provider: e['provider'] as String?,
-                    isMocked: e['isMocked'] as bool? ?? false,
-                    fixType: e['fixType'] as String? ?? 'unknown',
-                  ))
-              .toList();
+      final draft = await ref.read(sessionDraftRepositoryProvider).getRecoverable();
+      if (draft == null) return;
 
+      _draftId = draft.id;
       _rawFixes
         ..clear()
-        ..addAll(pts);
+        ..addAll(draft.rawFixes);
 
       _pts.clear();
       _displaySegments.clear();
       _pipeline.reset();
-      
+
       // Reconstruct filtered points silently
       for (final p in _rawFixes) {
         final r = _pipeline.process(p);
@@ -291,7 +265,7 @@ class TrackingModel extends Notifier<TrackingState> {
           }
         }
       }
-      
+
       for (final r in _pipeline.flush()) {
         if (r.isAccepted) {
           final p = r.raw;
@@ -319,19 +293,19 @@ class TrackingModel extends Notifier<TrackingState> {
       }
       _pipeline.reset();
 
-      _elevationGain = (j['elevationGainM'] as num?)?.toDouble() ?? 0;
-      _accumulatedMs = (j['elapsedMs'] as num?)?.toInt() ?? 0;
-      _accumulatedMovingMs = (j['movingTimeMs'] as num?)?.toInt() ?? 0;
+      _elevationGain = draft.elevationGainM;
+      _accumulatedMs = draft.durationMs;
+      _accumulatedMovingMs = draft.movingTimeMs;
       state = state.copyWith(
         state: AppEngineState.recovering,
-        distanceM: (j['distanceM'] as num?)?.toDouble() ?? 0,
-        elapsedMs: (j['elapsedMs'] as num?)?.toInt() ?? 0,
-        movingTimeMs: (j['movingTimeMs'] as num?)?.toInt() ?? 0,
+        distanceM: draft.distanceM,
+        elapsedMs: draft.durationMs,
+        movingTimeMs: draft.movingTimeMs,
         elevationGainM: _elevationGain,
         pointCount: _pts.length,
       );
     } catch (_) {
-      // corrupt snapshot — ignore
+      // corrupt/partial snapshot — ignore, treat as unrecoverable
     }
   }
 
@@ -642,6 +616,7 @@ class TrackingModel extends Notifier<TrackingState> {
           ref.read(mapMatchJobProvider).processSession(draft).ignore();
           finalDraft = draft;
         }
+        final clearedDraftId = _draftId;
         _draftId = null;
 
         _pipeline.reset();
@@ -650,13 +625,14 @@ class TrackingModel extends Notifier<TrackingState> {
         _rawFixes.clear();
         _displaySegments.clear();
         await _engine.stop();
-        await _clearRecovery();
+        await _clearRecovery(clearedDraftId);
         state = TrackingState.initial;
         return finalDraft;
       });
 
   Future<void> discardRecovery() => _enqueue(() async {
-        await _clearRecovery();
+        await _clearRecovery(_draftId);
+        _draftId = null;
         _pts.clear();
         _rawFixes.clear();
         _displaySegments.clear();

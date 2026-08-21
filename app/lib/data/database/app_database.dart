@@ -90,42 +90,44 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> saveRun(RunRecord record) async {
-    await into(activities).insertOnConflictUpdate(ActivitiesCompanion(
-      id: Value(record.id),
-      userId: const Value('local'),
-      type: Value(record.type),
-      startedAt: Value(record.startedAt),
-      distanceM: Value(record.distanceM),
-      durationMs: Value(record.durationMs),
-      movingTimeMs: Value(record.movingTimeMs),
-      calories: Value(record.calories),
-      elevationGainM: Value(record.elevationGainM),
-      avgHeartRate: Value(record.avgHeartRate),
-      avgCadence: Value(record.avgCadence),
-    ));
-
-    await (delete(activityPoints)..where((pt) => pt.activityId.equals(record.id))).go();
-
-    final pointCompanions = <ActivityPointsCompanion>[];
-    for (int i = 0; i < record.rawFixes.length; i++) {
-      final fix = record.rawFixes[i];
-      pointCompanions.add(ActivityPointsCompanion(
-        activityId: Value(record.id),
-        pointIndex: Value(i),
-        lat: Value(fix.lat),
-        lng: Value(fix.lng),
-        elevation: Value(fix.elevation),
-        pace: Value(fix.speedMps > 0.3 ? 1000 / (fix.speedMps * 60) : 0.0),
-        timestamp: Value(fix.timestamp),
-        accuracy: Value(fix.accuracy.toInt()),
-        hdop: Value(fix.hdop),
-        satelliteCount: Value(fix.satelliteCount),
-        provider: Value(fix.provider),
-        isMocked: Value(fix.isMocked),
-        fixType: Value(fix.fixType),
+    await transaction(() async {
+      await into(activities).insertOnConflictUpdate(ActivitiesCompanion(
+        id: Value(record.id),
+        userId: const Value('local'),
+        type: Value(record.type),
+        startedAt: Value(record.startedAt),
+        distanceM: Value(record.distanceM),
+        durationMs: Value(record.durationMs),
+        movingTimeMs: Value(record.movingTimeMs),
+        calories: Value(record.calories),
+        elevationGainM: Value(record.elevationGainM),
+        avgHeartRate: Value(record.avgHeartRate),
+        avgCadence: Value(record.avgCadence),
       ));
-    }
-    await batch((b) => b.insertAll(activityPoints, pointCompanions));
+
+      await (delete(activityPoints)..where((pt) => pt.activityId.equals(record.id))).go();
+
+      final pointCompanions = <ActivityPointsCompanion>[];
+      for (int i = 0; i < record.rawFixes.length; i++) {
+        final fix = record.rawFixes[i];
+        pointCompanions.add(ActivityPointsCompanion(
+          activityId: Value(record.id),
+          pointIndex: Value(i),
+          lat: Value(fix.lat),
+          lng: Value(fix.lng),
+          elevation: Value(fix.elevation),
+          pace: Value(fix.speedMps > 0.3 ? 1000 / (fix.speedMps * 60) : 0.0),
+          timestamp: Value(fix.timestamp),
+          accuracy: Value(fix.accuracy.toInt()),
+          hdop: Value(fix.hdop),
+          satelliteCount: Value(fix.satelliteCount),
+          provider: Value(fix.provider),
+          isMocked: Value(fix.isMocked),
+          fixType: Value(fix.fixType),
+        ));
+      }
+      await batch((b) => b.insertAll(activityPoints, pointCompanions));
+    });
   }
 
   Future<void> deleteRun(String id) async {
