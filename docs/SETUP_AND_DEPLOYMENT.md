@@ -8,7 +8,7 @@
 | :--- | :--- | :--- | :--- |
 | **Flutter SDK** | `3.22.0` | `3.24.0` (Stable) | Mobile application runtime |
 | **Dart SDK** | `3.12.2` | `3.12.2` | Core language framework |
-| **Go SDK** | `1.22.0` | `1.22.5` | Backend microservice runtime |
+| **Go SDK** | `1.26.0` | `1.26.4` | Backend microservice runtime |
 | **Rust / Cargo** | `1.75.0` | `1.80.0` | Native binary FIT parser FFI |
 | **Docker Engine** | `24.0.0` | `27.0.0` | Container orchestration |
 | **Docker Compose** | `2.20.0` | `2.28.0` | Multi-container setup |
@@ -118,10 +118,11 @@ docker build -t mwendo-api:latest .
 ## 5. CI/CD Workflows
 
 ### 5.1 Continuous Integration (`.github/workflows/test.yml`)
-* **Flutter Test Job**: Pulls Flutter `3.x`, downloads dependencies, and executes `flutter test` across all unit/widget tests.
-* **Go Test Job**: Pulls Go `1.22`, executes `go test ./...` with race detection.
+* **Flutter Test Job**: Pulls Flutter `3.44.4`, downloads dependencies, runs `flutter analyze` (zero-warning gate), then `flutter test` across all unit/widget tests.
+* **Go Test Job**: Pulls Go `1.26`, checks `gofmt` formatting, runs `go vet`, then `go test -race ./...`.
+* **Rust FIT Parser Job**: Builds and lints (`cargo clippy -D warnings`) the native FIT-parser crate in `packages/mwendo_fit_parser/rust`.
 
 ### 5.2 Release Packaging (`.github/workflows/release.yml`)
 * Triggered automatically on git tags matching `v*`.
-* Compiles debug/release APK artifacts using Zulu OpenJDK 21.
-* Automatically attaches generated `.apk` binaries to GitHub Releases.
+* **Currently compiles a debug-only APK** (`flutter build apk --debug`) using Zulu OpenJDK 21 — unsigned, unoptimized, and debuggable. This is tracked as `docs/BUILD_PLAN.md` `OPS-2`; publishing a real signed release build needs a provisioned signing keystore before it can change.
+* Automatically attaches the generated `.apk` binary to GitHub Releases.

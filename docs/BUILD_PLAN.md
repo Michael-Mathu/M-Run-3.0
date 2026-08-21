@@ -197,12 +197,11 @@
 - [x] `TS-4` — Assert against `synthetic_truth.ndjson` in real tests (surfaced a real finding — see DISCOVERED_ISSUES.md #7)
 - [x] `TS-5` — adapted: `kalman_calibrate.dart` stays a multi-sigma exploration CLI (no single right answer to assert); `ground_truth_test.dart` asserts the one config that matters, the production default
 - [x] `TS-6` — Unit tests for `gps_pipeline` untested pure modules (surfaced a real bug — see DISCOVERED_ISSUES.md #6)
-- [ ] `TS-7` — Fix/remove stale Kotlin plugin test
-- [ ] `TS-8` — Add analyze/lint/Rust CI steps (report-only → blocking)
-- [x] `TS-9` — Unit tests for `ghost_race_controller`/`challenge_evaluator` (surfaced a real bug — see DISCOVERED_ISSUES.md #5)
-- [ ] `DEP-1` — Align Go toolchain pin across CI/docs/go.mod
+- [x] `TS-7` — Fix/remove stale Kotlin plugin test (rewritten but **not executed** — no Gradle/Android toolchain available in this session; verify with `./gradlew testDebugUnitTest` before trusting in CI)
+- [x] `TS-8` — Added analyze/gofmt+vet/Rust build+clippy CI steps, all blocking immediately (no report-only phase needed — cleared the entire pre-existing backlog first: `flutter analyze` was already clean, `gofmt -w`'d the whole backend). Rust job added but **not locally verified** (no MSVC linker in this Windows dev environment — GH Actions' Linux runners should build fine, but this is unconfirmed)
+- [x] `DEP-1` — CI Go pin bumped to `1.26` to match `go.mod`; `docs/SETUP_AND_DEPLOYMENT.md` corrected
 - [ ] `DEP-5` — Run and triage dependency audit tools
-- [ ] `OPS-6` — Improve CI matrix (iOS, pinned versions, caching)
+- [x] `OPS-6` — partial: pinned Flutter version + dependency caching (Flutter, Go, Rust) added. iOS build verification deliberately **not** added — no macOS runner/toolchain available to verify a working job, and a broken unverified CI check is worse than no check; left as a follow-up for someone who can validate it on macOS
 
 ### Phase 3 — Structural
 - [ ] `CQ-5` — Remove duplicate provider/permission-helper declarations

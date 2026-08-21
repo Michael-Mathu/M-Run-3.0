@@ -9,10 +9,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.x'
+          flutter-version: '3.44.4'
           channel: stable
+          cache: true
+      - name: Install app dependencies
+        run: cd app && flutter pub get
+      - name: Analyze (must be zero-warning per CONTRIBUTING.md)
+        run: cd app && flutter analyze
       - name: App tests
-        run: cd app && flutter pub get && flutter test
+        run: cd app && flutter test
 
   go-test:
     runs-on: ubuntu-latest
@@ -20,6 +25,33 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.26'
+          cache-dependency-path: backend/go.sum
+      - name: Format check
+        run: |
+          cd backend
+          fmt_out="$(gofmt -l .)"
+          if [ -n "$fmt_out" ]; then
+            echo "The following files are not gofmt-formatted:"
+            echo "$fmt_out"
+            exit 1
+          fi
+      - name: Vet
+        run: cd backend && go vet ./...
       - name: Backend tests
-        run: cd backend && go test ./...
+        run: cd backend && go test -race ./...
+
+  rust-fit-parser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/mwendo_fit_parser/rust
+      - name: Build
+        run: cd packages/mwendo_fit_parser/rust && cargo build --locked
+      - name: Clippy
+        run: cd packages/mwendo_fit_parser/rust && cargo clippy --locked -- -D warnings
