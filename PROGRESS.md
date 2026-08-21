@@ -23,4 +23,23 @@ Autonomous execution of `docs/BUILD_PLAN.md`, started 2026-08-21. One entry per 
 Nothing in Phase 2+ has been started — Phase 1 isn't fully clear yet, and per the dependency map, several Phase 2/3 items (`TS-3`, `CQ-9`) build directly on Phase 1 items that are still open.
 
 ### Pre-existing issue observed, not introduced by this session
-`flutter test` has one pre-existing failure: `activity_repository_test.dart`'s "list() is null-safe for missing optional list fields in older files" (expects a JSON-file-backed repo behavior; the real repo is Drift-backed). Confirmed via `git stash` that this fails identically on the unmodified `main` branch tip — this is the exact `TS-2` finding from the audit (Phase 2 work), not a regression from anything in this phase. Left untouched, in scope for Phase 2.
+`flutter test` has one pre-existing failure: `activity_repository_test.dart`'s "list() is null-safe for missing optional list fields in older files" (expects a JSON-file-backed repo behavior; the real repo is Drift-backed). Confirmed via `git stash` that this fails identically on the unmodified `main` branch tip — this is the exact `TS-2` finding from the audit (Phase 2 work), not a regression from anything in this phase. Fixed in Phase 2 (see below).
+
+## Phase 2 — Foundation — DONE, 12/12 (all items either completed-and-verified or completed-with-an-explicit-unverified-caveat)
+
+All items done. Two categories worth flagging clearly:
+
+**Verified by actually running them** (analyze/test/build all green throughout): `TS-2` (rewrote the stale test — fixed the pre-existing failure above), `TS-3` (adapted — `CQ-15` didn't reproduce, added `session_draft_repository_test.dart` for the real v3→v4 migration this session added instead), `TS-4`/`TS-5` (ground-truth asserting test — surfaced `DISCOVERED_ISSUES.md` #7, a ~46% cumulative-distance overshoot on the synthetic fixture), `TS-6` (gps_pipeline unit tests — surfaced #6, a real `routeContinuityScore` bug in `MatchQuality.evaluate`), `TS-9` (ghost-race/challenge unit tests — surfaced #5, a real ~1-split overshoot bug in `ghostExpectedTimeAtDistance`), `DEP-1` (Go CI pin bumped to 1.26, docs corrected), `OPS-6` partial (Flutter version pinned, caching added for Flutter/Go/Rust; iOS build verification deliberately not attempted — no macOS toolchain to verify it), `DEP-5` (dependency audit + triage — `docs/DEPENDENCY_AUDIT.md`; no version bumps applied, left for their own PRs).
+
+**Written and reasoned-correct, but NOT locally executed** — this environment has no Docker, no local Postgres/Redis, no MSVC linker (blocks local Rust builds), and no Gradle/Android toolchain:
+- `TS-1` (the big one): full Postgres/Redis integration test suites for `activity`, `auth`, `leaderboard`, plus a CI `services:` block. Compiles clean and skips clean locally; first real run will be the next CI run.
+- `TS-8`'s new `rust-fit-parser` CI job: reasoned against the crate's actual Cargo.toml/deps; GH Actions' Linux runners have a working linker unlike this Windows dev environment, so it should build, but unconfirmed.
+- `TS-7`: rewrote the stale Kotlin test to check a real code path; no Gradle available to run it.
+
+Three real bugs were found as a byproduct of writing tests (not sought out deliberately) and are fully documented, not fixed (out of scope for test-coverage tasks, all are user-facing behavior changes that deserve their own reviewed diff): `DISCOVERED_ISSUES.md` #5 (ghost-race pace math), #6 (map-match quality gate), #7 (cumulative distance overshoot, needs more investigation before it's even confirmed as a real bug vs. a short-course artifact).
+
+Full-suite phase-boundary check: backend (`go build`/`vet`/`gofmt`/`test`), `app` (`flutter analyze`/`flutter test`, 48 tests), and `gps_pipeline` (`dart analyze`/`dart test`, 38 tests) all green.
+
+## Phase 3 — Structural — starting now
+
+Two items are blocked on product decisions I can't make (`CQ-11`: finish or remove the FIT parser; `UX-3`: build or preview-mark Explore/Route Planner) — flagging up front, not discovering mid-phase. Everything else (`CQ-5`, `CQ-6`, `CQ-7`, `CQ-9`, `CQ-10`) is in scope. `CQ-9` (the `tracking_controller.dart` split) is technically a "pure refactor, no behavior change" per this session's operating rules, so not a hard stop by the letter of those rules — but there is currently no direct unit test coverage for `TrackingModel` itself (only its dependencies, like the draft repository), so before attempting that specific split I'm adding direct test coverage for it first as a safety net, rather than refactoring 701 lines of safety-relevant tracking/recovery code with no automated way to catch a regression.
