@@ -200,7 +200,7 @@
 - [x] `TS-7` — Fix/remove stale Kotlin plugin test (rewritten but **not executed** — no Gradle/Android toolchain available in this session; verify with `./gradlew testDebugUnitTest` before trusting in CI)
 - [x] `TS-8` — Added analyze/gofmt+vet/Rust build+clippy CI steps, all blocking immediately (no report-only phase needed — cleared the entire pre-existing backlog first: `flutter analyze` was already clean, `gofmt -w`'d the whole backend). Rust job added but **not locally verified** (no MSVC linker in this Windows dev environment — GH Actions' Linux runners should build fine, but this is unconfirmed)
 - [x] `DEP-1` — CI Go pin bumped to `1.26` to match `go.mod`; `docs/SETUP_AND_DEPLOYMENT.md` corrected
-- [ ] `DEP-5` — Run and triage dependency audit tools
+- [x] `DEP-5` — Ran and triaged (`go list -m -u all`, `flutter pub outdated`; `cargo audit` couldn't complete — no MSVC linker in this environment). Full triage in `docs/DEPENDENCY_AUDIT.md`. No version bumps applied — deferred to their own reviewed PRs per the doc's grouping.
 - [x] `OPS-6` — partial: pinned Flutter version + dependency caching (Flutter, Go, Rust) added. iOS build verification deliberately **not** added — no macOS runner/toolchain available to verify a working job, and a broken unverified CI check is worse than no check; left as a follow-up for someone who can validate it on macOS
 
 ### Phase 3 — Structural
