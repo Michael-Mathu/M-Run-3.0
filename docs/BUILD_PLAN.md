@@ -241,7 +241,7 @@
 - [x] `CQ-14` — Remove placeholder `LICENSE-AGPL`
 - [ ] `UX-2` — Real Swahili translation pass for lesson content
 - [x] `UX-4` — Fix ghost-result share-button no-op (implemented a real text share via `share_plus`, already a dependency — not just a "coming soon" placeholder; also surfaced and fixed two adjacent bugs, see DISCOVERED_ISSUES.md #9, #10)
-- [ ] `UX-5` — Localize + de-jargon remaining tracking screens, add Semantics
+- [x] `UX-5` — Localize + de-jargon remaining tracking screens, add Semantics
 - [x] `UX-6` — Fix remaining hardcoded strings + date localization (also swept and fixed 6 app-wide missing-L10n-key bugs found in the process — see DISCOVERED_ISSUES.md #11 — and added a permanent regression test for the whole bug class)
 
 ### Phase 6 — Ongoing

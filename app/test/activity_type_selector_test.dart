@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gps_pipeline/gps_pipeline.dart';
 import 'package:mwendo_app/features/tracking/activity_type_selector.dart';
@@ -11,11 +12,13 @@ import 'package:mwendo_app/features/tracking/activity_type_selector.dart';
 void main() {
   Future<void> pumpSelector(WidgetTester tester, ActivityProfile selected) async {
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: ActivityTypeSelector(
-            selectedProfile: selected,
-            onSelected: (_) {},
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: ActivityTypeSelector(
+              selectedProfile: selected,
+              onSelected: (_) {},
+            ),
           ),
         ),
       ),
@@ -40,11 +43,13 @@ void main() {
   testWidgets('tapping a card invokes onSelected with that profile', (tester) async {
     ActivityProfile? tapped;
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: ActivityTypeSelector(
-            selectedProfile: ActivityProfile.run,
-            onSelected: (p) => tapped = p,
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: ActivityTypeSelector(
+              selectedProfile: ActivityProfile.run,
+              onSelected: (p) => tapped = p,
+            ),
           ),
         ),
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mwendo_app/core/l10n/app_strings.dart';
 import 'package:mwendo_app/core/theme/app_theme.dart';
 import 'package:mwendo_app/core/utils/format.dart';
 import 'package:mwendo_app/features/tracking/tracking_controller.dart';
@@ -18,6 +19,7 @@ class RecoveryCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final m = ref.watch(trackingModelProvider);
     final cs = Theme.of(context).colorScheme;
+    final locale = ref.watch(localeProvider);
 
     return Container(
       margin: const EdgeInsets.all(AppTheme.s16),
@@ -53,13 +55,13 @@ class RecoveryCard extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Run Recovered',
+                      L10n.tr('run_recovered', locale),
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
                     ),
                     Text(
-                      'Your previous session was interrupted.',
+                      L10n.tr('run_recovered_body', locale),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: cs.onSurface.withValues(alpha: 0.7),
                           ),
@@ -74,11 +76,11 @@ class RecoveryCard extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _Stat(
-                label: 'Distance',
+                label: L10n.tr('distance', locale),
                 value: '${(m.distanceM / 1000).toStringAsFixed(2)} km',
               ),
               _Stat(
-                label: 'Time',
+                label: L10n.tr('time', locale),
                 value: formatDuration(m.elapsedMs),
               ),
             ],
@@ -92,17 +94,17 @@ class RecoveryCard extends ConsumerWidget {
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        title: const Text('Discard Run?'),
-                        content: const Text('This run will be permanently deleted.'),
+                        title: Text(L10n.tr('discard_run_title', locale)),
+                        content: Text(L10n.tr('discard_run_body', locale)),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.of(ctx).pop(false),
-                            child: const Text('Cancel'),
+                            child: Text(L10n.tr('cancel', locale)),
                           ),
                           TextButton(
                             onPressed: () => Navigator.of(ctx).pop(true),
                             style: TextButton.styleFrom(foregroundColor: AppTheme.sos),
-                            child: const Text('Discard'),
+                            child: Text(L10n.tr('discard', locale)),
                           ),
                         ],
                       ),
@@ -111,14 +113,14 @@ class RecoveryCard extends ConsumerWidget {
                       onDiscard();
                     }
                   },
-                  child: const Text('Discard'),
+                  child: Text(L10n.tr('discard', locale)),
                 ),
               ),
               const SizedBox(width: AppTheme.s12),
               Expanded(
                 child: FilledButton(
                   onPressed: onResume,
-                  child: const Text('Resume Run'),
+                  child: Text(L10n.tr('resume_run', locale)),
                 ),
               ),
             ],

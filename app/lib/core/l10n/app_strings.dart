@@ -365,6 +365,54 @@ class L10n {
     'degraded': {'en': 'Signal degraded', 'sw': 'Mtandao dhaifu'},
     // UX-6: remaining hardcoded strings.
     'route_analysis': {'en': 'Route Analysis', 'sw': 'Uchambuzi wa Njia'},
+    // UX-5: route_analysis_screen.dart -- localized, and de-jargoned from
+    // raw pipeline terminology (e.g. "Rejection Rate", "95th %ile Accuracy")
+    // into plain language a runner (not a GPS engineer) can read.
+    'run_not_found': {'en': 'Run not found', 'sw': 'Mbio hazikupatikana'},
+    'route_matching_processing': {
+      'en': 'Refining your route for higher accuracy…',
+      'sw': 'Tunaboresha njia yako kwa usahihi zaidi…',
+    },
+    'map_layer_raw': {'en': 'Raw GPS', 'sw': 'GPS Ghafi'},
+    'map_layer_filtered': {'en': 'Cleaned Up', 'sw': 'Iliyosafishwa'},
+    'map_layer_matched': {'en': 'Road-Matched', 'sw': 'Iliyolinganishwa na Barabara'},
+    'session_quality_report': {'en': 'Route Quality Summary', 'sw': 'Muhtasari wa Ubora wa Njia'},
+    'quality_grade': {'en': 'Overall Grade', 'sw': 'Daraja Kuu'},
+    'percent_ideal': {'en': 'Clean Signal', 'sw': 'Mtandao Safi'},
+    'rejection_rate': {'en': 'Points Discarded', 'sw': 'Alama Zilizoondolewa'},
+    'median_accuracy': {'en': 'Typical GPS Accuracy', 'sw': 'Usahihi wa Kawaida wa GPS'},
+    'p95_accuracy': {'en': 'Worst-Case Accuracy', 'sw': 'Usahihi Mbaya Zaidi'},
+    'signal_gaps': {'en': 'GPS Signal Drops', 'sw': 'Mikato ya Mtandao wa GPS'},
+    'spikes_per_km': {'en': 'GPS Glitches per km', 'sw': 'Hitilafu za GPS kwa km'},
+    'stationary_clusters': {'en': 'Pause Points Detected', 'sw': 'Vituo vya Kusimama Vilivyogunduliwa'},
+    'filtered_distance': {'en': 'Cleaned-Up Distance', 'sw': 'Umbali Ulioosafishwa'},
+    'raw_distance': {'en': 'Raw GPS Distance', 'sw': 'Umbali Ghafi wa GPS'},
+    'map_match_status': {'en': 'Road-Matching Status', 'sw': 'Hali ya Kulinganisha na Barabara'},
+    'map_match_success': {'en': 'Complete', 'sw': 'Imekamilika'},
+    'map_match_pending': {'en': 'Pending or unavailable', 'sw': 'Inasubiri au haipatikani'},
+    'matched_distance': {'en': 'Road-Matched Distance', 'sw': 'Umbali Uliolinganishwa na Barabara'},
+
+    // UX-5: recovery_card.dart
+    'run_recovered': {'en': 'Run Recovered', 'sw': 'Mbio Zimerejeshwa'},
+    'run_recovered_body': {
+      'en': 'Your previous session was interrupted.',
+      'sw': 'Kipindi chako cha awali kilikatizwa.',
+    },
+    'discard_run_title': {'en': 'Discard Run?', 'sw': 'Ondoa Mbio?'},
+    'discard_run_body': {
+      'en': 'This run will be permanently deleted.',
+      'sw': 'Mbio hii itafutwa kabisa.',
+    },
+    'discard': {'en': 'Discard', 'sw': 'Ondoa'},
+
+    // UX-5: activity_type_selector.dart
+    'select_activity': {'en': 'Select Activity', 'sw': 'Chagua Shughuli'},
+    'walk': {'en': 'Walk', 'sw': 'Tembea'},
+    'cycle': {'en': 'Cycle', 'sw': 'Baiskeli'},
+    'hike': {'en': 'Hike', 'sw': 'Panda Mlima'},
+    'drive': {'en': 'Drive', 'sw': 'Endesha'},
+    'indoor_poor_signal': {'en': 'Indoor / Poor Signal', 'sw': 'Ndani / Mtandao Hafifu'},
+
     'your_time': {'en': 'Your time', 'sw': 'Muda wako'},
     'ghost_time': {'en': 'Ghost time', 'sw': 'Muda wa mzuka'},
     'close': {'en': 'Close', 'sw': 'Funga'},

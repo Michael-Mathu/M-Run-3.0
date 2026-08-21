@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gps_pipeline/gps_pipeline.dart';
+import 'package:mwendo_app/core/l10n/app_strings.dart';
 
-class ActivityTypeSelector extends StatelessWidget {
+class ActivityTypeSelector extends ConsumerWidget {
   final ActivityProfile selectedProfile;
   final ValueChanged<ActivityProfile> onSelected;
 
@@ -12,9 +14,10 @@ class ActivityTypeSelector extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final locale = ref.watch(localeProvider);
 
     return Container(
       padding: const EdgeInsets.all(24.0),
@@ -27,7 +30,7 @@ class ActivityTypeSelector extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Select Activity',
+            L10n.tr('select_activity', locale),
             style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -37,7 +40,7 @@ class ActivityTypeSelector extends StatelessWidget {
             isSelected: selectedProfile == ActivityProfile.run,
             onTap: () => onSelected(ActivityProfile.run),
             icon: Icons.directions_run,
-            label: 'Run',
+            label: L10n.tr('run', locale),
             padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
             borderRadius: 16,
             borderWidth: 2,
@@ -57,7 +60,7 @@ class ActivityTypeSelector extends StatelessWidget {
                   isSelected: selectedProfile == ActivityProfile.walk,
                   onTap: () => onSelected(ActivityProfile.walk),
                   icon: Icons.directions_walk,
-                  label: 'Walk',
+                  label: L10n.tr('walk', locale),
                   padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                   borderRadius: 12,
                   borderWidth: 2,
@@ -74,7 +77,7 @@ class ActivityTypeSelector extends StatelessWidget {
                   isSelected: selectedProfile == ActivityProfile.cycle,
                   onTap: () => onSelected(ActivityProfile.cycle),
                   icon: Icons.directions_bike,
-                  label: 'Cycle',
+                  label: L10n.tr('cycle', locale),
                   padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                   borderRadius: 12,
                   borderWidth: 2,
@@ -95,7 +98,7 @@ class ActivityTypeSelector extends StatelessWidget {
                   isSelected: selectedProfile == ActivityProfile.hike,
                   onTap: () => onSelected(ActivityProfile.hike),
                   icon: Icons.terrain,
-                  label: 'Hike',
+                  label: L10n.tr('hike', locale),
                   padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                   borderRadius: 12,
                   borderWidth: 2,
@@ -112,7 +115,7 @@ class ActivityTypeSelector extends StatelessWidget {
                   isSelected: selectedProfile == ActivityProfile.drive,
                   onTap: () => onSelected(ActivityProfile.drive),
                   icon: Icons.directions_car,
-                  label: 'Drive',
+                  label: L10n.tr('drive', locale),
                   padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                   borderRadius: 12,
                   borderWidth: 2,
@@ -130,7 +133,7 @@ class ActivityTypeSelector extends StatelessWidget {
             isSelected: selectedProfile == ActivityProfile.indoorPoor,
             onTap: () => onSelected(ActivityProfile.indoorPoor),
             icon: Icons.home,
-            label: 'Indoor / Poor Signal',
+            label: L10n.tr('indoor_poor_signal', locale),
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
             borderRadius: 12,
             borderWidth: 1,
@@ -216,20 +219,25 @@ class _ActivityCard extends StatelessWidget {
             ],
           );
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: Container(
-        padding: padding,
-        decoration: BoxDecoration(
-          color: isSelected ? colorScheme.primaryContainer : unselectedBackground,
-          borderRadius: BorderRadius.circular(borderRadius),
-          border: Border.all(
-            color: isSelected ? colorScheme.primary : unselectedBorderColor,
-            width: borderWidth,
+    return Semantics(
+      selected: isSelected,
+      button: true,
+      label: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            color: isSelected ? colorScheme.primaryContainer : unselectedBackground,
+            borderRadius: BorderRadius.circular(borderRadius),
+            border: Border.all(
+              color: isSelected ? colorScheme.primary : unselectedBorderColor,
+              width: borderWidth,
+            ),
           ),
+          child: ExcludeSemantics(child: content),
         ),
-        child: content,
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart' as latlong;
+import 'package:mwendo_app/core/l10n/app_strings.dart';
 import 'package:mwendo_app/core/theme/app_theme.dart';
 import 'package:mwendo_app/data/repositories/activity_repository.dart';
 import 'package:mwendo_app/widgets/mwendo_map.dart';
@@ -22,7 +23,7 @@ class _RouteAnalysisScreenState extends ConsumerState<RouteAnalysisScreen> {
   bool _isLoading = true;
   RunRecord? _run;
   SessionQualityReport? _report;
-  
+
   MapLayer _selectedLayer = MapLayer.filtered;
 
   @override
@@ -57,7 +58,7 @@ class _RouteAnalysisScreenState extends ConsumerState<RouteAnalysisScreen> {
 
   List<latlong.LatLng> _getPointsForLayer() {
     if (_run == null) return [];
-    
+
     switch (_selectedLayer) {
       case MapLayer.raw:
         return _run!.rawFixes.map((f) => latlong.LatLng(f.lat, f.lng)).toList();
@@ -93,43 +94,47 @@ class _RouteAnalysisScreenState extends ConsumerState<RouteAnalysisScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final locale = ref.watch(localeProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Route Analysis'),
+        title: Text(L10n.tr('route_analysis', locale)),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _run == null 
-            ? const Center(child: Text('Run not found'))
+          : _run == null
+            ? Center(child: Text(L10n.tr('run_not_found', locale)))
             : Column(
                 children: [
                   if (_run!.matchedResults == null)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(AppTheme.s12),
-                      color: Colors.orange.withValues(alpha: 0.1),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.sync, color: Colors.orange),
-                          const SizedBox(width: AppTheme.s12),
-                          const Expanded(
-                            child: Text(
-                              'Processing high-fidelity route matching...',
-                              style: TextStyle(color: Colors.orange),
+                    Semantics(
+                      liveRegion: true,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AppTheme.s12),
+                        color: Colors.orange.withValues(alpha: 0.1),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.sync, color: Colors.orange),
+                            const SizedBox(width: AppTheme.s12),
+                            Expanded(
+                              child: Text(
+                                L10n.tr('route_matching_processing', locale),
+                                style: const TextStyle(color: Colors.orange),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  
+
                   // Layer Toggle
                   Padding(
                     padding: const EdgeInsets.all(AppTheme.s16),
                     child: SegmentedButton<MapLayer>(
-                      segments: const [
-                        ButtonSegment(value: MapLayer.raw, label: Text('Raw')),
-                        ButtonSegment(value: MapLayer.filtered, label: Text('Filtered')),
-                        ButtonSegment(value: MapLayer.matched, label: Text('Matched')),
+                      segments: [
+                        ButtonSegment(value: MapLayer.raw, label: Text(L10n.tr('map_layer_raw', locale))),
+                        ButtonSegment(value: MapLayer.filtered, label: Text(L10n.tr('map_layer_filtered', locale))),
+                        ButtonSegment(value: MapLayer.matched, label: Text(L10n.tr('map_layer_matched', locale))),
                       ],
                       selected: {_selectedLayer},
                       onSelectionChanged: (Set<MapLayer> newSelection) {
@@ -156,25 +161,25 @@ class _RouteAnalysisScreenState extends ConsumerState<RouteAnalysisScreen> {
                         : ListView(
                             padding: const EdgeInsets.all(16),
                             children: [
-                              Text('Session Quality Report', style: Theme.of(context).textTheme.titleLarge),
+                              Text(L10n.tr('session_quality_report', locale), style: Theme.of(context).textTheme.titleLarge),
                               const SizedBox(height: 16),
-                              _StatRow('Quality Grade', _report!.grade.name.toUpperCase()),
-                              _StatRow('Percent Ideal', '${_report!.percentIdeal.toStringAsFixed(1)}%'),
-                              _StatRow('Rejection Rate', '${_report!.rejectionRatePct.toStringAsFixed(1)}%'),
-                              _StatRow('Median Accuracy', '${_report!.medianAccuracyM.toStringAsFixed(1)}m'),
-                              _StatRow('95th %ile Accuracy', '${_report!.p95AccuracyM.toStringAsFixed(1)}m'),
-                              _StatRow('Signal Gaps', '${_report!.signalGapCount}'),
-                              _StatRow('Spikes (Jumps/km)', '${_report!.jumpsPerKm}'),
-                              _StatRow('Stationary Clusters', '${_report!.stationaryClusterCount}'),
-                              _StatRow('Filtered Distance', '${(_report!.filteredDistanceM / 1000).toStringAsFixed(2)}km'),
-                              _StatRow('Raw Distance', '${(_report!.rawDistanceM / 1000).toStringAsFixed(2)}km'),
+                              _StatRow(L10n.tr('quality_grade', locale), _report!.grade.name.toUpperCase()),
+                              _StatRow(L10n.tr('percent_ideal', locale), '${_report!.percentIdeal.toStringAsFixed(1)}%'),
+                              _StatRow(L10n.tr('rejection_rate', locale), '${_report!.rejectionRatePct.toStringAsFixed(1)}%'),
+                              _StatRow(L10n.tr('median_accuracy', locale), '${_report!.medianAccuracyM.toStringAsFixed(1)}m'),
+                              _StatRow(L10n.tr('p95_accuracy', locale), '${_report!.p95AccuracyM.toStringAsFixed(1)}m'),
+                              _StatRow(L10n.tr('signal_gaps', locale), '${_report!.signalGapCount}'),
+                              _StatRow(L10n.tr('spikes_per_km', locale), '${_report!.jumpsPerKm}'),
+                              _StatRow(L10n.tr('stationary_clusters', locale), '${_report!.stationaryClusterCount}'),
+                              _StatRow(L10n.tr('filtered_distance', locale), '${(_report!.filteredDistanceM / 1000).toStringAsFixed(2)}km'),
+                              _StatRow(L10n.tr('raw_distance', locale), '${(_report!.rawDistanceM / 1000).toStringAsFixed(2)}km'),
                               if (_run!.matchedResults != null && _run!.matchedResults!.isNotEmpty) ...[
                                 const Divider(height: 32),
-                                _StatRow('Map Match Status', 'Success'),
-                                _StatRow('Matched Distance', '${(_calculateMatchedDistance() / 1000).toStringAsFixed(2)}km'),
+                                _StatRow(L10n.tr('map_match_status', locale), L10n.tr('map_match_success', locale)),
+                                _StatRow(L10n.tr('matched_distance', locale), '${(_calculateMatchedDistance() / 1000).toStringAsFixed(2)}km'),
                               ] else if (_run!.rawFixes.isNotEmpty) ...[
                                 const Divider(height: 32),
-                                _StatRow('Map Match Status', 'Pending or Unavailable'),
+                                _StatRow(L10n.tr('map_match_status', locale), L10n.tr('map_match_pending', locale)),
                               ]
                             ],
                           ),
@@ -195,14 +200,16 @@ class _StatRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
-          Text(value, style: const TextStyle(color: AppTheme.brand)),
-        ],
+      child: Semantics(
+        label: '$label: $value',
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+            Text(value, style: const TextStyle(color: AppTheme.brand)),
+          ],
+        ),
       ),
     );
   }
 }
-
