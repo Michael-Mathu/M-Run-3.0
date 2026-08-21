@@ -240,7 +240,7 @@
 - [x] `CQ-13` — Delete or properly scaffold `app-rn/` (deleted — orphaned, no build scaffolding, unreferenced by the real Flutter app)
 - [x] `CQ-14` — Remove placeholder `LICENSE-AGPL`
 - [ ] `UX-2` — Real Swahili translation pass for lesson content
-- [ ] `UX-4` — Fix ghost-result share-button no-op
+- [x] `UX-4` — Fix ghost-result share-button no-op (implemented a real text share via `share_plus`, already a dependency — not just a "coming soon" placeholder; also surfaced and fixed two adjacent bugs, see DISCOVERED_ISSUES.md #9, #10)
 - [ ] `UX-5` — Localize + de-jargon remaining tracking screens, add Semantics
 - [ ] `UX-6` — Fix remaining hardcoded strings + date localization
 

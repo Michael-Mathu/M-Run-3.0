@@ -340,6 +340,11 @@ class L10n {
     'target_split': {'en': 'Target split', 'sw': 'Sehemu ya lengo'},
     'pace_per_km': {'en': 'Pace / km', 'sw': 'Kasi / km'},
     'you_beat': {'en': 'You beat the ghost!', 'sw': 'Umemshinda mzuka!'},
+    // Regression: this key was referenced in ghost_result_screen.dart but
+    // never defined here -- L10n.tr() falls back to the raw key string, so
+    // every loss to a ghost showed the literal text "ghost_held_you_off"
+    // as the result screen's headline instead of a real sentence.
+    'ghost_held_you_off': {'en': 'The ghost held you off!', 'sw': 'Mzuka amekuzuia!'},
     'your_time': {'en': 'Your time', 'sw': 'Muda wako'},
     'ghost_time': {'en': 'Ghost time', 'sw': 'Muda wa mzuka'},
     'close': {'en': 'Close', 'sw': 'Funga'},

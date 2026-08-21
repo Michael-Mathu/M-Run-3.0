@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart' as latlong;
+import 'package:share_plus/share_plus.dart';
 import 'package:mwendo_app/core/l10n/app_strings.dart';
 import 'package:mwendo_app/core/theme/app_theme.dart';
 import 'package:mwendo_app/core/utils/format.dart';
@@ -83,7 +84,7 @@ return Scaffold(
         slivers: [
           // Hero section
           SliverAppBar(
-            expandedHeight: 280,
+            expandedHeight: 320,
             pinned: true,
             backgroundColor: userWon ? activeGhost.accent.withValues(alpha: 0.9) : cs.surface,
             flexibleSpace: FlexibleSpaceBar(
@@ -100,18 +101,22 @@ return Scaffold(
                 child: Stack(
                   children: [
                     Center(
-                      child: Column(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: AppTheme.s16),
+                        child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const SizedBox(height: 60),
+                          const SizedBox(height: 44),
                           Text(
                             userWon ? L10n.tr('you_beat', locale) : L10n.tr('ghost_held_you_off', locale),
-                            style: text.displaySmall!.copyWith(
+                            style: text.headlineMedium!.copyWith(
                               color: userWon ? Colors.white : cs.onSurface,
                               fontWeight: FontWeight.w800,
                               height: 1.2,
                             ),
                             textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: AppTheme.s8),
                           Text(
@@ -140,6 +145,7 @@ return Scaffold(
                             ],
                           ),
                         ],
+                        ),
                       ),
                     ),
                     Positioned(
@@ -249,9 +255,13 @@ return Scaffold(
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        // TODO: Implement share image generation
-                      },
+                      onPressed: () => SharePlus.instance.share(ShareParams(
+                        text: userWon
+                            ? '${L10n.tr('you_beat', locale)} ${activeGhost.name} — '
+                                '${formatDuration(userElapsedMs)} via Mwendo!'
+                            : '${L10n.tr('ghost_held_you_off', locale)} '
+                                '${activeGhost.name} (${formatDuration(userElapsedMs)}) via Mwendo!',
+                      )),
                       icon: const Icon(Icons.share_rounded),
                       label: Text(L10n.tr('share_result', locale)),
                       style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: AppTheme.s14)),
