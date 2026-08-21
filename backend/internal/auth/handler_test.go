@@ -22,7 +22,7 @@ func TestLoginConcurrentRequestsDoNotRace(t *testing.T) {
 	if _, err := ms.Create(context.Background(), "racer@example.com", hash); err != nil {
 		t.Fatalf("seed user: %v", err)
 	}
-	Init(ms, []byte("test-secret"))
+	api := NewAPI(ms, []byte("test-secret"))
 
 	newBody := func() *bytes.Buffer {
 		b, _ := json.Marshal(map[string]string{"Email": "racer@example.com", "Password": "supersecret"})
@@ -37,7 +37,7 @@ func TestLoginConcurrentRequestsDoNotRace(t *testing.T) {
 			defer wg.Done()
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest("POST", "/api/v1/auth/login", newBody())
-			Login(w, r)
+			api.Login(w, r)
 			if w.Code != 200 {
 				t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
 			}

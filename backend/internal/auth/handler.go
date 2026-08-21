@@ -15,19 +15,23 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Set at startup by main.go. ponytail: refresh tokens stay in-memory; a
-// real deployment would persist them (e.g. Redis) to survive restarts.
-var store Store
-var jwtSecret []byte
+// API holds the auth domain's dependencies as struct fields instead of
+// package-level globals, so multiple instances can run independently (tests
+// in parallel, or a future multi-tenant setup) without sharing state.
+type API struct {
+	store     Store
+	jwtSecret []byte
 
-// refreshTokens maps refresh token -> user ID. sync.Map because Login/
-// Refresh/Logout can run concurrently across requests; a plain map here
-// previously caused a fatal "concurrent map writes" crash under load.
-var refreshTokens sync.Map
+	// refreshTokens maps refresh token -> user ID. sync.Map because Login/
+	// Refresh/Logout can run concurrently across requests; a plain map here
+	// previously caused a fatal "concurrent map writes" crash under load.
+	// ponytail: refresh tokens stay in-memory; a real deployment would
+	// persist them (e.g. Redis) to survive restarts.
+	refreshTokens sync.Map
+}
 
-func Init(s Store, secret []byte) {
-	store = s
-	jwtSecret = secret
+func NewAPI(s Store, jwtSecret []byte) *API {
+	return &API{store: s, jwtSecret: jwtSecret}
 }
 
 type Claims struct {
@@ -35,17 +39,17 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-func newAccessToken(userID string) (string, error) {
+func (a *API) newAccessToken(userID string) (string, error) {
 	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
 		},
 	})
-	return tok.SignedString(jwtSecret)
+	return tok.SignedString(a.jwtSecret)
 }
 
-func Register(w http.ResponseWriter, r *http.Request) {
+func (a *API) Register(w http.ResponseWriter, r *http.Request) {
 	var req struct{ Email, Password string }
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid", http.StatusBadRequest)
@@ -60,7 +64,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
-	if _, err := store.Create(r.Context(), req.Email, hash); err != nil {
+	if _, err := a.store.Create(r.Context(), req.Email, hash); err != nil {
 		if errors.As(err, &ErrConflict{}) {
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
@@ -71,14 +75,14 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"status": "ok"})
 }
 
-func Login(w http.ResponseWriter, r *http.Request) {
+func (a *API) Login(w http.ResponseWriter, r *http.Request) {
 	var req struct{ Email, Password string }
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid", http.StatusBadRequest)
 		return
 	}
 
-	user, err := store.GetByEmail(r.Context(), req.Email)
+	user, err := a.store.GetByEmail(r.Context(), req.Email)
 	if errors.Is(err, ErrNotFound) {
 		http.Error(w, "not found", http.StatusUnauthorized)
 		return
@@ -92,31 +96,31 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	access, err := newAccessToken(user.ID)
+	access, err := a.newAccessToken(user.ID)
 	if err != nil {
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
 	refresh := randomToken()
-	refreshTokens.Store(refresh, user.ID)
+	a.refreshTokens.Store(refresh, user.ID)
 	http.SetCookie(w, &http.Cookie{
 		Name: "refresh_token", Value: refresh, HttpOnly: true, SameSite: http.SameSiteLaxMode,
 	})
 	writeJSON(w, map[string]string{"access_token": access})
 }
 
-func Refresh(w http.ResponseWriter, r *http.Request) {
+func (a *API) Refresh(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("refresh_token")
 	if err != nil {
 		http.Error(w, "missing", http.StatusUnauthorized)
 		return
 	}
-	val, ok := refreshTokens.Load(cookie.Value)
+	val, ok := a.refreshTokens.Load(cookie.Value)
 	if !ok {
 		http.Error(w, "invalid", http.StatusUnauthorized)
 		return
 	}
-	access, err := newAccessToken(val.(string))
+	access, err := a.newAccessToken(val.(string))
 	if err != nil {
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
@@ -124,9 +128,9 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"access_token": access})
 }
 
-func Logout(w http.ResponseWriter, r *http.Request) {
+func (a *API) Logout(w http.ResponseWriter, r *http.Request) {
 	if cookie, _ := r.Cookie("refresh_token"); cookie != nil {
-		refreshTokens.Delete(cookie.Value)
+		a.refreshTokens.Delete(cookie.Value)
 	}
 	http.SetCookie(w, &http.Cookie{Name: "refresh_token", Value: "", HttpOnly: true})
 	writeJSON(w, map[string]string{"status": "ok"})
@@ -136,7 +140,7 @@ type contextKey string
 
 const userIDKey contextKey = "userID"
 
-func AuthMiddleware(next http.Handler) http.Handler {
+func (a *API) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := r.Header.Get("Authorization")
 		if !strings.HasPrefix(h, "Bearer ") {
@@ -145,7 +149,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 		claims := &Claims{}
 		if _, err := jwt.ParseWithClaims(strings.TrimPrefix(h, "Bearer "), claims,
-			func(*jwt.Token) (interface{}, error) { return jwtSecret, nil }); err != nil {
+			func(*jwt.Token) (interface{}, error) { return a.jwtSecret, nil }); err != nil {
 			http.Error(w, "invalid token", http.StatusUnauthorized)
 			return
 		}

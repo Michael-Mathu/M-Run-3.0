@@ -46,23 +46,23 @@ func buildHandler(cfg config.Config) http.Handler {
 		log.Println("REDIS_URL not set: leaderboard runs in-memory")
 	}
 
-	auth.Init(authStore, cfg.JWTSecret)
-	activity.Init(actStore)
-	leaderboard.Init(board, actStore)
+	authAPI := auth.NewAPI(authStore, cfg.JWTSecret)
+	activityAPI := activity.NewAPI(actStore)
+	leaderboardAPI := leaderboard.NewAPI(board, actStore)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/health", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{"status":"ok","database":%t,"version":"1.0.0"}`, usingDB)
 	})
-	mux.HandleFunc("/api/v1/auth/register", auth.Register)
-	mux.HandleFunc("/api/v1/auth/login", auth.Login)
-	mux.HandleFunc("/api/v1/auth/refresh", auth.Refresh)
-	mux.HandleFunc("/api/v1/auth/logout", auth.Logout)
+	mux.HandleFunc("/api/v1/auth/register", authAPI.Register)
+	mux.HandleFunc("/api/v1/auth/login", authAPI.Login)
+	mux.HandleFunc("/api/v1/auth/refresh", authAPI.Refresh)
+	mux.HandleFunc("/api/v1/auth/logout", authAPI.Logout)
 
-	mux.Handle("/api/v1/activities", auth.AuthMiddleware(http.HandlerFunc(activity.Handler)))
-	mux.Handle("/api/v1/activities/", auth.AuthMiddleware(http.HandlerFunc(activity.DetailHandler)))
-	mux.Handle("/api/v1/leaderboard", http.HandlerFunc(leaderboard.TopHandler))
-	mux.Handle("/api/v1/leaderboard/submit", auth.AuthMiddleware(http.HandlerFunc(leaderboard.SubmitHandler)))
+	mux.Handle("/api/v1/activities", authAPI.AuthMiddleware(http.HandlerFunc(activityAPI.Handler)))
+	mux.Handle("/api/v1/activities/", authAPI.AuthMiddleware(http.HandlerFunc(activityAPI.DetailHandler)))
+	mux.Handle("/api/v1/leaderboard", http.HandlerFunc(leaderboardAPI.TopHandler))
+	mux.Handle("/api/v1/leaderboard/submit", authAPI.AuthMiddleware(http.HandlerFunc(leaderboardAPI.SubmitHandler)))
 
 	// B3: CORS so the Flutter web build can call the API from the browser.
 	handler := corsMiddleware(mux)

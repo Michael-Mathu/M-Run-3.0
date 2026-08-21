@@ -10,16 +10,20 @@ import (
 	"github.com/mwendo/backend/internal/auth"
 )
 
-var store Store
+// API holds the activity domain's dependencies as struct fields instead of
+// package-level globals, so multiple instances can run independently.
+type API struct {
+	Store Store
+}
 
-func Init(s Store) { store = s }
+func NewAPI(s Store) *API { return &API{Store: s} }
 
-func Handler(w http.ResponseWriter, r *http.Request) {
+func (a *API) Handler(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserID(r)
 	switch r.Method {
 	case "GET":
 		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-		list, err := store.List(r.Context(), userID, limit)
+		list, err := a.Store.List(r.Context(), userID, limit)
 		if err != nil {
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
@@ -35,18 +39,18 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "started_at required", http.StatusBadRequest)
 			return
 		}
-		a, err := store.Create(r.Context(), userID, in)
+		act, err := a.Store.Create(r.Context(), userID, in)
 		if err != nil {
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, a)
+		writeJSON(w, act)
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
-func DetailHandler(w http.ResponseWriter, r *http.Request) {
+func (a *API) DetailHandler(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserID(r)
 	id := strings.TrimPrefix(r.URL.Path, "/api/v1/activities/")
 	if id == "" {
@@ -57,7 +61,7 @@ func DetailHandler(w http.ResponseWriter, r *http.Request) {
 	if tol <= 0 {
 		tol = 1.0 // 1 metre default simplification tolerance
 	}
-	a, err := store.Get(r.Context(), id, userID, tol)
+	act, err := a.Store.Get(r.Context(), id, userID, tol)
 	if errors.Is(err, ErrNotFound) {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
@@ -66,7 +70,7 @@ func DetailHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, a)
+	writeJSON(w, act)
 }
 
 func writeJSON(w http.ResponseWriter, v interface{}) {

@@ -204,13 +204,13 @@
 - [x] `OPS-6` — partial: pinned Flutter version + dependency caching (Flutter, Go, Rust) added. iOS build verification deliberately **not** added — no macOS runner/toolchain available to verify a working job, and a broken unverified CI check is worse than no check; left as a follow-up for someone who can validate it on macOS
 
 ### Phase 3 — Structural
-- [ ] `CQ-5` — Remove duplicate provider/permission-helper declarations
-- [ ] `CQ-6` — Remove dead duplicate models and dead `main()`
-- [ ] `CQ-7` — De-duplicate `_recommendTier`/card-builder logic
-- [ ] `CQ-9` 🔒 — Split `tracking_controller.dart` into focused services
-- [ ] `CQ-10` — Backend handlers/stores to struct-based DI
-- [ ] `CQ-11` 🔒 — Decide & execute: finish or remove FIT parser
-- [ ] `UX-3` 🔒 — Decide & execute: finish or preview-mark Explore/Route Planner
+- [x] `CQ-5` — Remove duplicate provider/permission-helper declarations
+- [x] `CQ-6` — Remove dead duplicate models and dead `main()`
+- [x] `CQ-7` — De-duplicate `_recommendTier`/card-builder logic (added a smoke test for the card consolidation — no way to visually verify pixel-equivalence in this environment)
+- [ ] `CQ-9` 🔒 — Split `tracking_controller.dart` into focused services — **adding direct unit test coverage for `TrackingModel` first as a safety net (not in original plan, judged necessary — see PROGRESS.md)**
+- [x] `CQ-10` — Backend handlers/stores to struct-based DI
+- [ ] `CQ-11` 🔒 — Decide & execute: finish or remove FIT parser — **blocked, needs your input**
+- [ ] `UX-3` 🔒 — Decide & execute: finish or preview-mark Explore/Route Planner — **blocked, needs your input**
 
 ### Phase 4 — Hardening
 - [ ] `SEC-3` — Default HTTPS API base URL, remove cleartext flag
