@@ -56,13 +56,13 @@ void main() {
 
     expect(total, greaterThan(0), reason: 'sanity check: should find many (en:, sw:) content pairs');
 
-    // Ratchet: current baseline is 256 as measured by this exact regex
-    // (AUDIT_2.md's independent Python sweep found 237 using a slightly
-    // different pattern -- both agree on "the majority of course content is
-    // untranslated", the small delta is just regex-matching detail). Allow a
-    // little slack for in-flight edits, but a regression of dozens of new
-    // untranslated pairs should fail loudly.
-    const threshold = 260;
+    // Ratchet: courses.dart's first two courses (How to Start Running,
+    // Heart Rate Zones) were fully translated to real Swahili in a follow-up
+    // pass -- tightened from 260 to reflect that progress. The remaining 8
+    // courses in courses.dart, plus legends.dart's small handful of real
+    // gaps, are still open (tracked in AUDIT_2.md L-3/L-4). Lower this
+    // further as more courses are translated.
+    const threshold = 235;
     expect(
       identical,
       lessThanOrEqualTo(threshold),
