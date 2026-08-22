@@ -5,7 +5,9 @@
 **Method:** static review + full test-suite runs + **live on-device testing** (Pixel 7 emulator, debug build, both locales)
 **Scope:** (1) verification of the completed `docs/BUILD_PLAN.md` work; then three new workstreams — (2) Kiswahili localization, (3) UI/interface professionalism, (4) functional checks of existing features (SOS, ghost‑race "Beat the Legends", and others found along the way).
 
-This document is honest about what is broken. Several headline features look finished but are not wired to real behavior. Findings cite file:line and, where tested, describe the exact on-device observation. Nothing below has been fixed yet except where explicitly noted — this is the findings + plan; execution is a separate, gated step.
+This document is honest about what is broken. Several headline features look finished but are not wired to real behavior. Findings cite file:line and, where tested, describe the exact on-device observation.
+
+**Update — 2026‑08‑22: execution complete for everything except content translation.** All Critical/High engineering findings (F‑1 through F‑6, U‑1, U‑4 through U‑8, L‑1, L‑2, L‑5) have been implemented, verified (tests + on-device where applicable), and committed. `courses.dart`'s Swahili translation (L‑3) is genuinely partial by explicit user decision — 2 of 10 courses done, 8 remain for a dedicated future pass. `legends.dart`'s L‑4 turned out not to be needed on closer inspection (§2.1). Still open, unchanged: `F‑2` (SOS auto-send infra) and `F‑7` (low priority), both product/scope decisions, not gated behavior fixes. See each section's status markers below for specifics.
 
 ---
 
@@ -76,6 +78,10 @@ These were correctly left blocked pending your decisions and remain so — this 
 
 This is the same `UX-2` gap the first audit flagged, now quantified precisely. It is **content/translation work, not engineering** — it needs a fluent Kiswahili speaker, ideally one comfortable with running/sports register. It must not be machine-translated silently.
 
+**Update (post-audit correction):** on closer inspection, `legends.dart`'s 56 "identical" pairs are almost entirely *not* translation bugs — they're country names ("Kenya" is correctly "Kenya" in Swahili), distance/discipline labels ("10,000m", "Marathon / 10,000m"), and race times/records, which are legitimately identical in both languages. `legends.dart` does not need the L-4 translation pass originally scoped; the real gap is concentrated in `courses.dart`.
+
+**Update (partial remediation, this session):** 2 of `courses.dart`'s 10 courses ("How to Start Running", "Heart Rate Zones") have been fully translated to real Swahili — titles, summaries, and every lesson paragraph. 8 courses (~171 pairs) remain untranslated; per the user's explicit decision, this was intentionally paused here rather than continued in full, since content translation at this depth benefits from native-speaker review. See `content_translation_test.dart`'s ratchet (tightened 260→235 to lock in the progress).
+
 ### 2.2 Genuine Swahili **mistranslations** in the UI catalog (engineering-adjacent, fixable now)
 
 These keys *are* translated, but incorrectly. Unlike §2.1 these are small, high-visibility, and a competent reviewer can fix them quickly:
@@ -102,11 +108,11 @@ These keys *are* translated, but incorrectly. Unlike §2.1 these are small, high
 
 | ID | Task | Effort | Owner | Notes |
 |---|---|---|---|---|
-| L‑1 | Fix the §2.2 mistranslations (9 keys) | S (<2h) | eng + any Swahili reader | Mechanical; no behavior change. Do first — cheap, high-visibility. |
-| L‑2 | Add placeholder substitution to `L10n.tr`; delete dead `{…}` keys; migrate the 2 manual call sites | S (2‑3h) | eng | Prevents a whole future bug class. |
-| L‑3 | Real Swahili pass on `courses.dart` (181 bodies) | L (weeks, content) | **fluent translator** | Split per course; review by 1 eng for structural integrity + 1 native speaker. **Do not machine-translate.** |
-| L‑4 | Swahili pass on `legends.dart` (56 remaining) | M (content) | translator | Lower volume; mostly proper nouns already handled. |
-| L‑5 | Add an "identical en==sw" guard test over content files (warn threshold) so new English-in-disguise pairs are caught in CI | S | eng | Same spirit as the existing `l10n_keys_test.dart`. Start as report-only (there are 237 today), ratchet down as L‑3/L‑4 land. |
+| L‑1 | Fix the §2.2 mistranslations (9 keys) | S (<2h) | eng + any Swahili reader | ✅ Done. Mechanical; no behavior change. |
+| L‑2 | Add placeholder substitution to `L10n.tr`; delete dead `{…}` keys; migrate the 2 manual call sites | S (2‑3h) | eng | ✅ Done. Prevents a whole future bug class. |
+| L‑3 | Real Swahili pass on `courses.dart` (181 bodies) | L (weeks, content) | **fluent translator** | 🟡 Partial — 2 of 10 courses done this session (see 2.1 update). Remaining 8 need native-speaker review, not further mechanical work. **Do not machine-translate the rest silently.** |
+| L‑4 | Swahili pass on `legends.dart` (56 remaining) | M (content) | translator | ❌ Not needed — see 2.1 correction: these 56 pairs are legitimately identical (country names, distance labels), not translation bugs. |
+| L‑5 | Add an "identical en==sw" guard test over content files (warn threshold) so new English-in-disguise pairs are caught in CI | S | eng | ✅ Done (`content_translation_test.dart`), threshold tightened 260→235 as L‑3 progressed. |
 
 ---
 
@@ -139,14 +145,14 @@ Assessment from live screenshots in both locales across Onboarding, Run/track, H
 
 ### 3.4 Plan — UI professionalism
 
-| ID | Task | Effort |
-|---|---|---|
-| U‑1 fix | Rework Run-screen FAB/grid layout so the play button doesn't overlap activity cards | S‑M |
-| U‑5 fix | Count-aware pluralization for emergency-contacts label (depends on L‑2 substitution or a small helper) | S |
-| U‑6 fix | De-duplicate the "How to Start Running" entry on Home | XS |
-| U‑7 fix | Align language-toggle selected fill with the active palette accent | XS |
-| U‑4 fix | Add top padding under Learn app bar; verify Home scroll-reset (U‑3) | S |
-| U‑8 | Product decision on Routes tab: wire real data, or mark it "Preview" and localize the sample copy (ties to `UX-3` / §4.3) | M‑L |
+| ID | Task | Effort | Status |
+|---|---|---|---|
+| U‑1 fix | Rework Run-screen FAB/grid layout so the play button doesn't overlap activity cards | S‑M | ✅ Done — moved into the Column flow instead of an absolutely-positioned overlay. Verified on-device. |
+| U‑5 fix | Count-aware pluralization for emergency-contacts label (depends on L‑2 substitution or a small helper) | S | ✅ Done. Verified on-device ("1 Anwani ya dharura", not "za"). |
+| U‑6 fix | De-duplicate the "How to Start Running" entry on Home | XS | ✅ Done — excluded from the Continue-Learning carousel when the empty-activity banner already shows it. |
+| U‑7 fix | Align language-toggle selected fill with the active palette accent | XS | ✅ Done. Verified on-device. |
+| U‑4 fix | Add top padding under Learn app bar; verify Home scroll-reset (U‑3) | S | 🟡 U‑4 done (padding added); U‑3 not investigated further (low-confidence finding). |
+| U‑8 | Product decision on Routes tab: wire real data, or mark it "Preview" and localize the sample copy (ties to `UX-3` / §4.3) | M‑L | ✅ Done (preview path, see F‑6). |
 
 ---
 
@@ -212,13 +218,13 @@ The only guard on finishing is `m.distanceM >= 1` (metre). So a user can start a
 
 | ID | Task | Severity | Effort | Gate |
 |---|---|---|---|---|
-| F‑1 | SOS honest path (a): relabel, single composer with all recipients, visible failure + dialer fallback, remove the "auto-send" implication | **Critical** | M | **Safety-sensitive — needs your sign-off on copy + fallback behavior before merge.** |
-| F‑2 | Decide on SOS real auto-send (b) — backend gateway, consent, cost controls | Critical (product) | L | Product decision; out of scope for a code pass. |
-| F‑3 | Ghost win-condition: gate on ghost distance covered (B1) | High | S‑M | Behavior change to a headline feature — sign-off. |
-| F‑4 | Fix `ghostExpectedTimeAtDistance` (B2) + update KNOWN-BUG test | High | S | Behavior change; has a locking test. |
-| F‑5 | Remove dead `ghostProjectedFinishTime` call (B3); fix ghost-position copyWith (B4) | Low | XS | Safe. |
-| F‑6 | Routes tab: real data or explicit "Preview" + localized copy (U‑8/UX‑3) | High | M‑L | Product decision. |
-| F‑7 | Per-split projected times for completed splits (§4.4) | Low | S | Safe. |
+| F‑1 | SOS honest path (a): relabel, single composer with all recipients, visible failure + dialer fallback, remove the "auto-send" implication | **Critical** | M | ✅ Done. Verified end-to-end on-device (both the messaging-app failure and dialer-fallback failure surface honestly). |
+| F‑2 | Decide on SOS real auto-send (b) — backend gateway, consent, cost controls | Critical (product) | L | Product decision; out of scope for a code pass. Still open. |
+| F‑3 | Ghost win-condition: gate on ghost distance covered (B1) | High | S‑M | ✅ Done. Requires ≥97% of ghost distance; adds a "Race incomplete" result state. |
+| F‑4 | Fix `ghostExpectedTimeAtDistance` (B2) + update KNOWN-BUG test | High | S | ✅ Done. Locking tests updated to assert corrected values. |
+| F‑5 | Remove dead `ghostProjectedFinishTime` call (B3); fix ghost-position copyWith (B4) | Low | XS | ✅ Done. |
+| F‑6 | Routes tab: real data or explicit "Preview" + localized copy (U‑8/UX‑3) | High | M‑L | ✅ Done (preview path) — no backend routes endpoint exists to wire to, so added a localized "Preview" banner instead. Real-data wiring remains a product decision. |
+| F‑7 | Per-split projected times for completed splits (§4.4) | Low | S | Not done — deferred, low priority. |
 
 ---
 
