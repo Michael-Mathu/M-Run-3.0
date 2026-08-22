@@ -29,8 +29,8 @@ import 'package:mwendo_app/widgets/section_title.dart';
 import 'package:mwendo_app/core/theme/theme_mode_provider.dart';
 import 'package:mwendo_app/core/theme/palette_provider.dart';
 import 'package:mwendo_app/core/utils/format.dart';
-import 'package:mwendo_app/features/challenges/challenge_evaluator.dart';
 import 'package:mwendo_app/widgets/level_ring.dart';
+
 
 class YouPage extends ConsumerStatefulWidget {
   const YouPage({super.key});
@@ -78,10 +78,6 @@ class _YouPageState extends ConsumerState<YouPage> {
     final text = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
     final runs = ref.watch(activitiesProvider).value ?? const <RunRecord>[];
-    final allBadges = [
-      ...ChallengeEvaluator.allChallenges.map((c) => c.badgeId),
-      ...specialBadges.keys,
-    ];
 
     final board = ref.watch(remoteLeaderboardProvider(g.xp)).when(
       data: (b) => b,
@@ -141,51 +137,23 @@ class _YouPageState extends ConsumerState<YouPage> {
                            LevelRing(level: g.level, progress: g.levelProgress, size: 56),
                          ],
                        ),
+                       // Red Earth: XpBar sits plain on the page (no filled
+                       // surface card) -- consistent with the rest of the
+                       // page's decluttered, hairline-only chrome.
                        const SizedBox(height: AppTheme.s16),
-                       Container(
-                         padding: const EdgeInsets.all(AppTheme.s16),
-                         decoration: BoxDecoration(
-                           color: cs.surface,
-                           borderRadius: BorderRadius.circular(AppTheme.r16),
-                         ),
-                         child: XpBar(
-                           xpIntoLevel: g.xpIntoLevel,
-                           xpForNextLevel: g.xpForNextLevel,
-                           progress: g.levelProgress,
-                         ),
+                       XpBar(
+                         xpIntoLevel: g.xpIntoLevel,
+                         xpForNextLevel: g.xpForNextLevel,
+                         progress: g.levelProgress,
                        ),
-                       const SizedBox(height: AppTheme.s16),
+                       const SizedBox(height: AppTheme.s20),
                        _StatsToggle(range: _range, onChanged: _setRange, locale: locale),
                        const SizedBox(height: AppTheme.s16),
                        _StatRow(g: g, range: _range, runs: runs, units: units, locale: locale),
                        const SizedBox(height: AppTheme.s12),
                        _StatRow(g: g, range: _range, runs: runs, units: units, locale: locale),
-                       const SizedBox(height: AppTheme.s28),
-                       SectionTitle(L10n.tr('achievements', locale)),
                        const SizedBox(height: AppTheme.s12),
                      ]),
-                   ),
-                 ),
-                 SliverPadding(
-                   padding: const EdgeInsets.symmetric(horizontal: AppTheme.s24),
-                   sliver: SliverGrid(
-                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                       crossAxisCount: 4,
-                       mainAxisSpacing: AppTheme.s12,
-                       crossAxisSpacing: AppTheme.s12,
-                       childAspectRatio: 0.8,
-                     ),
-                     delegate: SliverChildBuilderDelegate(
-                       (context, index) {
-                         final id = allBadges[index];
-                         return _TrophyTile(
-                           id: id,
-                           earned: g.earnedBadges.contains(id),
-                           index: index,
-                         );
-                       },
-                       childCount: allBadges.length,
-                     ),
                    ),
                  ),
                 if (g.racedLegends.isNotEmpty)
@@ -237,7 +205,13 @@ class _YouPageState extends ConsumerState<YouPage> {
                       ],
                       SectionTitle('${L10n.tr('leaderboard', locale)} · Rank #$rank'),
                       const SizedBox(height: AppTheme.s12),
-                      ...board.map((e) => _LeaderRow(e: e, text: text, cs: cs, locale: locale)),
+                      ...board.asMap().entries.map((entry) => _LeaderRow(
+                            e: entry.value,
+                            text: text,
+                            cs: cs,
+                            locale: locale,
+                            showDivider: entry.key != board.length - 1,
+                          )),
                       const SizedBox(height: AppTheme.s28),
                       SectionTitle(L10n.tr('account', locale)),
                       const SizedBox(height: AppTheme.s12),
@@ -291,84 +265,6 @@ class _YouPageState extends ConsumerState<YouPage> {
             onDone: () => setState(() => _showLevelUp = false),
           ),
       ],
-    );
-  }
-}
-
-class _TrophyTile extends StatefulWidget {
-  final String id;
-  final bool earned;
-  final int index;
-  const _TrophyTile({required this.id, required this.earned, required this.index});
-
-  @override
-  State<_TrophyTile> createState() => _TrophyTileState();
-}
-
-class _TrophyTileState extends State<_TrophyTile>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 360),
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(Duration(milliseconds: widget.index * 35), () {
-      if (mounted) _ctrl.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final meta = badgeMeta(widget.id);
-    final cs = Theme.of(context).colorScheme;
-    return ScaleTransition(
-      scale: CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut),
-      child: Container(
-        decoration: BoxDecoration(
-          color: widget.earned ? cs.surface : cs.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(AppTheme.r16),
-          border: widget.earned
-              ? Border.all(color: AppTheme.tierGold.withValues(alpha: 0.5))
-              : null,
-          boxShadow: widget.earned
-              ? [BoxShadow(color: AppTheme.tierGold.withValues(alpha: 0.25), blurRadius: 12, spreadRadius: 1)]
-              : null,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                Text(meta.emoji, style: TextStyle(fontSize: 28, color: widget.earned ? null : cs.onSurface.withValues(alpha: 0.38))),
-                if (!widget.earned)
-                  Icon(Icons.lock_rounded, size: 14, color: cs.onSurfaceVariant.withValues(alpha: 0.45)),
-              ],
-            ),
-            const SizedBox(height: AppTheme.s6),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppTheme.s4),
-              child: Text(meta.name,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall!
-                      .copyWith(color: widget.earned ? null : cs.onSurface.withValues(alpha: 0.4)),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -477,30 +373,39 @@ class _LegendMiniCard extends ConsumerWidget {
   }
 }
 
+// Red Earth: a flat hairline-divided row, matching the Settings/Home
+// declutter -- "you" is called out with accent-colored text instead of a
+// filled highlight block, so the whole leaderboard reads as one clean list
+// rather than a stack of separate tinted cards.
 class _LeaderRow extends StatelessWidget {
   final LeaderboardEntry e;
   final TextTheme text;
   final ColorScheme cs;
   final AppLocale locale;
-  const _LeaderRow({required this.e, required this.text, required this.cs, required this.locale});
+  final bool showDivider;
+  const _LeaderRow(
+      {required this.e, required this.text, required this.cs, required this.locale, this.showDivider = true});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppTheme.s8),
-      padding: const EdgeInsets.all(AppTheme.s12),
-      decoration: BoxDecoration(
-        color: e.you ? AppTheme.brand.withValues(alpha: 0.14) : cs.surface,
-        borderRadius: BorderRadius.circular(AppTheme.r12),
-      ),
+    final nameColor = e.you ? AppTheme.brand : cs.onSurface;
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.s10),
       child: Row(
         children: [
           Text(e.flag, style: const TextStyle(fontSize: 18)),
           const SizedBox(width: AppTheme.s12),
-          Expanded(child: Text(e.you ? L10n.tr('you', locale) : e.name, style: text.titleMedium)),
-          Text('${e.xp} XP', style: text.labelMedium!.copyWith(color: cs.onSurface.withValues(alpha: 0.7))),
+          Expanded(
+            child: Text(e.you ? L10n.tr('you', locale) : e.name,
+                style: text.bodyLarge!.copyWith(color: nameColor, fontWeight: e.you ? FontWeight.w700 : FontWeight.w400)),
+          ),
+          Text('${e.xp} XP', style: text.labelMedium!.copyWith(color: cs.onSurface.withValues(alpha: 0.6))),
         ],
       ),
+    );
+    if (!showDivider) return row;
+    return Column(
+      children: [row, Divider(height: 1, thickness: 1, color: cs.outlineVariant.withValues(alpha: 0.35))],
     );
   }
 }

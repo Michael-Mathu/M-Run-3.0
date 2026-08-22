@@ -361,6 +361,9 @@ class _FirstRunHintState extends State<_FirstRunHint>
     super.dispose();
   }
 
+  // Red Earth: a hairline border and a plain (unboxed) icon instead of a
+  // thick 4px accent border + filled icon tile -- it was the one loud,
+  // heavily-chromed element left on an otherwise flat, hairline page.
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
@@ -370,25 +373,16 @@ class _FirstRunHintState extends State<_FirstRunHint>
       child: FilledButton(
         onPressed: widget.onTap,
         style: FilledButton.styleFrom(
-          backgroundColor: cs.surface,
+          backgroundColor: Colors.transparent,
           foregroundColor: cs.onSurface,
-          padding: const EdgeInsets.all(AppTheme.s20),
+          padding: const EdgeInsets.all(AppTheme.s16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.r16)),
-          side: BorderSide(color: AppTheme.brand, width: 4),
+          side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
           elevation: 0,
-          shadowColor: AppTheme.brand.withValues(alpha: 0.12),
         ),
         child: Row(
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppTheme.brand.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(AppTheme.r12),
-              ),
-              child: const Icon(Icons.directions_run_rounded, color: AppTheme.brand, size: 28),
-            ),
+            Icon(Icons.directions_run_rounded, color: AppTheme.brand, size: 26),
             const SizedBox(width: AppTheme.s16),
             Expanded(
               child: Column(
@@ -401,7 +395,7 @@ class _FirstRunHintState extends State<_FirstRunHint>
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: cs.onSurface.withValues(alpha: 0.4)),
+            const TrailingChevron(),
           ],
         ),
       ),
@@ -421,12 +415,14 @@ class _DashboardChallengeCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final ratio = ch.ratio(g);
     final accent = AppTheme.tierColors[ch.tier] ?? AppTheme.brand;
+    // Red Earth: a hairline border instead of a drop shadow + thick
+    // left-accent bar, and a flat tinted icon instead of a gradient circle
+    // -- the tier color still reads clearly via the icon and progress bar.
     return Container(
       decoration: BoxDecoration(
         color: cs.surface,
         borderRadius: BorderRadius.circular(AppTheme.r16),
-        border: Border(left: BorderSide(color: accent, width: 4)),
-        boxShadow: AppTheme.elevation1,
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppTheme.r16),
@@ -442,14 +438,10 @@ class _DashboardChallengeCard extends StatelessWidget {
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [accent, accent.withValues(alpha: 0.6)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: accent.withValues(alpha: 0.16),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(ch.icon, color: Colors.white, size: 26),
+                  child: Icon(ch.icon, color: accent, size: 26),
                 ),
                 const SizedBox(width: AppTheme.s14),
                 Expanded(
@@ -496,16 +488,14 @@ class _AllDoneCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
+    // Red Earth: hairline border instead of gradient fill + shadow + a
+    // gold gradient icon circle; the dawn tint on the icon alone is enough
+    // to keep the "you're done" moment feeling celebratory.
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [cs.surface, AppTheme.tierGold.withValues(alpha: 0.08)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: cs.surface,
         borderRadius: BorderRadius.circular(AppTheme.r16),
-        border: Border.all(color: AppTheme.tierGold.withValues(alpha: 0.4), width: 1.5),
-        boxShadow: [BoxShadow(color: AppTheme.tierGold.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2))],
+        border: Border.all(color: AppTheme.dawn.withValues(alpha: 0.4)),
       ),
       child: Material(
         color: Colors.transparent,
@@ -518,17 +508,13 @@ class _AllDoneCard extends ConsumerWidget {
             child: Row(
               children: [
                 Container(
-                  width: 56,
-                  height: 56,
+                  width: 52,
+                  height: 52,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [AppTheme.tierGold, AppTheme.achievement],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: AppTheme.dawn.withValues(alpha: 0.18),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 28),
+                  child: const Icon(Icons.emoji_events_rounded, color: AppTheme.dawn, size: 26),
                 ),
                 const SizedBox(width: AppTheme.s16),
                 Expanded(
@@ -542,7 +528,7 @@ class _AllDoneCard extends ConsumerWidget {
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right_rounded, color: AppTheme.tierGold.withValues(alpha: 0.6)),
+                const TrailingChevron(),
               ],
             ),
           ),
@@ -709,51 +695,41 @@ class _EmptyActivity extends StatelessWidget {
             ],
           ),
         ),
+        // Red Earth: hairline border + plain icon, matching _FirstRunHint --
+        // was the last heavy-bordered, drop-shadowed card on the page.
         const SizedBox(height: AppTheme.s12),
-        Container(
-          decoration: BoxDecoration(
-            color: cs.surface,
+        Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(AppTheme.r16),
+          child: InkWell(
             borderRadius: BorderRadius.circular(AppTheme.r16),
-            border: Border(left: BorderSide(color: AppTheme.brand, width: 4)),
-            boxShadow: [BoxShadow(color: AppTheme.brand.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2))],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(AppTheme.r16),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(AppTheme.r16),
-              onTap: () {
-                Haptics.light();
-                onCourse?.call();
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(AppTheme.s16),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: AppTheme.brand.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(AppTheme.r12),
-                      ),
-                      child: const Icon(Icons.school_rounded, color: AppTheme.brand, size: 24),
+            onTap: () {
+              Haptics.light();
+              onCourse?.call();
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppTheme.r16),
+                border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
+              ),
+              padding: const EdgeInsets.all(AppTheme.s16),
+              child: Row(
+                children: [
+                  Icon(Icons.school_rounded, color: AppTheme.brand, size: 24),
+                  const SizedBox(width: AppTheme.s12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(L10n.tr('learn_to_run', locale), style: text.titleMedium),
+                        const SizedBox(height: AppTheme.s2),
+                        Text(L10n.tr('learn_to_run_hint', locale),
+                            style: text.bodySmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.6)), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      ],
                     ),
-                    const SizedBox(width: AppTheme.s12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(L10n.tr('learn_to_run', locale), style: text.titleMedium),
-                          const SizedBox(height: AppTheme.s2),
-                          Text(L10n.tr('learn_to_run_hint', locale),
-                              style: text.bodySmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.6)), maxLines: 2, overflow: TextOverflow.ellipsis),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.chevron_right_rounded, color: cs.onSurface.withValues(alpha: 0.4)),
-                  ],
-                ),
+                  ),
+                  const TrailingChevron(),
+                ],
               ),
             ),
           ),
