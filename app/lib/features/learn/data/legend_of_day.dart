@@ -32,6 +32,11 @@ class LegendOfDayCard extends ConsumerWidget {
     final text = Theme.of(context).textTheme;
     final locale = ref.read(localeProvider);
 
+    // A legend's accent can be a light dawn gold or a dark highland/earth, so
+    // pick a foreground that stays legible on either (fixes white-on-gold).
+    final fg = accent.computeLuminance() > 0.55 ? AppTheme.onLight : Colors.white;
+    final fgSoft = fg.withValues(alpha: 0.85);
+
     return Container(
       padding: const EdgeInsets.all(AppTheme.s20),
       decoration: BoxDecoration(
@@ -50,11 +55,11 @@ class LegendOfDayCard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: AppTheme.s10, vertical: AppTheme.s4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: fg.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(AppTheme.rFull),
                 ),
                 child: Text(weekly ? L10n.tr('legend_of_week', locale) : L10n.tr('did_you_know', locale),
-                    style: text.labelSmall!.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+                    style: text.labelSmall!.copyWith(color: fg, fontWeight: FontWeight.w700)),
               ),
             ],
           ),
@@ -63,7 +68,7 @@ class LegendOfDayCard extends ConsumerWidget {
             children: [
               CircleAvatar(
                 radius: 26,
-                backgroundColor: Colors.white.withValues(alpha: 0.2),
+                backgroundColor: fg.withValues(alpha: 0.18),
                 child: Text(legend.emoji, style: const TextStyle(fontSize: 26)),
               ),
               const SizedBox(width: AppTheme.s12),
@@ -72,10 +77,10 @@ class LegendOfDayCard extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(legend.name,
-                        style: text.titleLarge!.copyWith(color: Colors.white)),
+                        style: text.titleLarge!.copyWith(color: fg)),
                     const SizedBox(height: AppTheme.s2),
                     Text(legend.flag,
-                        style: text.bodySmall!.copyWith(color: Colors.white.withValues(alpha: 0.9))),
+                        style: text.bodySmall!.copyWith(color: fgSoft)),
                   ],
                 ),
               ),
@@ -84,16 +89,16 @@ class LegendOfDayCard extends ConsumerWidget {
           const SizedBox(height: AppTheme.s12),
           Text(
             lt(legend.funFact ?? legend.tagline, locale),
-            style: text.bodyMedium!.copyWith(color: Colors.white.withValues(alpha: 0.95), height: 1.5),
+            style: text.bodyMedium!.copyWith(color: fgSoft, height: 1.5),
           ),
           const SizedBox(height: AppTheme.s12),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
               onPressed: () => context.go('/learn/legends/${legend.slug}'),
-              icon: const Icon(Icons.arrow_forward_rounded, color: Colors.white),
-              label: Text(L10n.tr('read_more', locale), style: const TextStyle(color: Colors.white)),
-              style: TextButton.styleFrom(foregroundColor: Colors.white),
+              icon: Icon(Icons.arrow_forward_rounded, color: fg),
+              label: Text(L10n.tr('read_more', locale), style: TextStyle(color: fg)),
+              style: TextButton.styleFrom(foregroundColor: fg),
             ),
           ),
         ],

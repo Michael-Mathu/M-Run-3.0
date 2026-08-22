@@ -212,11 +212,11 @@ class _ChipRow extends StatelessWidget {
            final opt = options[i];
            final active = opt == selected;
            final accent = opt == 'Kenya'
-               ? AppTheme.brand
+               ? AppTheme.earth
                : opt == 'Ethiopia'
-                   ? const Color(0xFFFFD15C)
+                   ? AppTheme.dawn
                    : opt == 'Uganda'
-                       ? const Color(0xFF2BB673)
+                       ? AppTheme.highland
                        : AppTheme.brand;
            final countryFlag = switch (opt) {
              'Kenya' => '🇰🇪 ',

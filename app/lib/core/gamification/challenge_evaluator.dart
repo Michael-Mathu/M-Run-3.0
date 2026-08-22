@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mwendo_app/core/gamification/gamification_state.dart';
+import 'package:mwendo_app/core/theme/app_theme.dart';
 
 class GamifiedChallenge {
   final String slug;
@@ -31,4 +32,4 @@ class ChallengeEvaluator {
   );
 }
 
-Color tierColor(String tier) => const Color(0xFFFF5A1F);
+Color tierColor(String tier) => AppTheme.tierColors[tier] ?? AppTheme.brand;

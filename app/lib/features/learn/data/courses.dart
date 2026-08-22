@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mwendo_app/core/l10n/app_strings.dart';
+import 'package:mwendo_app/core/theme/app_theme.dart';
 
 enum CourseCategory { science, technique, health, heritage }
 
@@ -20,11 +21,13 @@ extension CourseCategoryMeta on CourseCategory {
         CourseCategory.heritage: Icons.account_balance_rounded,
       }[this]!;
 
+  // Red Earth palette: four distinguishable earth/highland/dawn tones rather
+  // than the old off-brand blue/green/orange/gold.
   Color get accent => {
-        CourseCategory.science: const Color(0xFF4A90E2),
-        CourseCategory.technique: const Color(0xFF2BB673),
-        CourseCategory.health: const Color(0xFFFF5A1F),
-        CourseCategory.heritage: const Color(0xFFFFD15C),
+        CourseCategory.science: AppTheme.highland, // #2C6B54 — "cool" knowledge
+        CourseCategory.technique: AppTheme.earth, // #B14A2A
+        CourseCategory.health: const Color(0xFFC56A4A), // soft terracotta
+        CourseCategory.heritage: AppTheme.dawn, // #D89A2E gold
       }[this]!;
 }
 

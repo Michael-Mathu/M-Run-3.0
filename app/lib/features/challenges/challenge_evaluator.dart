@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:mwendo_app/core/gamification/gamification_state.dart';
+import 'package:mwendo_app/core/theme/app_theme.dart';
 
 Color tierColor(ChallengeTier t) => {
-      ChallengeTier.bronze: const Color(0xFFCD7F32),
-      ChallengeTier.silver: const Color(0xFFC0C6CC),
-      ChallengeTier.gold: const Color(0xFFFFD15C),
-      ChallengeTier.platinum: const Color(0xFF7FE7E0),
+      ChallengeTier.bronze: AppTheme.tierBronze,
+      ChallengeTier.silver: AppTheme.tierSilver,
+      ChallengeTier.gold: AppTheme.tierGold,
+      ChallengeTier.platinum: AppTheme.tierPlatinum,
     }[t]!;
 
 enum ChallengeCategory { starter, milestone, performance, fun, school, knowledge }

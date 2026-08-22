@@ -595,8 +595,13 @@ ThemeData buildTheme(ColorPalette palette, Brightness brightness) {
   ).copyWith(
     primary: palette.primary,
     primaryContainer: palette.primaryContainer,
+    onPrimaryContainer: Colors.white,
     secondary: palette.secondary,
     secondaryContainer: palette.secondaryContainer,
+    // secondaryContainer is a light "dawn tint" cream in every preset, so its
+    // text must be dark ink in both themes (a Material SegmentedButton's
+    // selected segment uses this pair; without it the label went invisible).
+    onSecondaryContainer: AppTheme.onLight,
     error: palette.danger,
     onError: Colors.white,
     surface: isDark ? AppTheme.darkCard : AppTheme.lightCard,

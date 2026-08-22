@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:mwendo_app/core/l10n/app_strings.dart';
+import 'package:mwendo_app/core/theme/app_theme.dart';
 
 const _kKenya = 'orange';
 const _kEthiopia = 'gold';
@@ -1364,8 +1365,10 @@ Legend legendForSlug(String slug) {
   return _legendBySlug![slug] ?? legends.first;
 }
 
+// Red Earth accents: earth for Kenya, dawn gold for Ethiopia/Netherlands,
+// highland green for Uganda (see the _kCountry constants above).
 Color legendAccent(Legend l) => {
-      'orange': const Color(0xFFFF5A1F),
-      'gold': const Color(0xFFFFD15C),
-      'green': const Color(0xFF2BB673),
-    }[l.accent] ?? const Color(0xFFFF5A1F);
+      'orange': AppTheme.earth,
+      'gold': AppTheme.dawn,
+      'green': AppTheme.highland,
+    }[l.accent] ?? AppTheme.earth;

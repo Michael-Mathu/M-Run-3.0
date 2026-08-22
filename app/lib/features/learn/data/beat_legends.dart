@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mwendo_app/core/theme/app_theme.dart';
 import 'legends.dart';
 
 /// A "ghost runner" — a legendary performance you can race against (Pillar 4).
@@ -90,9 +91,9 @@ enum DifficultyTier {
       case DifficultyTier.silver:
         return const Color(0xFFC0C6CC);
       case DifficultyTier.gold:
-        return const Color(0xFFFFD15C);
+        return AppTheme.dawn;
       case DifficultyTier.goat:
-        return const Color(0xFFFF5A1F);
+        return AppTheme.earth;
     }
   }
 
@@ -168,7 +169,7 @@ List<GhostPace> get ghostPaces => [
         splitStyle: 'positive',
         description:
             'The official marathon world record. A metronomic, slightly positive split — the model of controlled excellence.',
-        accent: const Color(0xFFFF5A1F),
+        accent: AppTheme.earth,
       ),
       _ghost(
         id: 'kiptum-marathon',
@@ -180,7 +181,7 @@ List<GhostPace> get ghostPaces => [
         splitStyle: 'negative',
         description:
             'The fastest marathon ever run. An aggressive negative split that rewrote the limits of human endurance.',
-        accent: const Color(0xFFFF5A1F),
+        accent: AppTheme.earth,
       ),
       _ghost(
         id: 'tergat-10k',
@@ -192,7 +193,7 @@ List<GhostPace> get ghostPaces => [
         splitStyle: 'even',
         description:
             'Paul Tergat\'s iconic track 10,000m. Even, relentless, and historically dominant.',
-        accent: const Color(0xFFFF5A1F),
+        accent: AppTheme.earth,
       ),
       _ghost(
         id: 'kipyegon-1500',
@@ -204,7 +205,7 @@ List<GhostPace> get ghostPaces => [
         splitStyle: 'even',
         description:
             'The queen of the mile at world-record pace. Two searing laps of the track.',
-        accent: const Color(0xFFFF5A1F),
+        accent: AppTheme.earth,
       ),
       _ghost(
         id: 'chebet-5000',
@@ -216,7 +217,7 @@ List<GhostPace> get ghostPaces => [
         splitStyle: 'even',
         description:
             'The women\'s 5000m world record. Smooth, fast, and fearless from the gun.',
-        accent: const Color(0xFFFF5A1F),
+        accent: AppTheme.earth,
       ),
 
       // ---- New ghost paces (Step 7) ----
@@ -230,7 +231,7 @@ List<GhostPace> get ghostPaces => [
         splitStyle: 'even',
         description:
             'The single greatest 800m ever run. Rudisha led from gun to tape in a world record 1:40.91.',
-        accent: const Color(0xFFFF5A1F),
+        accent: AppTheme.earth,
       ),
       _ghost(
         id: 'bekele-10000',
@@ -242,7 +243,7 @@ List<GhostPace> get ghostPaces => [
         splitStyle: 'negative',
         description:
             'Bekele\'s Olympic 10,000m masterclass — a devastating negative split to seal the gold.',
-        accent: const Color(0xFFFFD15C),
+        accent: AppTheme.dawn,
       ),
       _ghost(
         id: 'cheptegei-5000',
@@ -266,7 +267,7 @@ List<GhostPace> get ghostPaces => [
         splitStyle: 'positive',
         description:
             'The women\'s marathon world record. Kosgei\'s patient, powerful run broke 2:15 for the first time.',
-        accent: const Color(0xFFFF5A1F),
+        accent: AppTheme.earth,
       ),
       _ghost(
         id: 'chepngetich-marathon',
@@ -278,7 +279,7 @@ List<GhostPace> get ghostPaces => [
         splitStyle: 'negative',
         description:
             'The first women\'s marathon under 2:10. A fearless, fast-starting negative split for the ages.',
-        accent: const Color(0xFFFF5A1F),
+        accent: AppTheme.earth,
       ),
       _ghost(
         id: 'gebrselassie-marathon',
@@ -290,7 +291,7 @@ List<GhostPace> get ghostPaces => [
         splitStyle: 'even',
         description:
             'Haile\'s marathon world record at age 35 — smooth, even, and utterly dominant.',
-        accent: const Color(0xFFFFD15C),
+        accent: AppTheme.dawn,
       ),
       _ghost(
         id: 'keino-1500',
@@ -302,7 +303,7 @@ List<GhostPace> get ghostPaces => [
         splitStyle: 'even',
         description:
             'The race that launched East African dominance. Keino\'s front-running 1500m gold.',
-        accent: const Color(0xFFFF5A1F),
+        accent: AppTheme.earth,
       ),
     ];
 
