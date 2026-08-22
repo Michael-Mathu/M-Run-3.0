@@ -343,7 +343,7 @@ class _AutoFollowToggleButton extends StatelessWidget {
       label: isFollowing ? 'Disable map auto-follow' : 'Enable map auto-follow',
       child: Material(
         color: isFollowing
-            ? const Color(0xFFFF5A1F) // Active accent
+            ? AppTheme.brand // Red Earth active accent (was hardcoded orange)
             : Colors.black.withValues(alpha: 0.65),
         shape: const CircleBorder(),
         elevation: 4,

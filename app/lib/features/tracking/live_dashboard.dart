@@ -837,10 +837,10 @@ class _StatusPill extends ConsumerWidget {
       if (accuracy <= 10.0) {
         color = AppTheme.recording;
       } else if (accuracy <= 30.0) {
-        color = Colors.orange;
+        color = AppTheme.warning; // Red Earth amber (was hardcoded Colors.orange)
         label = L10n.tr('gps_poor', locale);
       } else {
-        color = AppTheme.paused; // Pulsating gray or red
+        color = AppTheme.paused;
         label = L10n.tr('gps_searching', locale);
       }
     }
