@@ -39,6 +39,11 @@ class L10n {
     'challenges': {'en': 'Challenges', 'sw': 'Changamoto'},
     'profile': {'en': 'Profile', 'sw': 'Wasifu'},
     'home': {'en': 'Home', 'sw': 'Mwanzo'},
+    // Red Earth Home redesign: time-of-day greeting replacing the static
+    // "Mwendo" brand row.
+    'greeting_morning': {'en': 'Good morning', 'sw': 'Habari za asubuhi'},
+    'greeting_afternoon': {'en': 'Good afternoon', 'sw': 'Habari za mchana'},
+    'greeting_evening': {'en': 'Good evening', 'sw': 'Habari za jioni'},
     'run': {'en': 'Run', 'sw': 'Kimbia'},
     'academy': {'en': 'The Mwendo Academy', 'sw': 'Chuo cha Mwendo'},
     'academy_tag': {

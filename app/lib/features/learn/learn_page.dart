@@ -52,9 +52,13 @@ class LearnPage extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(horizontal: AppTheme.s24),
                         child: Row(
                           children: [
-                            Icon(cat.icon, color: cat.accent, size: 22),
+                            Icon(cat.icon, color: cat.accent, size: 15),
                             const SizedBox(width: AppTheme.s8),
-                            Text(lt(cat.label, locale), style: text.titleLarge),
+                            Text(
+                              lt(cat.label, locale).toUpperCase(),
+                              style: AppTheme.monoFont(
+                                  size: 12, weight: FontWeight.w600, spacing: 1.1, color: cat.accent),
+                            ),
                           ],
                         ),
                       ),
@@ -87,9 +91,13 @@ class LearnPage extends ConsumerWidget {
                   const SizedBox(height: AppTheme.s8),
                   Row(
                     children: [
-                      const Icon(Icons.auto_stories_rounded, size: 22, color: AppTheme.tierGold),
+                      Icon(Icons.auto_stories_rounded, size: 15, color: AppTheme.dawn),
                       const SizedBox(width: AppTheme.s8),
-                      Text(L10n.tr('legends_title', locale), style: text.titleLarge),
+                      Text(
+                        L10n.tr('legends_title', locale).toUpperCase(),
+                        style: AppTheme.monoFont(
+                            size: 12, weight: FontWeight.w600, spacing: 1.1, color: AppTheme.dawn),
+                      ),
                     ],
                   ),
                   const SizedBox(height: AppTheme.s12),
@@ -98,21 +106,40 @@ class LearnPage extends ConsumerWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis),
                   const SizedBox(height: AppTheme.s16),
-                  Text(L10n.tr('race_ghost_legend', locale),
-                      style: text.bodyMedium!.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: AppTheme.s4),
-                  Text(L10n.tr('race_ghost_sub', locale),
-                      style: text.bodySmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.65))),
-                  const SizedBox(height: AppTheme.s20),
-                  Center(
-                    child: FilledButton.icon(
-                      onPressed: () => context.push('/learn/legends'),
-                      icon: const Icon(Icons.person_rounded),
-                      label: Text(L10n.tr('your_legends', locale)),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppTheme.brand,
-                        foregroundColor: Colors.white,
+                  // Red Earth: the "race a ghost" teaser becomes a solid
+                  // highland-gradient card (matching the redesign's ghost-race
+                  // hero treatment) instead of plain body text + a button,
+                  // giving the app's headline feature real visual presence.
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppTheme.s20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppTheme.highland, Color.lerp(AppTheme.highland, Colors.black, 0.28)!],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
+                      borderRadius: BorderRadius.circular(AppTheme.r24),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(L10n.tr('race_ghost_legend', locale),
+                            style: text.titleMedium!.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: AppTheme.s4),
+                        Text(L10n.tr('race_ghost_sub', locale),
+                            style: text.bodySmall!.copyWith(color: Colors.white.withValues(alpha: 0.85))),
+                        const SizedBox(height: AppTheme.s16),
+                        FilledButton.icon(
+                          onPressed: () => context.push('/learn/legends'),
+                          icon: const Icon(Icons.person_rounded),
+                          label: Text(L10n.tr('your_legends', locale)),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: AppTheme.highland,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 100),
@@ -136,16 +163,20 @@ class _CourseCardHorizontal extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
     final width = MediaQuery.of(context).size.width * 0.72;
+    final accent = course.category.accent;
 
     return GestureDetector(
       onTap: () => context.push('/learn/course/${course.slug}'),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         width: width,
+        // Red Earth: a tint of the category's own accent instead of a
+        // neutral bordered white card, so category color carries through
+        // from the section header into the cards themselves.
         decoration: BoxDecoration(
-          color: cs.surface,
+          color: accent.withValues(alpha: 0.09),
           borderRadius: BorderRadius.circular(AppTheme.r16),
-          border: Border.all(color: cs.surfaceContainerHighest),
+          border: Border.all(color: accent.withValues(alpha: 0.22)),
         ),
         padding: const EdgeInsets.all(AppTheme.s16),
         child: Column(

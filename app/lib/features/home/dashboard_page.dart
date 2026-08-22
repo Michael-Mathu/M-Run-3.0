@@ -80,7 +80,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 delegate: SliverChildListDelegate([
                   _TopBar(g: g, locale: locale),
                   const SizedBox(height: AppTheme.s24),
-                  _WeeklyCard(g: g, recent: recent, text: text, locale: locale),
+                  _WeeklyCard(g: g, recent: recent, locale: locale),
                   const SizedBox(height: AppTheme.s20),
                   _StartRunButton(),
                   if (g.totalRuns == 0) ...[
@@ -182,32 +182,38 @@ SectionTitle(L10n.tr('continue_learning', locale),
 }
 }
 
+// Red Earth: an eyebrow date + time-of-day greeting headline, replacing the
+// static logo-tile + "Mwendo" brand row -- the brand doesn't need repeating
+// on its own home screen every time. Level moves into a small circle badge
+// (matching the mockup) instead of a pill sized the same as the streak chip.
 class _TopBar extends StatelessWidget {
   final GamificationState g;
   final AppLocale locale;
   const _TopBar({required this.g, required this.locale});
 
+  String _greetingKey() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'greeting_morning';
+    if (hour < 17) return 'greeting_afternoon';
+    return 'greeting_evening';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            gradient: AppTheme.brandGradient,
-            borderRadius: BorderRadius.circular(AppTheme.r12),
-          ),
-          child: const Icon(Icons.directions_run_rounded, color: Colors.white),
-        ),
-        const SizedBox(width: AppTheme.s12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(L10n.tr('home', locale), style: text.labelMedium),
-              Text('Mwendo', style: text.titleLarge),
+              Text(
+                formatDate(DateTime.now()).toUpperCase(),
+                style: AppTheme.monoFont(size: 11, weight: FontWeight.w600, spacing: 1.1, color: AppTheme.brand),
+              ),
+              const SizedBox(height: AppTheme.s2),
+              Text(L10n.tr(_greetingKey(), locale), style: AppTheme.displayFont(size: 28, color: cs.onSurface)),
             ],
           ),
         ),
@@ -216,7 +222,7 @@ class _TopBar extends StatelessWidget {
             label: '${L10n.tr('streak', locale)} ${g.streakDays}',
             child: Container(
               margin: const EdgeInsets.only(right: AppTheme.s8),
-              padding: const EdgeInsets.symmetric(horizontal: AppTheme.s10, vertical: AppTheme.s4),
+              padding: const EdgeInsets.symmetric(horizontal: AppTheme.s10, vertical: AppTheme.s6),
               decoration: BoxDecoration(
                 color: AppTheme.tierGold.withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(AppTheme.rFull),
@@ -225,7 +231,8 @@ class _TopBar extends StatelessWidget {
                 children: [
                   const Icon(Icons.local_fire_department_rounded, color: AppTheme.tierGold, size: 16),
                   const SizedBox(width: AppTheme.s4),
-                  Text('${g.streakDays}', style: text.labelMedium!.copyWith(color: AppTheme.tierGold)),
+                  Text('${g.streakDays}',
+                      style: AppTheme.monoFont(size: 13, weight: FontWeight.w600, color: AppTheme.tierGold)),
                 ],
               ),
             ),
@@ -233,12 +240,15 @@ class _TopBar extends StatelessWidget {
         Semantics(
           label: '${L10n.tr('level', locale)} ${g.level}',
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: AppTheme.s10, vertical: AppTheme.s4),
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppTheme.brand.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(AppTheme.rFull),
+              color: AppTheme.dawn.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
             ),
-            child: Text('${L10n.tr('lv', locale)} ${g.level}', style: text.labelMedium!.copyWith(color: AppTheme.brand)),
+            child: Text('${L10n.tr('lv', locale)}${g.level}',
+                style: AppTheme.monoFont(size: 11, weight: FontWeight.w700, color: AppTheme.dawn)),
           ),
         ),
       ],
@@ -249,9 +259,8 @@ class _TopBar extends StatelessWidget {
 class _WeeklyCard extends StatelessWidget {
   final GamificationState g;
   final AsyncValue<List<RunRecord>> recent;
-  final TextTheme text;
   final AppLocale locale;
-  const _WeeklyCard({required this.g, required this.recent, required this.text, required this.locale});
+  const _WeeklyCard({required this.g, required this.recent, required this.locale});
 
   @override
   Widget build(BuildContext context) {
@@ -264,50 +273,47 @@ class _WeeklyCard extends StatelessWidget {
     final wDist = weekly.fold(0.0, (s, r) => s + r.distanceM);
     final wTime = weekly.fold(0, (s, r) => s + r.durationMs);
 
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.s24),
-      decoration: BoxDecoration(
-        gradient: AppTheme.brandGradient,
-        borderRadius: BorderRadius.circular(AppTheme.r24),
-        boxShadow: [
-          BoxShadow(color: AppTheme.brand.withValues(alpha: 0.35), blurRadius: 24, offset: const Offset(0, 10)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(L10n.tr('this_week', locale), style: text.labelMedium!.copyWith(color: Colors.white70)),
-          const SizedBox(height: AppTheme.s4),
-          Text(formatDistance(wDist),
-              style: text.displayMedium!.copyWith(color: Colors.white, fontFeatures: const [FontFeature.tabularFigures()])),
-          const SizedBox(height: AppTheme.s20),
-          Row(
-            children: [
-              Expanded(
-                child: MetricTile(
-                  variant: MetricVariant.hero,
-                  label: L10n.tr('runs', locale),
-                  value: weekly.length.toString(),
-                ),
+    // Red Earth: numbers get typography, not a boxed gradient hero card --
+    // the weekly distance sits directly on the page as a scoreboard-scale
+    // number, with the three secondary stats below it as plain metric
+    // tiles instead of white-on-gradient chips.
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(L10n.tr('this_week', locale).toUpperCase(),
+            style: AppTheme.monoFont(size: 11, weight: FontWeight.w600, spacing: 1.1, color: AppTheme.brand)),
+        const SizedBox(height: AppTheme.s4),
+        Text(formatDistance(wDist), style: AppTheme.displayFont(size: 52, color: cs.onSurface)),
+        const SizedBox(height: AppTheme.s20),
+        Row(
+          children: [
+            Expanded(
+              child: MetricTile(
+                variant: MetricVariant.card,
+                label: L10n.tr('runs', locale),
+                value: weekly.length.toString(),
               ),
-              Expanded(
-                child: MetricTile(
-                  variant: MetricVariant.hero,
-                  label: L10n.tr('time', locale),
-                  value: formatDuration(wTime),
-                ),
+            ),
+            Expanded(
+              child: MetricTile(
+                variant: MetricVariant.card,
+                label: L10n.tr('time', locale),
+                value: formatDuration(wTime),
               ),
-              Expanded(
-                child: MetricTile(
-                  variant: MetricVariant.hero,
-                  label: L10n.tr('best', locale),
-                  value: g.bestPaceMinPerKm > 0 ? formatPace(g.bestPaceMinPerKm) : '--',
-                ),
+            ),
+            Expanded(
+              child: MetricTile(
+                variant: MetricVariant.card,
+                label: L10n.tr('best', locale),
+                value: g.bestPaceMinPerKm > 0 ? formatPace(g.bestPaceMinPerKm) : '--',
               ),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppTheme.s8),
+        Divider(height: 1, thickness: 1, color: cs.outlineVariant.withValues(alpha: 0.4)),
+      ],
     );
   }
 }

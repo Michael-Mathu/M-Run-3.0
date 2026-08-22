@@ -246,8 +246,8 @@ class _YouPageState extends ConsumerState<YouPage> {
                       SectionTitle(L10n.tr('settings', locale)),
                       const SizedBox(height: AppTheme.s12),
                       _LangTile(cs: cs, text: text, ref: ref, locale: locale),
+                      const SizedBox(height: AppTheme.s8),
                       _SettingTile(
-                        icon: Icons.straighten_rounded,
                         title: L10n.tr('units', locale),
                         subtitle: units == Units.metric
                             ? L10n.tr('metric', locale)
@@ -255,7 +255,6 @@ class _YouPageState extends ConsumerState<YouPage> {
                         onTap: () => ref.read(unitsProvider.notifier).toggle(),
                       ),
                       _SettingTile(
-                        icon: Icons.brightness_6_rounded,
                         title: L10n.tr('appearance', locale),
                         subtitle: mode == ThemeMode.dark
                             ? L10n.tr('dark', locale)
@@ -266,7 +265,6 @@ class _YouPageState extends ConsumerState<YouPage> {
                       ),
                       _ThemePickerTile(locale: locale),
                       _SettingTile(
-                        icon: Icons.shield_outlined,
                         title: L10n.tr('emergency_contacts', locale),
                         subtitle: contacts.isEmpty
                             ? L10n.tr('not_set', locale)
@@ -274,9 +272,9 @@ class _YouPageState extends ConsumerState<YouPage> {
                         onTap: () => _EmergencyContactsSheet.show(context, ref),
                       ),
                       _SettingTile(
-                        icon: Icons.file_download_outlined,
                         title: L10n.tr('export_data', locale),
                         onTap: () => _exportData(context, ref, locale),
+                        showDivider: false,
                       ),
                       const SizedBox(height: 100),
                     ]),
@@ -514,23 +512,21 @@ class _AccountTile extends ConsumerWidget {
     final text = Theme.of(context).textTheme;
     final locale = ref.watch(localeProvider);
     final session = ref.watch(sessionProvider);
+    // Declutter (Red Earth): a hairline-bordered row instead of a filled
+    // surface card with a boxed icon -- one visual weight lighter, same tap
+    // targets and behavior.
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.s4, vertical: AppTheme.s8),
-      decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(AppTheme.r12)),
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.s16, vertical: AppTheme.s14),
+      decoration: BoxDecoration(
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(AppTheme.r12),
+      ),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(color: cs.surfaceContainerHighest, borderRadius: BorderRadius.circular(AppTheme.r12)),
-            child: Icon(session.isAnonymous ? Icons.person_outline_rounded : Icons.verified_user_rounded,
-                color: AppTheme.brand),
-          ),
-          const SizedBox(width: AppTheme.s16),
           Expanded(
             child: session.isAnonymous
-                ? Text(L10n.tr('continue_anonymous', locale), style: text.titleMedium)
-                : Text(session.email ?? L10n.tr('account', locale), style: text.titleMedium),
+                ? Text(L10n.tr('continue_anonymous', locale), style: text.bodyLarge)
+                : Text(session.email ?? L10n.tr('account', locale), style: text.bodyLarge),
           ),
           TextButton(
             onPressed: () {
@@ -559,19 +555,17 @@ class _LangTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Declutter (Red Earth): hairline border instead of a filled surface
+    // card with a boxed icon.
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.s4, vertical: AppTheme.s8),
-      decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(AppTheme.r12)),
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.s16, vertical: AppTheme.s10),
+      decoration: BoxDecoration(
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(AppTheme.r12),
+      ),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(color: cs.surfaceContainerHighest, borderRadius: BorderRadius.circular(AppTheme.r12)),
-            child: Icon(Icons.language_rounded, color: AppTheme.brand),
-          ),
-          const SizedBox(width: AppTheme.s16),
-          Expanded(child: Text(L10n.tr('language', locale), style: text.titleMedium)),
+          Expanded(child: Text(L10n.tr('language', locale), style: text.bodyLarge)),
           SegmentedButton<AppLocale>(
             selected: {locale},
             showSelectedIcon: false,
@@ -595,34 +589,43 @@ class _LangTile extends StatelessWidget {
   }
 }
 
+// Declutter (Red Earth): settings used to each sit in their own bordered,
+// icon-boxed card -- five near-identical cards stacked in a column reads as
+// noise, not information. A plain row with a hairline divider underneath
+// (like an airport departures board) carries the exact same title/value/tap
+// target with far less chrome. Purpose and behavior are unchanged.
 class _SettingTile extends StatelessWidget {
-  final IconData icon;
   final String title;
   final String? subtitle;
   final VoidCallback? onTap;
-  const _SettingTile({required this.icon, required this.title, this.subtitle, this.onTap});
+  final bool showDivider;
+  const _SettingTile({required this.title, this.subtitle, this.onTap, this.showDivider = true});
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
-    final child = ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(color: cs.surfaceContainerHighest, borderRadius: BorderRadius.circular(AppTheme.r12)),
-        child: Icon(icon, color: cs.primary),
-      ),
-      title: Text(title, style: text.titleMedium),
-      subtitle: subtitle != null ? Text(subtitle!, style: text.bodySmall) : null,
-      trailing: const TrailingChevron(),
-    );
-    if (onTap == null) return child;
-    return InkWell(
-      borderRadius: BorderRadius.circular(AppTheme.r12),
+    final row = InkWell(
       onTap: onTap,
-      child: child,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppTheme.s14),
+        child: Row(
+          children: [
+            Expanded(child: Text(title, style: text.bodyLarge)),
+            if (subtitle != null)
+              Padding(
+                padding: const EdgeInsets.only(right: AppTheme.s8),
+                child: Text(subtitle!,
+                    style: text.bodyMedium!.copyWith(color: cs.onSurface.withValues(alpha: 0.55))),
+              ),
+            if (onTap != null) const TrailingChevron(),
+          ],
+        ),
+      ),
+    );
+    if (!showDivider) return row;
+    return Column(
+      children: [row, Divider(height: 1, thickness: 1, color: cs.outlineVariant.withValues(alpha: 0.35))],
     );
   }
 }
@@ -636,7 +639,6 @@ class _ThemePickerTile extends ConsumerWidget {
     final palette = ref.watch(paletteProvider);
 
     return _SettingTile(
-      icon: Icons.palette_outlined,
       title: L10n.tr('color_theme', locale),
       subtitle: _themeName(palette, locale),
       onTap: () => _showThemePicker(context, ref, locale),

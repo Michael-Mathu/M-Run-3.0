@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:mwendo_app/core/theme/app_theme.dart';
 
-/// Section header used across the app for visual consistency.
+/// Section header used across the app for visual consistency. Red Earth:
+/// a tracked mono-caps "eyebrow" label (matching the redesign's scoreboard
+/// idiom -- "CONTINUE LEARNING", "TODAY", "SETTINGS") instead of a full
+/// Big-Shoulders titleLarge heading, so section labels read as structure,
+/// not as competing headlines.
 class SectionTitle extends StatelessWidget {
   final String title;
   final String? actionLabel;
@@ -10,13 +14,17 @@ class SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(top: AppTheme.s8, bottom: AppTheme.s12),
       child: Row(
         children: [
-          Expanded(child: Text(title, style: text.titleLarge)),
+          Expanded(
+            child: Text(
+              title.toUpperCase(),
+              style: AppTheme.monoFont(size: 12, weight: FontWeight.w600, spacing: 1.1, color: cs.primary),
+            ),
+          ),
           if (actionLabel != null)
             TextButton(
               onPressed: onAction,
@@ -27,7 +35,8 @@ class SectionTitle extends StatelessWidget {
               ),
               child: Text(
                 actionLabel!,
-                style: text.labelMedium!.copyWith(color: cs.primary),
+                style: AppTheme.monoFont(
+                    size: 11, weight: FontWeight.w600, color: cs.onSurface.withValues(alpha: 0.5)),
               ),
             ),
         ],
