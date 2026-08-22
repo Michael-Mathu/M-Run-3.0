@@ -32,16 +32,18 @@ class LegendOfDayCard extends ConsumerWidget {
     final text = Theme.of(context).textTheme;
     final locale = ref.read(localeProvider);
 
-    // A legend's accent can be a light dawn gold or a dark highland/earth, so
-    // pick a foreground that stays legible on either (fixes white-on-gold).
-    final fg = accent.computeLuminance() > 0.55 ? AppTheme.onLight : Colors.white;
-    final fgSoft = fg.withValues(alpha: 0.85);
+    // A legend's accent can be a light dawn gold or a dark earth/highland.
+    // Render the card at full strength (opaque, gently darkened toward the
+    // bottom) and pick a foreground by the accent's luminance so dawn gold
+    // gets dark ink while earth/highland get cream — both stay legible.
+    final fg = accent.computeLuminance() > 0.30 ? AppTheme.onLight : Colors.white;
+    final fgSoft = fg.withValues(alpha: 0.82);
 
     return Container(
       padding: const EdgeInsets.all(AppTheme.s20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.95), accent.withValues(alpha: 0.6)],
+          colors: [accent, Color.lerp(accent, Colors.black, 0.22)!],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
