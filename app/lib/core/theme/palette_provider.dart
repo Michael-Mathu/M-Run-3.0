@@ -12,7 +12,7 @@ class PaletteNotifier extends Notifier<ColorPalette> {
     if (raw != null && ColorPalette.presetsByName.containsKey(raw)) {
       return ColorPalette.presetsByName[raw]!;
     }
-    return const ColorPalette.orange();
+    return const ColorPalette.redEarth();
   }
 
   Future<void> set(ColorPalette palette) async {

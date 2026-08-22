@@ -266,6 +266,7 @@ class L10n {
 
     // ---- Theme picker (Phase 2 audit) ----
     'color_theme': {'en': 'Color Theme', 'sw': 'Mwonekano wa Rangi'},
+    'theme_red_earth': {'en': 'Red Earth', 'sw': 'Udongo Mwekundu'},
     'theme_kinetic_orange': {'en': 'Kinetic Orange', 'sw': 'Orenji ya Kinetiki'},
     'theme_kenyan_green': {'en': 'Kenyan Green', 'sw': 'Kijani cha Kenya'},
     'theme_midnight_blue': {'en': 'Midnight Blue', 'sw': 'Buluu ya Usiku'},

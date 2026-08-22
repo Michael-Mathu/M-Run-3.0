@@ -645,6 +645,7 @@ class _ThemePickerTile extends ConsumerWidget {
 
   String _themeName(ColorPalette p, AppLocale locale) {
     final key = ColorPalette.presetsByName.entries.firstWhere((e) => e.value == p).key;
+    if (key == 'redEarth') return L10n.tr('theme_red_earth', locale);
     if (key == 'orange') return L10n.tr('theme_kinetic_orange', locale);
     if (key == 'forest') return L10n.tr('theme_kenyan_green', locale);
     if (key == 'ocean') return L10n.tr('theme_midnight_blue', locale);
@@ -765,6 +766,7 @@ class _ThemeSwatch extends StatelessWidget {
 
   String _themeName(ColorPalette p, AppLocale locale) {
     final key = ColorPalette.presetsByName.entries.firstWhere((e) => e.value == p).key;
+    if (key == 'redEarth') return L10n.tr('theme_red_earth', locale);
     if (key == 'orange') return L10n.tr('theme_kinetic_orange', locale);
     if (key == 'forest') return L10n.tr('theme_kenyan_green', locale);
     if (key == 'ocean') return L10n.tr('theme_midnight_blue', locale);

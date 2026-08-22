@@ -4,36 +4,51 @@ import 'package:google_fonts/google_fonts.dart';
 /// Mwendo design system.
 /// Opinionated, athletic, high-contrast — built to hold a candle to Strava / NRC.
 class AppTheme {
-  // ---- Brand palette (curated, not algorithmic) ----
-  static const Color brand = Color(0xFFFF5A1F); // kinetic orange
-  static const Color brandSoft = Color(0xFFFF8A5C);
-  // Flag-refined reds: deeper, more "Kenyan" than the old neon alert reds.
+  // ---- "Red Earth" palette ----------------------------------------------
+  // Drawn from the material the app is actually about: the laterite roads of
+  // Iten, Rift Valley dawn light, and the discipline of a stopwatch. One
+  // accent (Earth) does action; a second (Dawn) means "you earned this"; a
+  // third (Highland) means "you're clear / ahead". See AUDIT_2 redesign.
+  static const Color earth = Color(0xFFB14A2A); // primary accent
+  static const Color earthDeep = Color(0xFF8C3A20);
+  static const Color dawn = Color(0xFFD89A2E); // achievement / highlight
+  static const Color highland = Color(0xFF3C8368); // success / "ahead" (dark)
+  static const Color highlandLight = Color(0xFF2C6B54); // success (light, deeper)
+
+  // `brand`/`brandSoft` keep their names (referenced widely) but now point at
+  // Earth, so every existing accent site re-skins for free.
+  static const Color brand = earth;
+  static const Color brandSoft = Color(0xFFD6714E);
+  // Live/alert red — a warm flag red that harmonises with the earth accent.
   static const Color recording = Color(0xFFC5283D); // live red pulse
   static const Color sos = Color(0xFFC5283D); // SOS / danger
-  static const Color paused = Color(0xFFF5A623);
-  static const Color idle = Color(0xFF8A8A8E);
-  static const Color achievement = Color(0xFFFFD15C); // gold
+  static const Color paused = dawn; // amber pause
+  static const Color idle = Color(0xFF8A8078); // warm neutral grey
+  static const Color achievement = dawn; // dawn gold
 
-  // Kenyan-flag semantic accents ("K-Earth"): green = prosperity/terrain/
-  // success/data-viz. Not literal flag stripes — mapped to UI roles only.
-  static const Color flagGreen = Color(0xFF1B8A5A); // dark-theme green
-  static const Color flagGreenLight = Color(0xFF0E5C36); // light-theme green (deeper for contrast)
-  static const Color flagRed = Color(0xFFC5283D); // flag's deeper red
+  // Highland green mapped to UI roles (success / data-viz / "ahead").
+  static const Color flagGreen = highland; // dark-theme green
+  static const Color flagGreenLight = highlandLight; // light-theme green
+  static const Color flagRed = Color(0xFFC5283D);
 
-  // Semantic colors (OpenBrand extension — success, warning, danger)
-  static const Color success = Color(0xFF0E5C36); // green (flagGreenLight, light)
-  static const Color danger = Color(0xFFC5283D); // red (sos)
-  static const Color warning = Color(0xFFF5A623); // amber warning (unchanged)
+  // Semantic colors (success, warning, danger)
+  static const Color success = highlandLight;
+  static const Color danger = Color(0xFFC5283D);
+  static const Color warning = dawn;
 
-  // Dark surfaces
-  static const Color darkScaffold = Color(0xFF0B0B0C);
-  static const Color darkCard = Color(0xFF161618);
-  static const Color darkElevated = Color(0xFF1F1F22);
+  // Warm-ink dark surfaces (not pure black)
+  static const Color darkScaffold = Color(0xFF17110C);
+  static const Color darkCard = Color(0xFF221A13);
+  static const Color darkElevated = Color(0xFF2C2219);
 
-  // Light surfaces
-  static const Color lightScaffold = Color(0xFFF7F7F4);
+  // Unbleached "paper" light surfaces (warm, not clinical white)
+  static const Color lightScaffold = Color(0xFFF7F1E8);
   static const Color lightCard = Color(0xFFFFFFFF);
-  static const Color lightElevated = Color(0xFFF0EFEA);
+  static const Color lightElevated = Color(0xFFF0E7D8);
+
+  // Warm text colors, replacing the old cool near-black.
+  static const Color onLight = Color(0xFF211A14); // ink on paper
+  static const Color onDark = Color(0xFFF3E9DC); // cream on ink
 
   // Spacing scale (4pt grid)
   static const double s2 = 2;
@@ -108,8 +123,8 @@ class AppTheme {
   // Challenge tiers
   static const Color tierBronze = Color(0xFFCD7F32);
   static const Color tierSilver = Color(0xFFC0C6CC);
-  static const Color tierGold = Color(0xFFFFD15C);
-  static const Color tierPlatinum = Color(0xFF7FE7E0);
+  static const Color tierGold = dawn; // dawn gold — also the streak color
+  static const Color tierPlatinum = Color(0xFF6FB6A0); // highland-tinted platinum
 
   /// Named-tier → color lookup so challenge cards can be visually distinct
   /// without each site hand-coding the mapping.
@@ -120,124 +135,87 @@ class AppTheme {
     'platinum': tierPlatinum,
   };
 
+  // Dawn gradient: sunrise gold folding into red earth — used sparingly on
+  // hero moments (weekly card, logo tile, first-run CTA).
   static LinearGradient get brandGradient => const LinearGradient(
-        colors: [brand, Color(0xFFFF8A3D)],
+        colors: [dawn, earth],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       );
 
+  // ---- Type system -------------------------------------------------------
+  // Big Shoulders Display — condensed, athletic, "stadium scoreboard". Carries
+  // display/headline/large-title sizes and the big metric numbers.
+  // Work Sans — every sentence a runner actually reads.
+  // IBM Plex Mono — reserved for data: pace, distance, splits, eyebrow labels.
+  static TextStyle displayFont({
+    required double size,
+    FontWeight weight = FontWeight.w700,
+    double spacing = 0.3,
+    double height = 1.0,
+    Color? color,
+  }) =>
+      GoogleFonts.bigShouldersDisplay(
+        fontSize: size,
+        fontWeight: weight,
+        letterSpacing: spacing,
+        height: height,
+        color: color,
+      );
+
+  static TextStyle bodyFont({
+    required double size,
+    FontWeight weight = FontWeight.w400,
+    double spacing = 0,
+    double height = 1.4,
+    Color? color,
+  }) =>
+      GoogleFonts.workSans(
+        fontSize: size,
+        fontWeight: weight,
+        letterSpacing: spacing,
+        height: height,
+        color: color,
+      );
+
+  static TextStyle monoFont({
+    required double size,
+    FontWeight weight = FontWeight.w500,
+    double spacing = 0,
+    Color? color,
+  }) =>
+      GoogleFonts.ibmPlexMono(
+        fontSize: size,
+        fontWeight: weight,
+        letterSpacing: spacing,
+        color: color,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      );
+
   static TextTheme _text(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
-    final base = GoogleFonts.interTextTheme(
-      TextTheme(
-        displayLarge: const TextStyle(fontSize: 56, fontWeight: FontWeight.w800, letterSpacing: -1.5),
-        displayMedium: const TextStyle(fontSize: 44, fontWeight: FontWeight.w800, letterSpacing: -1),
-        headlineLarge: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -0.5),
-        headlineMedium: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
-        titleLarge: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-        titleMedium: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        bodyLarge: const TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
-        bodyMedium: const TextStyle(fontSize: 14, fontWeight: FontWeight.w400),
-        labelLarge: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-        labelMedium: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.4),
-        labelSmall: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.4),
-      ),
-    );
-    return base.apply(
-      bodyColor: isDark ? Colors.white : const Color(0xFF1A1A1C),
-      displayColor: isDark ? Colors.white : const Color(0xFF1A1A1C),
+    final ink = isDark ? onDark : onLight;
+    return TextTheme(
+      // Display + headline + large titles: Big Shoulders (condensed athletic).
+      displayLarge: displayFont(size: 56, weight: FontWeight.w800, color: ink),
+      displayMedium: displayFont(size: 44, weight: FontWeight.w800, color: ink),
+      headlineLarge: displayFont(size: 34, weight: FontWeight.w700, color: ink),
+      headlineMedium: displayFont(size: 28, weight: FontWeight.w700, color: ink),
+      titleLarge: displayFont(size: 22, weight: FontWeight.w700, color: ink),
+      // Small titles + body + labels: Work Sans (readable at text sizes).
+      titleMedium: bodyFont(size: 16, weight: FontWeight.w600, color: ink),
+      bodyLarge: bodyFont(size: 16, color: ink),
+      bodyMedium: bodyFont(size: 14, color: ink),
+      labelLarge: bodyFont(size: 14, weight: FontWeight.w600, color: ink),
+      labelMedium: bodyFont(size: 12, weight: FontWeight.w600, spacing: 0.4, color: ink),
+      // Tiny eyebrow labels: mono, uppercase, tracked.
+      labelSmall: monoFont(size: 10, weight: FontWeight.w600, spacing: 1.4, color: ink),
     );
   }
 
-  static final ThemeData light = ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.light,
-    scaffoldBackgroundColor: lightScaffold,
-    colorScheme: ColorScheme.fromSeed(seedColor: brand, brightness: Brightness.light)
-        .copyWith(
-      primary: brand,
-      onPrimary: Colors.white,
-      secondary: achievement,
-      onSecondary: Colors.black,
-      surface: lightCard,
-      onSurface: const Color(0xFF1A1A1C),
-      surfaceContainerHighest: lightElevated,
-      error: sos,
-      onError: Colors.white,
-      primaryContainer: brandSoft.withValues(alpha: 0.18),
-    ),
-    textTheme: _text(Brightness.light),
-    cardTheme: CardThemeData(
-      color: lightCard,
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r16)),
-      margin: EdgeInsets.zero,
-    ),
-    iconTheme: const IconThemeData(size: 24, fill: 1, weight: 600),
-    filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: s24, vertical: s16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r12)),
-        textStyle: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700),
-      ),
-    ),
-    navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: lightScaffold,
-      indicatorColor: brand.withValues(alpha: 0.16),
-    ),
-    snackBarTheme: SnackBarThemeData(
-      backgroundColor: lightElevated,
-      contentTextStyle: const TextStyle(color: Color(0xFF1A1A1C)),
-      actionTextColor: brand,
-    ),
-    dialogTheme: DialogThemeData(backgroundColor: lightCard),
-    extensions: [AppExtensions.light],
-  );
-
-  static final ThemeData dark = ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.dark,
-    scaffoldBackgroundColor: darkScaffold,
-    colorScheme: ColorScheme.fromSeed(seedColor: brand, brightness: Brightness.dark)
-        .copyWith(
-      primary: brand,
-      onPrimary: Colors.white,
-      secondary: achievement,
-      onSecondary: Colors.black,
-      surface: darkCard,
-      onSurface: Colors.white,
-      surfaceContainerHighest: darkElevated,
-      error: sos,
-      onError: Colors.white,
-      primaryContainer: brandSoft.withValues(alpha: 0.20),
-    ),
-    textTheme: _text(Brightness.dark),
-    cardTheme: CardThemeData(
-      color: darkCard,
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r16)),
-      margin: EdgeInsets.zero,
-    ),
-    iconTheme: const IconThemeData(size: 24, fill: 1, weight: 600),
-    filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: s24, vertical: s16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r12)),
-        textStyle: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700),
-      ),
-    ),
-    navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: darkScaffold,
-      indicatorColor: brand.withValues(alpha: 0.18),
-    ),
-    snackBarTheme: SnackBarThemeData(
-      backgroundColor: darkElevated,
-      contentTextStyle: const TextStyle(color: Colors.white),
-      actionTextColor: brandSoft,
-    ),
-    dialogTheme: DialogThemeData(backgroundColor: darkElevated),
-    extensions: [AppExtensions.dark],
-  );
+  // The app builds its theme exclusively through [buildTheme] (see app.dart),
+  // so the old static `light`/`dark` ThemeData blocks were removed. Keeping a
+  // single construction path avoids two definitions drifting apart.
 }
 
 /// App-specific semantic tokens passed through the theme tree.
@@ -286,97 +264,22 @@ class AppExtensions extends ThemeExtension<AppExtensions> {
     required this.label,
   });
 
-  static const _metricValue = TextStyle(
-    fontSize: 30,
-    fontWeight: FontWeight.w700,
-    letterSpacing: -0.5,
-    height: 1.0,
-  );
-  static const _metricLabel = TextStyle(
-    fontSize: 11,
-    fontWeight: FontWeight.w600,
-    letterSpacing: 1.2,
-    color: AppTheme.idle,
-  );
-  static const _displayMetric = TextStyle(
-    fontSize: 56,
-    fontWeight: FontWeight.w800,
-    letterSpacing: -1.5,
-    height: 1.0,
-  );
-  static const _heroMetric = TextStyle(
-    fontSize: 44,
-    fontWeight: FontWeight.w800,
-    letterSpacing: -1,
-    height: 1.0,
-  );
-  static const _title = TextStyle(
-    fontSize: 20,
-    fontWeight: FontWeight.w700,
-  );
-  static const _subtitle = TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.w400,
-  );
-  static const _body = TextStyle(
-    fontSize: 16,
-    fontWeight: FontWeight.w400,
-  );
-  static const _caption = TextStyle(
-    fontSize: 12,
-    fontWeight: FontWeight.w600,
-    letterSpacing: 0.4,
-  );
-  static const _label = TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.w600,
-  );
-
-  static const light = AppExtensions(
-    recording: AppTheme.recording,
-    paused: AppTheme.paused,
-    idle: AppTheme.idle,
-    sos: AppTheme.sos,
-    achievement: AppTheme.achievement,
-    hrZones: AppTheme.hrZones,
-    brandGradient: LinearGradient(colors: [AppTheme.brand, Color(0xFFFF8A3D)]),
-    flagGreen: AppTheme.flagGreenLight,
-    success: AppTheme.flagGreenLight,
-    warning: AppTheme.warning,
-    danger: AppTheme.sos,
-    metricValue: _metricValue,
-    metricLabel: _metricLabel,
-    displayMetric: _displayMetric,
-    heroMetric: _heroMetric,
-    title: _title,
-    subtitle: _subtitle,
-    body: _body,
-    caption: _caption,
-    label: _label,
-  );
-
-  static const dark = AppExtensions(
-    recording: AppTheme.recording,
-    paused: AppTheme.paused,
-    idle: AppTheme.idle,
-    sos: AppTheme.sos,
-    achievement: AppTheme.achievement,
-    hrZones: AppTheme.hrZones,
-    brandGradient: LinearGradient(colors: [AppTheme.brand, Color(0xFFFF8A3D)]),
-    flagGreen: AppTheme.flagGreen,
-    success: AppTheme.flagGreen,
-    warning: AppTheme.warning,
-    danger: AppTheme.sos,
-    metricValue: _metricValue,
-    metricLabel: _metricLabel,
-    displayMetric: _displayMetric,
-    heroMetric: _heroMetric,
-    title: _title,
-    subtitle: _subtitle,
-    body: _body,
-    caption: _caption,
-    label: _label,
-  );
+  // Metric numbers ride the display face (Big Shoulders) with tabular figures
+  // so a "10.42 km" reads like a scoreboard and columns of digits align.
+  static TextStyle get _metricValue =>
+      AppTheme.displayFont(size: 32, weight: FontWeight.w700, spacing: 0.2);
+  static TextStyle get _metricLabel =>
+      AppTheme.monoFont(size: 10, weight: FontWeight.w600, spacing: 1.2, color: AppTheme.idle);
+  static TextStyle get _displayMetric =>
+      AppTheme.displayFont(size: 60, weight: FontWeight.w800, spacing: 0.3);
+  static TextStyle get _heroMetric =>
+      AppTheme.displayFont(size: 46, weight: FontWeight.w800, spacing: 0.3);
+  static TextStyle get _title => AppTheme.displayFont(size: 22, weight: FontWeight.w700);
+  static TextStyle get _subtitle => AppTheme.bodyFont(size: 14);
+  static TextStyle get _body => AppTheme.bodyFont(size: 16);
+  static TextStyle get _caption =>
+      AppTheme.bodyFont(size: 12, weight: FontWeight.w600, spacing: 0.4);
+  static TextStyle get _label => AppTheme.bodyFont(size: 14, weight: FontWeight.w600);
 
   @override
   AppExtensions copyWith({
@@ -550,7 +453,30 @@ class ColorPalette {
     required this.tierPlatinum,
   });
 
-  /// Default Kinetic Orange theme (current brand).
+  /// "Red Earth" — the default identity. Earth accent, dawn achievement,
+  /// highland success. See the AUDIT_2 redesign proposal.
+  const ColorPalette.redEarth()
+      : primary = AppTheme.earth,
+        primaryContainer = const Color(0xFFD6714E),
+        secondary = AppTheme.dawn,
+        secondaryContainer = const Color(0xFFF5E4BC),
+        gradientEnd = AppTheme.dawn,
+        danger = const Color(0xFFC5283D),
+        warning = AppTheme.dawn,
+        success = AppTheme.highlandLight,
+        achievement = AppTheme.dawn,
+        idle = const Color(0xFF8A8078),
+        recording = const Color(0xFFC5283D),
+        paused = AppTheme.dawn,
+        sos = const Color(0xFFC5283D),
+        flagGreen = AppTheme.highland,
+        flagGreenLight = AppTheme.highlandLight,
+        tierBronze = const Color(0xFFCD7F32),
+        tierSilver = const Color(0xFFC0C6CC),
+        tierGold = AppTheme.dawn,
+        tierPlatinum = const Color(0xFF6FB6A0);
+
+  /// Kinetic Orange theme (the previous brand — kept as an alternative).
   const ColorPalette.orange()
       : primary = const Color(0xFFFF5A1F),
         primaryContainer = const Color(0xFFFF8A3D),
@@ -638,8 +564,9 @@ class ColorPalette {
         tierGold = const Color(0xFFFFD15C),
         tierPlatinum = const Color(0xFF7FE7E0);
 
-  /// All available palette presets.
+  /// All available palette presets. Red Earth leads as the default identity.
   static const List<ColorPalette> presets = [
+    ColorPalette.redEarth(),
     ColorPalette.orange(),
     ColorPalette.forest(),
     ColorPalette.ocean(),
@@ -648,6 +575,7 @@ class ColorPalette {
 
   /// Map from preset name to palette for persistence.
   static const Map<String, ColorPalette> presetsByName = {
+    'redEarth': ColorPalette.redEarth(),
     'orange': ColorPalette.orange(),
     'forest': ColorPalette.forest(),
     'ocean': ColorPalette.ocean(),
@@ -672,7 +600,7 @@ ThemeData buildTheme(ColorPalette palette, Brightness brightness) {
     error: palette.danger,
     onError: Colors.white,
     surface: isDark ? AppTheme.darkCard : AppTheme.lightCard,
-    onSurface: isDark ? Colors.white : const Color(0xFF1A1A1C),
+    onSurface: isDark ? AppTheme.onDark : AppTheme.onLight,
     surfaceContainerHighest: isDark ? AppTheme.darkElevated : AppTheme.lightElevated,
   );
 
@@ -695,18 +623,26 @@ ThemeData buildTheme(ColorPalette palette, Brightness brightness) {
       style: FilledButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: AppTheme.s24, vertical: AppTheme.s16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.r12)),
-        textStyle: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700),
+        // Big Shoulders on buttons: the label reads like a start line.
+        textStyle: AppTheme.displayFont(size: 17, weight: FontWeight.w700, spacing: 0.4),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: AppTheme.s24, vertical: AppTheme.s16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.r12)),
+        textStyle: AppTheme.displayFont(size: 17, weight: FontWeight.w700, spacing: 0.4),
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: isDark ? AppTheme.darkScaffold : AppTheme.lightScaffold,
-      indicatorColor: palette.primary.withValues(alpha: isDark ? 0.18 : 0.16),
+      indicatorColor: palette.primary.withValues(alpha: isDark ? 0.20 : 0.14),
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
     ),
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: isDark ? AppTheme.darkElevated : AppTheme.lightElevated,
-      contentTextStyle: TextStyle(color: isDark ? Colors.white : const Color(0xFF1A1A1C)),
-      actionTextColor: palette.primary,
+      backgroundColor: isDark ? AppTheme.darkElevated : AppTheme.onLight,
+      contentTextStyle: TextStyle(color: isDark ? AppTheme.onDark : AppTheme.lightScaffold),
+      actionTextColor: palette.secondary,
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: isDark ? AppTheme.darkElevated : AppTheme.lightCard,
