@@ -23,7 +23,13 @@ final legendOfWeekProvider = Provider<Legend>((ref) {
 
 class LegendOfDayCard extends ConsumerWidget {
   final bool weekly;
-  const LegendOfDayCard({super.key, this.weekly = false});
+
+  /// Condensed single-row treatment. The full card is ~540px tall -- over a
+  /// quarter of a phone viewport spent on trivia, pushing the app's actual
+  /// features below the fold. [compact] keeps the same content and the dawn
+  /// accent moment at roughly a fifth of the height.
+  final bool compact;
+  const LegendOfDayCard({super.key, this.weekly = false, this.compact = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,6 +37,53 @@ class LegendOfDayCard extends ConsumerWidget {
     final accent = legendAccent(legend);
     final text = Theme.of(context).textTheme;
     final locale = ref.read(localeProvider);
+
+    if (compact) {
+      final cs = Theme.of(context).colorScheme;
+      return Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppTheme.r16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppTheme.r16),
+          onTap: () => context.go('/learn/legends/${legend.slug}'),
+          child: Container(
+            padding: const EdgeInsets.all(AppTheme.s12),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppTheme.r16),
+              border: Border.all(color: accent.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: accent.withValues(alpha: 0.22),
+                  child: Text(legend.emoji, style: const TextStyle(fontSize: 20)),
+                ),
+                const SizedBox(width: AppTheme.s12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(legend.name, style: text.titleMedium),
+                      const SizedBox(height: AppTheme.s2),
+                      Text(
+                        lt(legend.funFact ?? legend.tagline, locale),
+                        style: text.bodySmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.7)),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppTheme.s8),
+                Icon(Icons.chevron_right_rounded, size: 20, color: accent.withValues(alpha: 0.8)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     // A legend's accent can be a light dawn gold or a dark earth/highland.
     // Render the card at full strength (opaque, gently darkened toward the

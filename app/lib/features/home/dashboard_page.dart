@@ -74,40 +74,71 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           },
           child: CustomScrollView(
             slivers: [
+            // Order = what a runner opens the app for. Personal state first
+            // (stats -> start a run -> your recent runs), then goals
+            // (challenges), then discovery (courses, legend trivia) last.
+            // Previously the ~540px Legend-of-the-Day card sat third from the
+            // top and pushed every actual feature below the fold.
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(AppTheme.s24, AppTheme.s16, AppTheme.s24, 0),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   _TopBar(g: g, locale: locale),
-                  const SizedBox(height: AppTheme.s24),
+                  const SizedBox(height: AppTheme.s20),
                   _WeeklyCard(g: g, recent: recent, locale: locale),
-                  const SizedBox(height: AppTheme.s20),
+                  const SizedBox(height: AppTheme.s16),
                   _StartRunButton(),
-                  if (g.totalRuns == 0) ...[
-                    const SizedBox(height: AppTheme.s20),
-                    _FirstRunHint(onTap: () => context.go('/run'), locale: locale),
-                  ],
-                  const SizedBox(height: AppTheme.s20),
-                  const LegendOfDayCard(),
-                  const SizedBox(height: AppTheme.s28),
-                ]),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: AppTheme.s24),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
+                  // NOTE: the old _FirstRunHint sat here. It was a third
+                  // "go for a run" CTA on one screen -- directly under the
+                  // primary button, and above the empty-activity state which
+                  // carries its own walk-run button. Removed as redundant.
+                  const SizedBox(height: AppTheme.s16),
+                  SectionTitle(L10n.tr('recent_activity', locale),
+                      actionLabel: L10n.tr('see_all', locale),
+                      onAction: () => context.go('/activity')),
+                  AnimatedSwitcher(
+                    duration: AppTheme.dFast,
+                    transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
+                    child: recent.when(
+                      loading: () => const KeyedSubtree(
+                        key: ValueKey('recent-loading'),
+                        child: Column(
+                          children: [SkeletonCard(height: 76), SizedBox(height: AppTheme.s8), SkeletonCard(height: 76)],
+                        ),
+                      ),
+                      error: (_, _) => KeyedSubtree(
+                        key: const ValueKey('recent-error'),
+                        child: _EmptyActivity(
+                            text: text, cs: cs, locale: locale, onCourse: () => context.go('/learn/course/how-to-start-running')),
+                      ),
+                      data: (runs) => KeyedSubtree(
+                        key: ValueKey('recent-data-\${runs.length}'),
+                        child: runs.isEmpty
+                            ? _EmptyActivity(
+                                text: text, cs: cs, locale: locale, onCourse: () => context.go('/learn/course/how-to-start-running'))
+                            : Column(
+                                children: [
+                                  for (final r in runs.take(3))
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: AppTheme.s8),
+                                      child: _RecentRunTile(r: r),
+                                    ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.s16),
                   SectionTitle(L10n.tr('active_challenges', locale),
                       actionLabel: L10n.tr('see_all', locale),
                       onAction: () => context.go('/challenges')),
-                  const SizedBox(height: AppTheme.s4),
                 ]),
               ),
             ),
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: AppTheme.s24),
               sliver: SliverList.separated(
-                separatorBuilder: (_, index) => const SizedBox(height: AppTheme.s12),
+                separatorBuilder: (_, index) => const SizedBox(height: AppTheme.s8),
                 itemCount: active.isEmpty ? 1 : active.length,
                 itemBuilder: (_, i) {
                   if (active.isEmpty) {
@@ -118,14 +149,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(AppTheme.s24, AppTheme.s12, AppTheme.s24, AppTheme.s24),
+              padding: const EdgeInsets.fromLTRB(AppTheme.s24, AppTheme.s16, AppTheme.s24, AppTheme.s24),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-SectionTitle(L10n.tr('continue_learning', locale),
+                  SectionTitle(L10n.tr('continue_learning', locale),
                       actionLabel: L10n.tr('see_all', locale),
                       onAction: () => context.go('/learn')),
-                  const SizedBox(height: AppTheme.s4),
-                  // U-6: when the empty-activity state below is showing its own
+                  // U-6: when the empty-activity state above is showing its own
                   // "How to Start Running" promo, don't repeat that same course
                   // here -- a brand-new user with zero runs would otherwise see
                   // the identical course card twice on one screen.
@@ -133,43 +163,8 @@ SectionTitle(L10n.tr('continue_learning', locale),
                     locale: locale,
                     excludeSlug: recent.value?.isEmpty ?? false ? 'how-to-start-running' : null,
                   ),
-                  const SizedBox(height: AppTheme.s12),
-                  SectionTitle(L10n.tr('recent_activity', locale),
-                      actionLabel: L10n.tr('see_all', locale),
-                      onAction: () => context.go('/activity')),
-                  const SizedBox(height: AppTheme.s4),
-                  AnimatedSwitcher(
-                    duration: AppTheme.dFast,
-                    transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
-                    child: recent.when(
-                      loading: () => const KeyedSubtree(
-                        key: ValueKey('recent-loading'),
-                        child: Column(
-                          children: [SkeletonCard(height: 88), SizedBox(height: AppTheme.s12), SkeletonCard(height: 88)],
-                        ),
-                      ),
-                      error: (_, _) => KeyedSubtree(
-                        key: const ValueKey('recent-error'),
-                        child: _EmptyActivity(
-                            text: text, cs: cs, locale: locale, onWalkRun: () => context.go('/run'), onCourse: () => context.go('/learn/course/how-to-start-running')),
-                      ),
-                      data: (runs) => KeyedSubtree(
-                        key: ValueKey('recent-data-\${runs.length}'),
-                        child: runs.isEmpty
-                            ? _EmptyActivity(
-                                text: text, cs: cs, locale: locale, onWalkRun: () => context.go('/run'), onCourse: () => context.go('/learn/course/how-to-start-running'))
-                            : Column(
-                                children: [
-                                  for (final r in runs.take(3))
-                                    Padding(
-                                      padding: const EdgeInsets.only(bottom: AppTheme.s12),
-                                      child: _RecentRunTile(r: r),
-                                    ),
-                                ],
-                              ),
-                      ),
-                    ),
-                  ),
+                  const SizedBox(height: AppTheme.s20),
+                  const LegendOfDayCard(compact: true),
                   const SizedBox(height: 100),
                 ]),
               ),
@@ -339,70 +334,6 @@ class _StartRunButton extends ConsumerWidget {
   }
 }
 
-class _FirstRunHint extends StatefulWidget {
-  final VoidCallback onTap;
-  final AppLocale locale;
-  const _FirstRunHint({required this.onTap, required this.locale});
-
-  @override
-  State<_FirstRunHint> createState() => _FirstRunHintState();
-}
-
-class _FirstRunHintState extends State<_FirstRunHint>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl =
-      AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
-  late final Animation<double> _scale =
-      Tween<double>(begin: 1.0, end: 1.04).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  // Red Earth: a hairline border and a plain (unboxed) icon instead of a
-  // thick 4px accent border + filled icon tile -- it was the one loud,
-  // heavily-chromed element left on an otherwise flat, hairline page.
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final cs = Theme.of(context).colorScheme;
-    return ScaleTransition(
-      scale: _scale,
-      child: FilledButton(
-        onPressed: widget.onTap,
-        style: FilledButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          foregroundColor: cs.onSurface,
-          padding: const EdgeInsets.all(AppTheme.s16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.r16)),
-          side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
-          elevation: 0,
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.directions_run_rounded, color: AppTheme.brand, size: 26),
-            const SizedBox(width: AppTheme.s16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(L10n.tr('get_started', widget.locale), style: text.titleMedium),
-                  const SizedBox(height: AppTheme.s4),
-                  Text(L10n.tr('first_run_hint', widget.locale),
-                      style: text.bodySmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.6))),
-                ],
-              ),
-            ),
-            const TrailingChevron(),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _DashboardChallengeCard extends StatelessWidget {
   final GamifiedChallenge ch;
   final GamificationState g;
@@ -430,33 +361,35 @@ class _DashboardChallengeCard extends StatelessWidget {
           Haptics.light();
           onTap();
         },
+        // Condensed: the description line was dropped (it's on the challenge's
+        // own detail page) and the icon tightened -- title + progress + XP is
+        // what a glance actually needs, and three of these were eating ~300px
+        // of the home page.
         child: Padding(
-            padding: const EdgeInsets.all(AppTheme.s16),
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.s14, vertical: AppTheme.s12),
             child: Row(
               children: [
                 Container(
-                  width: 52,
-                  height: 52,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
                     color: accent.withValues(alpha: 0.16),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(ch.icon, color: accent, size: 26),
+                  child: Icon(ch.icon, color: accent, size: 22),
                 ),
-                const SizedBox(width: AppTheme.s14),
+                const SizedBox(width: AppTheme.s12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(ch.title, style: text.titleMedium),
-                      const SizedBox(height: AppTheme.s2),
-                      Text(ch.description, style: text.bodySmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.6)), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: AppTheme.s8),
+                      Text(ch.title, style: text.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: AppTheme.s6),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(AppTheme.rFull),
                         child: LinearProgressIndicator(
                           value: ratio,
-                          minHeight: 8,
+                          minHeight: 6,
                           backgroundColor: accent.withValues(alpha: 0.15),
                           valueColor: AlwaysStoppedAnimation(accent),
                         ),
@@ -465,12 +398,8 @@ class _DashboardChallengeCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppTheme.s12),
-                Column(
-                  children: [
-                    Text('+${ch.xp}', style: text.labelMedium!.copyWith(color: accent)),
-                    Text('XP', style: text.labelSmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.5))),
-                  ],
-                ),
+                Text('+${ch.xp} XP',
+                    style: AppTheme.monoFont(size: 11, weight: FontWeight.w600, color: accent)),
               ],
             ),
           ),
@@ -662,13 +591,11 @@ class _EmptyActivity extends StatelessWidget {
   final TextTheme text;
   final ColorScheme cs;
   final AppLocale locale;
-  final VoidCallback? onWalkRun;
   final VoidCallback? onCourse;
   const _EmptyActivity({
     required this.text,
     required this.cs,
     required this.locale,
-    this.onWalkRun,
     this.onCourse,
   });
 
@@ -678,7 +605,7 @@ class _EmptyActivity extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          padding: const EdgeInsets.all(AppTheme.s32),
+          padding: const EdgeInsets.symmetric(horizontal: AppTheme.s20, vertical: AppTheme.s20),
           decoration: BoxDecoration(
             color: AppTheme.success.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(AppTheme.r16),
@@ -687,9 +614,9 @@ class _EmptyActivity extends StatelessWidget {
           child: Column(
             children: [
               const _RunIllustration(),
-              const SizedBox(height: AppTheme.s12),
+              const SizedBox(height: AppTheme.s8),
               Text(L10n.tr('no_runs_yet', locale), style: text.titleMedium),
-              const SizedBox(height: AppTheme.s4),
+              const SizedBox(height: AppTheme.s2),
               Text(L10n.tr('routes_will_show', locale),
                   style: text.bodySmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.65)), textAlign: TextAlign.center),
             ],
@@ -734,20 +661,10 @@ class _EmptyActivity extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: AppTheme.s12),
-        FilledButton.icon(
-          onPressed: () {
-            Haptics.light();
-            onWalkRun?.call();
-          },
-          icon: const Icon(Icons.directions_run_rounded, size: 22),
-          label: Text(L10n.tr('walk_run_now', locale)),
-          style: FilledButton.styleFrom(
-            backgroundColor: AppTheme.brand,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: AppTheme.s16),
-          ),
-        ),
+        // NOTE: a "Take a walk-run now" FilledButton sat here. With the
+        // primary "Go for a run" CTA now directly above this section, it was
+        // the same action rendered twice on one screen -- removed. The
+        // course promo above stays because it goes somewhere different.
       ],
     );
   }
