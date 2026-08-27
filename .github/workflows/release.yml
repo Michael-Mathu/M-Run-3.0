@@ -29,12 +29,12 @@ jobs:
         run: |
           cd app
           flutter pub get
-          flutter build apk --debug
+          flutter build apk --release
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: app/build/app/outputs/flutter-apk/app-debug.apk
+          files: app/build/app/outputs/flutter-apk/app-release.apk
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           draft: false
