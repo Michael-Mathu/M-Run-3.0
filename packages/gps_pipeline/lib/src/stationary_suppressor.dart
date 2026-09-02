@@ -1,6 +1,8 @@
+import 'dart:collection';
+import 'dart:math';
+
 import 'models.dart';
 import 'coordinate_util.dart';
-import 'dart:collection';
 
 enum StationaryState { moving, maybeStationary, stationary, maybeMoving }
 
@@ -51,7 +53,15 @@ class StationarySuppressor {
         result.smoothedLat ?? result.raw.lat,
         result.smoothedLng ?? result.raw.lng,
       );
-      if (dist < fix.accuracy + 2.0 && _state != StationaryState.stationary) {
+      // Only treat a small windowed displacement as drift when the device also
+      // reports low speed. Cap the accuracy term at 15 m so a poor-accuracy fix
+      // during genuine slow movement (e.g. a 1.5 m/s jog with 20 m accuracy) is
+      // not misclassified as stationary and force-rejected -- which punches gaps
+      // into the track once the sample rate is raised to 1 Hz.
+      final driftRadius = min(fix.accuracy, 15.0) + 2.0;
+      if (dist < driftRadius &&
+          speed < speedThresholdMps &&
+          _state != StationaryState.stationary) {
         // Force stationary/rejected state to kill ghost drift
         _state = StationaryState.stationary;
         _startCluster(result);

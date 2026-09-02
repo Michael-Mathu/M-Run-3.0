@@ -41,6 +41,9 @@ class MwendoTrackingService : Service() {
 
     var activityId = ""
     private var startTime = 0L
+    // Remembered so resume() rebuilds the same cadence the run started with,
+    // instead of silently reverting to a hardcoded interval.
+    private var currentProfile = "standard"
     // True once the service has successfully entered the foreground. If this
     // stays false the run must not be treated as recording (see onStartCommand).
     var foregroundReady = false
@@ -72,33 +75,45 @@ class MwendoTrackingService : Service() {
     fun start(profile: String) {
         activityId = UUID.randomUUID().toString()
         startTime = System.currentTimeMillis()
+        currentProfile = profile
 
-        val interval = when (profile) {
-            "powerSaver" -> 20000L
-            "ultraSaver" -> 30000L
-            else -> 5000L
-        }
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
                 for (loc in result.locations) processLocation(loc)
             }
         }
-        val request = LocationRequest.Builder(interval).apply {
-            setPriority(Priority.PRIORITY_HIGH_ACCURACY)
-            setWaitForAccurateLocation(false)
-            if (profile == "standard") setMinUpdateDistanceMeters(3f)
-        }.build()
-        
-        requestLocationUpdatesWithRetry(request, locationCallback!!, 3, 250L)
+
+        requestLocationUpdatesWithRetry(buildLocationRequest(profile), locationCallback!!, 3, 250L)
     }
 
     fun resume() {
-        val request = LocationRequest.Builder(5000L)
-            .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
-            .build()
         locationCallback?.let {
-            requestLocationUpdatesWithRetry(request, it, 3, 250L)
+            requestLocationUpdatesWithRetry(buildLocationRequest(currentProfile), it, 3, 250L)
         }
+    }
+
+    /**
+     * Fitness-grade tracking needs a 1 Hz fix cadence: at a 5 s interval a runner
+     * moves 15-25 m between points, so the rendered polyline connects sparse
+     * samples with long straight chords that cut every corner. Battery profiles
+     * trade fidelity for power. No minimum-displacement filter — the pipeline
+     * relies on seeing the raw jitter to smooth and reject it, and a displacement
+     * gate would starve the Kalman filter of the samples it needs on curves.
+     */
+    private fun buildLocationRequest(profile: String): LocationRequest {
+        val interval = when (profile) {
+            "powerSaver" -> 5000L
+            "ultraSaver" -> 10000L
+            else -> 1000L
+        }
+        return LocationRequest.Builder(interval)
+            .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+            // Allow the provider to deliver fixes as fast as they are ready.
+            .setMinUpdateIntervalMillis(interval)
+            // Wait for a real GNSS fix rather than seeding the track with a coarse
+            // network fix that shows up as a start-of-run hook.
+            .setWaitForAccurateLocation(true)
+            .build()
     }
 
     private fun requestLocationUpdatesWithRetry(

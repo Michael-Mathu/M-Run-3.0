@@ -130,6 +130,12 @@ class PipelineResult {
   final RejectReason? rejectReason;
   final double? innovationDistance;
 
+  /// True when [smoothedLat]/[smoothedLng] come from the Kalman *prediction*
+  /// (dead-reckoning) because the raw measurement was gated out. The point is
+  /// still rendered/counted to bridge a transient GPS excursion, but the
+  /// pipeline must not anchor outlier detection to it (the raw fix is untrusted).
+  final bool isDeadReckoned;
+
   PipelineResult({
     required this.raw,
     required this.pointIndex,
@@ -140,6 +146,7 @@ class PipelineResult {
     required this.filterStatus,
     this.rejectReason,
     this.innovationDistance,
+    this.isDeadReckoned = false,
   });
 
   PipelineResult copyWith({
@@ -149,6 +156,7 @@ class PipelineResult {
     FilterStatus? filterStatus,
     RejectReason? rejectReason,
     double? innovationDistance,
+    bool? isDeadReckoned,
   }) {
     return PipelineResult(
       raw: raw,
@@ -160,6 +168,7 @@ class PipelineResult {
       filterStatus: filterStatus ?? this.filterStatus,
       rejectReason: rejectReason ?? this.rejectReason,
       innovationDistance: innovationDistance ?? this.innovationDistance,
+      isDeadReckoned: isDeadReckoned ?? this.isDeadReckoned,
     );
   }
 
@@ -190,6 +199,7 @@ class PipelineResult {
         if (rejectReason != null) 'rejectReason': rejectReason!.name,
         if (innovationDistance != null)
           'innovationDistance': innovationDistance,
+        if (isDeadReckoned) 'isDeadReckoned': true,
       };
 
   factory PipelineResult.fromJson(Map<String, dynamic> j) {
@@ -236,6 +246,7 @@ class PipelineResult {
       innovationDistance: j['innovationDistance'] != null
           ? (j['innovationDistance'] as num).toDouble()
           : null,
+      isDeadReckoned: j['isDeadReckoned'] as bool? ?? false,
     );
   }
 }

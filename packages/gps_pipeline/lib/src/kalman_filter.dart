@@ -49,14 +49,30 @@ class KalmanFilter {
   // ~5 sigma
   final double innovationGateSq = 25.0;
 
-  // ponytail: calibrated 2026-08-16 via synthetic_runner.dart at running speed.
-  // Ceiling: synthetic noise model; refine with real Nairobi urban-canyon data when available.
-  // Upgrade: re-run kalman_calibrate.dart with real traces and replace this value.
-  static const double _motionSigmaMoving = 2.0;
-  static const double _motionSigmaStationary = 0.3;
+  // Process-noise acceleration std (m/s^2). Retuned for a 1 Hz acquisition
+  // cadence: because process noise scales with dt^2, the previous value of 2.0
+  // (tuned for a 5 s interval) collapsed the filter into a near passthrough
+  // that removed almost no jitter. At 1 Hz, 0.7 yields a moving-state gain of
+  // ~0.6-0.85 across 5-10 m accuracy -- smoothing jitter while still tracking
+  // turns. Injectable so kalman_calibrate.dart can grid-search it against real
+  // traces.
+  final double motionSigmaMoving;
+  final double motionSigmaStationary;
 
-  KalmanFilter({required double originLat, required double originLng})
-      : _originLat = originLat,
+  // Dead-reckoning: when a fix is gated out (large innovation = drift/jump), keep
+  // advancing the prediction and emit it as a bridge for up to this many
+  // consecutive rejections, instead of dropping points and later snapping across
+  // the excursion in one long straight segment. Beyond the cap it is a true gap.
+  final int maxDeadReckonSteps;
+  int _consecutiveRejections = 0;
+
+  KalmanFilter({
+    required double originLat,
+    required double originLng,
+    this.motionSigmaMoving = 0.7,
+    this.motionSigmaStationary = 0.3,
+    this.maxDeadReckonSteps = 5,
+  })  : _originLat = originLat,
         _originLng = originLng;
 
   PipelineResult process(
@@ -93,7 +109,7 @@ class KalmanFilter {
 
     // Adaptive process noise based on whether we are moving
     final motionSigma =
-        fix.speedMps > 0.3 ? _motionSigmaMoving : _motionSigmaStationary;
+        fix.speedMps > 0.3 ? motionSigmaMoving : motionSigmaStationary;
     final qPos = (motionSigma * dt * dt / 2);
     final qVel = motionSigma * dt;
     final qPosSq = qPos * qPos;
@@ -176,6 +192,29 @@ class KalmanFilter {
         p33: p33,
       );
       _lastTimestamp = fix.timestamp;
+      _consecutiveRejections++;
+
+      if (_consecutiveRejections <= maxDeadReckonSteps) {
+        // Bridge the excursion: emit the dead-reckoned prediction so the track
+        // advances along the last known heading instead of freezing and later
+        // snapping across the gap in one straight segment.
+        final (drLat, drLng) =
+            CoordinateUtil.fromEnu(_originLat, _originLng, predEast, predNorth);
+        final drSpeed = sqrt(predVEast * predVEast + predVNorth * predVNorth);
+        return PipelineResult(
+          raw: fix,
+          pointIndex: pointIndex,
+          trackVersion: trackVersion,
+          smoothedLat: drLat,
+          smoothedLng: drLng,
+          smoothedSpeedMps: drSpeed,
+          filterStatus: FilterStatus.filtered,
+          innovationDistance: sqrt(distSq),
+          isDeadReckoned: true,
+        );
+      }
+
+      // Sustained excursion beyond the bridge budget: declare a true gap.
       return PipelineResult(
         raw: fix,
         pointIndex: pointIndex,
@@ -185,6 +224,7 @@ class KalmanFilter {
         innovationDistance: sqrt(distSq),
       );
     }
+    _consecutiveRejections = 0;
 
     // Optimal Kalman gain K = P * H^T * S^-1
     // Since H is just the identity for position (2x4) and S is diagonal approx

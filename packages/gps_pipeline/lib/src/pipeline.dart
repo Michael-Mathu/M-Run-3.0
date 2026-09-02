@@ -11,6 +11,11 @@ import 'stationary_suppressor.dart';
 
 class GpsPipeline {
   final ActivityProfile profile;
+
+  /// Optional override for the Kalman process-noise acceleration std (m/s^2).
+  /// Lets kalman_calibrate.dart grid-search the value; null uses the filter default.
+  final double? kalmanMotionSigma;
+
   final FixValidator _validator;
   final QualityGate _qualityGate;
   final OutlierDetector _outlierDetector;
@@ -34,6 +39,7 @@ class GpsPipeline {
 
   GpsPipeline({
     required this.profile,
+    this.kalmanMotionSigma,
   })  : _validator = const FixValidator(),
         _qualityGate = QualityGate(profile: profile),
         _outlierDetector = OutlierDetector(profile: profile),
@@ -113,7 +119,13 @@ class GpsPipeline {
     }
 
     // Initialize Kalman filter origin on first accepted point
-    _kalmanFilter ??= KalmanFilter(originLat: curr.lat, originLng: curr.lng);
+    _kalmanFilter ??= kalmanMotionSigma != null
+        ? KalmanFilter(
+            originLat: curr.lat,
+            originLng: curr.lng,
+            motionSigmaMoving: kalmanMotionSigma!,
+          )
+        : KalmanFilter(originLat: curr.lat, originLng: curr.lng);
 
     // Stage 4: Kalman Filter
     var result = _kalmanFilter!.process(curr, _pointsProcessed++, trackVersion);
@@ -127,7 +139,10 @@ class GpsPipeline {
 
 
     if (result.filterStatus != FilterStatus.rejected) {
-      _previousProcessed = curr;
+      // Keep outlier detection anchored to the last *trusted* fix: a
+      // dead-reckoned bridge point carries an untrusted raw measurement, so
+      // advancing _previousProcessed to it would corrupt the next speed/spike check.
+      if (!result.isDeadReckoned) _previousProcessed = curr;
       _previousResult = result;
     }
 

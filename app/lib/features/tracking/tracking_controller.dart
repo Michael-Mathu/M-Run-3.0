@@ -481,7 +481,12 @@ class TrackingModel extends Notifier<TrackingState> {
       state: result.filterStatus.name,
     );
 
-    if (_displaySegments.isEmpty || _displaySegments.last.type != result.filterStatus) {
+    // Only a long gap breaks the drawn line. filtered / stationary / gapShort /
+    // dead-reckoned points stay in one continuous polyline, so a brief pause or a
+    // bridged excursion no longer splits the path into disconnected straight jumps.
+    final breakLine =
+        result.filterStatus == FilterStatus.gapLong || _displaySegments.isEmpty;
+    if (breakLine) {
       _displaySegments.add(DisplaySegment(points: [pt], type: result.filterStatus));
     } else {
       _displaySegments.last.points.add(pt);
