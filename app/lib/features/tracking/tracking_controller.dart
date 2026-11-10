@@ -11,6 +11,53 @@ import 'package:gps_pipeline/gps_pipeline.dart';
 import 'package:latlong2/latlong.dart' as ll;
 enum AppEngineState { idle, recording, paused, recovering }
 
+/// Something that will stop a run from recording a route, shown as a banner on
+/// the Run screen (each one used to be a silent "Recording… 0.00 km").
+enum GpsIssue {
+  none,
+
+  /// Android 12+ "Approximate" / iOS "Precise: Off": fixes are 1–3 km off and
+  /// are all rejected, so nothing is drawn or counted.
+  approximate,
+
+  /// The native tracking service could not start (no GPS at all).
+  startFailed,
+
+  /// Recording, but no location fix has arrived for a while (Location off,
+  /// indoors, or the phone is restricting the app).
+  noSignal,
+
+  /// Fixes arrive but come from a mock-location app, which are rejected.
+  mocked,
+}
+
+/// Counters behind the GPS details sheet (tap the status pill). A plain
+/// mutable object, not part of [TrackingState], so counting never rebuilds UI.
+class GpsDiagnostics {
+  int rawFixes = 0;
+  int accepted = 0;
+  final Map<RejectReason, int> rejected = {};
+  double? lastAccuracy;
+  String? lastProvider;
+  DateTime? lastFixAt;
+  DateTime? listeningSince;
+  String permission = 'unknown';
+  String? lastError;
+
+  int get rejectedTotal => rejected.values.fold(0, (a, b) => a + b);
+
+  void reset() {
+    rawFixes = 0;
+    accepted = 0;
+    rejected.clear();
+    lastAccuracy = null;
+    lastProvider = null;
+    lastFixAt = null;
+    listeningSince = null;
+    lastError = null;
+  }
+}
+
 class DisplaySegment {
   final List<TrackPoint> points;
   final FilterStatus type;
@@ -33,6 +80,12 @@ class TrackingState {
   final DateTime? lastPointTime; // time of the last received GPS point
   final ActivityProfile profile;
 
+  /// Latest pre-run (warm-up) position, for centring the map before a run.
+  final double? previewLat;
+  final double? previewLng;
+
+  final GpsIssue gpsIssue;
+
   const TrackingState({
     required this.state,
     this.distanceM = 0,
@@ -47,6 +100,9 @@ class TrackingState {
     this.currentAccuracy = double.infinity,
     this.lastPointTime,
     this.profile = ActivityProfile.run,
+    this.previewLat,
+    this.previewLng,
+    this.gpsIssue = GpsIssue.none,
   });
 
   static const initial = TrackingState(state: AppEngineState.idle);
@@ -65,6 +121,9 @@ class TrackingState {
     double? currentAccuracy,
     DateTime? lastPointTime,
     ActivityProfile? profile,
+    double? previewLat,
+    double? previewLng,
+    GpsIssue? gpsIssue,
   }) {
     return TrackingState(
         state: state ?? this.state,
@@ -80,6 +139,9 @@ class TrackingState {
         currentAccuracy: currentAccuracy ?? this.currentAccuracy,
         lastPointTime: lastPointTime ?? this.lastPointTime,
         profile: profile ?? this.profile,
+        previewLat: previewLat ?? this.previewLat,
+        previewLng: previewLng ?? this.previewLng,
+        gpsIssue: gpsIssue ?? this.gpsIssue,
       );
   }
 }
@@ -159,8 +221,151 @@ class TrackingModel extends Notifier<TrackingState> {
   @override
   TrackingState build() {
     _pipeline = GpsPipeline(profile: ActivityProfile.run);
-    ref.onDispose(() => _ticker?.cancel());
+    ref.onDispose(() {
+      _ticker?.cancel();
+      _previewSub?.cancel();
+      _warmTimer?.cancel();
+      _signalWatchdog?.cancel();
+    });
     return TrackingState.initial;
+  }
+
+  // ---- Pre-run GPS warm-up --------------------------------------------------
+  // Getting a first GPS fix is the slow part of starting a run (satellite
+  // acquisition). The app warms the GPS while you're on the Run tab (and
+  // briefly at launch), so it's already locked when you tap Start; the warm
+  // fixes also show your position and signal quality before the run. Native
+  // side: the freshest warm fix becomes the run's first point.
+
+  StreamSubscription<TrackPoint>? _previewSub;
+  Timer? _warmTimer;
+  DateTime? _warmUntil;
+
+  /// Starts (or extends) the warm-up for at least [duration]. No effect while
+  /// a run is active. Battery cost is bounded by the timeout.
+  void warmUpGps({Duration duration = const Duration(minutes: 3)}) {
+    if (state.state != AppEngineState.idle) return;
+    final until = DateTime.now().add(duration);
+    if (_warmUntil == null || until.isAfter(_warmUntil!)) {
+      _warmUntil = until;
+      _warmTimer?.cancel();
+      _warmTimer = Timer(duration, coolDownGps);
+    }
+    checkLocationAccuracy();
+    _previewSub ??= _engine.warmUp().listen((p) {
+      if (state.state != AppEngineState.idle) return;
+      state = state.copyWith(
+        currentAccuracy: p.accuracy.toDouble(),
+        previewLat: p.lat,
+        previewLng: p.lng,
+      );
+    });
+  }
+
+  /// Detects "Approximate" location (Android 12+ / iOS 14+). With it every fix
+  /// is ~1–3 km off, the quality gate rejects them all and a run records no
+  /// route and no distance, so the Run screen asks for "Precise" instead.
+  Future<void> checkLocationAccuracy() async {
+    final level = await _engine.locationAccuracy();
+    diagnostics.permission = level;
+    if (level == 'approximate') {
+      if (state.gpsIssue == GpsIssue.none) {
+        state = state.copyWith(gpsIssue: GpsIssue.approximate);
+      }
+    } else if (state.gpsIssue == GpsIssue.approximate) {
+      state = state.copyWith(gpsIssue: GpsIssue.none);
+    }
+  }
+
+  /// Dismisses the current GPS banner (it comes back if the problem does).
+  void clearGpsIssue() {
+    if (state.gpsIssue != GpsIssue.none) {
+      state = state.copyWith(gpsIssue: GpsIssue.none);
+    }
+  }
+
+  final GpsDiagnostics diagnostics = GpsDiagnostics();
+  Timer? _signalWatchdog;
+
+  /// Recording-stream subscription with failures handled: a native start
+  /// failure ends the run (instead of a timer counting up with no GPS behind
+  /// it) and a watchdog flags a run that receives no fixes at all.
+  void _listenToRecording({required bool recovering}) {
+    _sub?.cancel();
+    _endWarmUpForRecording();
+    diagnostics.listeningSince = DateTime.now();
+    diagnostics.lastError = null;
+    _sub = _engine.startRecording().listen(
+      _onPoint,
+      onError: (Object e, StackTrace st) {
+        // e.g. FOREGROUND_FAILED, or a SecurityException after a permission
+        // change. Used to be logged and ignored.
+        debugPrint('GPS stream error${recovering ? ' during recovery' : ''}: $e');
+        diagnostics.lastError = '$e';
+        _onRecordingFailed();
+      },
+    );
+    _signalWatchdog?.cancel();
+    _signalWatchdog = Timer.periodic(const Duration(seconds: 5), (_) => _checkSignal());
+    checkLocationAccuracy();
+  }
+
+  void _checkSignal() {
+    if (state.state != AppEngineState.recording) return;
+    final listening = diagnostics.listeningSince;
+    if (listening == null) return;
+    final lastFix = diagnostics.lastFixAt;
+    final since = lastFix != null && lastFix.isAfter(listening) ? lastFix : listening;
+    final silent = DateTime.now().difference(since) > const Duration(seconds: 25);
+    if (silent && state.gpsIssue == GpsIssue.none) {
+      state = state.copyWith(gpsIssue: GpsIssue.noSignal);
+    }
+  }
+
+  void _onRecordingFailed() {
+    if (state.state == AppEngineState.idle) return;
+    _signalWatchdog?.cancel();
+    _sub?.cancel();
+    _sub = null;
+    _stopTicker();
+    if (_rawFixes.isEmpty) {
+      // Nothing was recorded: drop the empty run entirely.
+      final id = _draftId;
+      _draftId = null;
+      _pipeline.reset();
+      _pts.clear();
+      _displaySegments.clear();
+      _clearMapRoute();
+      _lastAccepted = null;
+      _clearRecovery(id);
+      state = TrackingState.initial.copyWith(
+        profile: state.profile,
+        gpsIssue: GpsIssue.startFailed,
+      );
+    } else {
+      // Keep what was recorded; Resume retries the GPS, Stop saves it.
+      state = state.copyWith(state: AppEngineState.paused, gpsIssue: GpsIssue.startFailed);
+    }
+  }
+
+  /// Stops the warm-up (only when no run is active).
+  void coolDownGps() {
+    _warmTimer?.cancel();
+    _warmTimer = null;
+    _warmUntil = null;
+    if (_previewSub == null) return;
+    _previewSub?.cancel();
+    _previewSub = null;
+    if (state.state == AppEngineState.idle) _engine.coolDown();
+  }
+
+  /// Recording took over the GPS (the native side ends the warm-up itself).
+  void _endWarmUpForRecording() {
+    _warmTimer?.cancel();
+    _warmTimer = null;
+    _warmUntil = null;
+    _previewSub?.cancel();
+    _previewSub = null;
   }
 
   void setProfile(ActivityProfile profile) {
@@ -343,13 +548,7 @@ class TrackingModel extends Notifier<TrackingState> {
         // path) so a recovered run actually records (fixes C3) without ever
         // auto-starting GPS on page load — which crashed when location
         // permission wasn't granted yet.
-        _sub?.cancel();
-        _sub = _engine.startRecording().listen(
-          _onPoint,
-          onError: (e, st) {
-            debugPrint('GPS stream error during recovery: $e');
-          },
-        );
+        _listenToRecording(recovering: true);
         _startTicker();
         state = state.copyWith(state: AppEngineState.recording);
         return;
@@ -381,16 +580,10 @@ class TrackingModel extends Notifier<TrackingState> {
       calories: 0,
       pointCount: 0,
     );
+    diagnostics.reset();
+    state = state.copyWith(gpsIssue: GpsIssue.none);
     _startTicker();
-    _sub?.cancel();
-    _sub = _engine.startRecording().listen(
-      _onPoint,
-      onError: (e, st) {
-        // Stream errors (e.g., SecurityException after fresh permission grant)
-        // must be handled instead of crashing the app.
-        debugPrint('GPS stream error: $e');
-      },
-    );
+    _listenToRecording(recovering: false);
   }
 
   void _onPoint(TrackPoint p) {
@@ -410,9 +603,36 @@ class TrackingModel extends Notifier<TrackingState> {
       fixType: p.fixType,
     );
     _rawFixes.add(raw);
+    diagnostics
+      ..rawFixes += 1
+      ..lastAccuracy = p.accuracy.toDouble()
+      ..lastProvider = p.provider
+      ..lastFixAt = DateTime.now();
+    if (state.gpsIssue == GpsIssue.noSignal) {
+      state = state.copyWith(gpsIssue: GpsIssue.none);
+    }
 
     final result = _pipeline.process(raw);
-    if (result == null) return; // buffered
+    if (result != null) {
+      if (result.isAccepted) {
+        diagnostics.accepted += 1;
+      } else if (result.rejectReason != null) {
+        final r = result.rejectReason!;
+        diagnostics.rejected[r] = (diagnostics.rejected[r] ?? 0) + 1;
+        if (r == RejectReason.mocked && state.gpsIssue == GpsIssue.none) {
+          state = state.copyWith(gpsIssue: GpsIssue.mocked);
+        }
+      }
+    }
+    if (result == null || !result.isAccepted) {
+      // Still show the live signal quality while fixes are buffered or held
+      // back by the pipeline's gates (the pill used to say "Searching for
+      // GPS" even though fixes were arriving).
+      if ((state.currentAccuracy - p.accuracy).abs() >= 1) {
+        state = state.copyWith(currentAccuracy: p.accuracy.toDouble());
+      }
+      if (result == null) return; // buffered
+    }
 
     _handleResult(result, p);
   }
@@ -635,12 +855,23 @@ class TrackingModel extends Notifier<TrackingState> {
         // If the engine was never started (e.g. a recovered run the user is
         // resuming from the `recovering` state), begin it through _start()
         // rather than _engine.resume(), which would be a silent no-op.
+        if (_sub == null && _draftId != null && _rawFixes.isNotEmpty &&
+            state.state == AppEngineState.paused) {
+          // The GPS failed mid-run: restart it and keep the recorded part.
+          _resumedSinceLastPoint = true;
+          state = state.copyWith(gpsIssue: GpsIssue.none);
+          _startTicker();
+          _listenToRecording(recovering: false);
+          state = state.copyWith(state: AppEngineState.recording);
+          return;
+        }
         if (_sub == null) {
           await _start();
           return;
         }
         _engine.resume();
         _resumedSinceLastPoint = true;
+        diagnostics.listeningSince = DateTime.now();
         _startTicker();
         state = state.copyWith(state: AppEngineState.recording);
       });
@@ -653,6 +884,7 @@ class TrackingModel extends Notifier<TrackingState> {
 
         _sub?.cancel();
         _sub = null;
+        _signalWatchdog?.cancel();
         _stopTicker();
 
         for (final r in _pipeline.flush()) {
@@ -702,7 +934,11 @@ class TrackingModel extends Notifier<TrackingState> {
         _lastAccepted = null;
         await _engine.stop();
         await _clearRecovery(clearedDraftId);
-        state = TrackingState.initial;
+        final profile = state.profile;
+        state = TrackingState.initial.copyWith(profile: profile);
+        // Keep the GPS warm for the next run (the Run tab is still open);
+        // otherwise the pill sat on "Locating…" after every run.
+        warmUpGps();
         return finalDraft;
       });
 

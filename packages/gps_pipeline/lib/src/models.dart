@@ -1,37 +1,42 @@
 import 'track_version.dart';
 export 'track_version.dart';
 
+// Accuracy ceilings (metres) are set for real phones on mobile data: budget
+// handsets routinely report 20-35 m outdoors. The old 20 m run ceiling
+// rejected nearly every fix on such phones (no trace, no distance). Kept fixes
+// are weighted by their accuracy in the Kalman filter, so a 30 m fix barely
+// moves the line; cell/Wi-Fi network fixes (typically 50-2000 m) stay out.
 enum ActivityProfile {
   run(
-    maxAccuracyM: 20,
+    maxAccuracyM: 32,
     maxSpeedMps: 10, // 36 km/h — well above any distance-running pace
     stationarySpeedMps: 0.5,
     spikeMultiplier: 4,
     status: 'Priority — calibrated',
   ),
   walk(
-    maxAccuracyM: 25,
+    maxAccuracyM: 35,
     maxSpeedMps: 4,
     stationarySpeedMps: 0.4,
     spikeMultiplier: 3,
     status: 'ponytail: conservative defaults — not yet calibrated',
   ),
   cycle(
-    maxAccuracyM: 20,
+    maxAccuracyM: 32,
     maxSpeedMps: 20,
     stationarySpeedMps: 0.5,
     spikeMultiplier: 5,
     status: 'ponytail: conservative defaults — not yet calibrated',
   ),
   drive(
-    maxAccuracyM: 30,
+    maxAccuracyM: 50,
     maxSpeedMps: 60,
     stationarySpeedMps: 1.0,
     spikeMultiplier: 6,
     status: 'ponytail: conservative defaults — not yet calibrated',
   ),
   hike(
-    maxAccuracyM: 30,
+    maxAccuracyM: 40,
     maxSpeedMps: 6,
     stationarySpeedMps: 0.4,
     spikeMultiplier: 3,

@@ -6,7 +6,7 @@ A high-precision, pure Dart mathematical telemetry processing engine for running
 
 - **Deterministic Pipeline** (updated 2026-11-09):
   1. `FixValidator`: Boundary checks, monotonic timestamps, and anti-mock filtering.
-  - Warm-up gate: until the first point is accepted, fixes worse than 12 m are rejected (max 20 s) so coarse cell/Wi-Fi start fixes don't draw a "hook".
+  - Warm-up gate: until the first point is accepted, fixes worse than 15 m are rejected (max 10 s) so coarse cell/Wi-Fi start fixes don't draw a "hook".
   2. `QualityGate`: Activity-specific accuracy radius thresholds and inverse-variance weighting.
   3. `OutlierDetector`: Implied-speed gating that subtracts each fix's accuracy radius first (10 m/s ceiling for runs), plus 3-point lookahead spike rejection.
   4. `KalmanFilter`: 2D local tangent plane (ENU) state-space filter with adaptive process noise and Mahalanobis innovation gating. Gated fixes are dropped (no dead-reckoned points); after 3 in a row it re-anchors on the measurement. Accuracy floor 3 m.

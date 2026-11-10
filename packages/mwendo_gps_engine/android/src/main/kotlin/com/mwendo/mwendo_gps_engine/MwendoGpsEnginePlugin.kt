@@ -4,8 +4,16 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.location.Location
 import android.os.IBinder
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -24,6 +32,16 @@ class MwendoGpsEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
     private var pendingStartResult: Result? = null
     private var pendingProfile: String = "standard"
 
+    // ---- Pre-run GPS warm-up ------------------------------------------------
+    // Satellite acquisition (time to first fix) is the slow part of starting a
+    // run. While the Run screen is open we keep a high-accuracy request alive so
+    // the GNSS chip is already locked when the user taps Start, show the
+    // system's last known position instantly, and hand the freshest warm fix
+    // to the recording as its first point.
+    private var fused: FusedLocationProviderClient? = null
+    private var previewCallback: LocationCallback? = null
+    private var latestPreview: Location? = null
+
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             val svc = (binder as MwendoTrackingService.LocalBinder).getService()
@@ -31,6 +49,7 @@ class MwendoGpsEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
             bound = true
             svc.setListener(this@MwendoGpsEnginePlugin)
             svc.start(pendingProfile)
+            handOverFromWarmUp(svc)
             if (!svc.foregroundReady) {
                 // Foreground service failed to start — surface the failure
                 // instead of leaving Dart believing the run is recording (C2).
@@ -73,6 +92,22 @@ class MwendoGpsEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
             "startRecording" -> {
                 pendingProfile = call.argument<String>("profile") ?: "standard"
                 startService(result)
+            }
+            "warmUp" -> result.success(warmUp())
+            "locationAccuracy" -> {
+                // Android 12+ lets users grant only "Approximate" location
+                // (~1-3 km): every fix would then be rejected as inaccurate
+                // and a run would record nothing. Report it so the app can ask
+                // for "Precise".
+                val fine = ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+                val coarse = ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+                result.success(if (fine) "precise" else if (coarse) "approximate" else "none")
+            }
+            "coolDown" -> {
+                stopWarmUp()
+                result.success(null)
             }
             "pause" -> {
                 service?.pause()
@@ -142,6 +177,7 @@ class MwendoGpsEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
         } else if (service != null) {
             // Already bound and service is available — respond immediately.
             service!!.start(pendingProfile)
+            handOverFromWarmUp(service!!)
             pendingStartResult?.success(mapOf("activity_id" to service!!.activityId))
             pendingStartResult = null
         } else {
@@ -170,7 +206,78 @@ class MwendoGpsEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
         eventSink?.success(point)
     }
 
+    /** Starts (or keeps) the warm-up request. Returns false without permission. */
+    private fun warmUp(): Boolean {
+        if (bound && service != null) return true // already recording: GPS is on
+        val client = fused ?: LocationServices.getFusedLocationProviderClient(context).also { fused = it }
+        return try {
+            // Instant: the system's cached position (often seconds old).
+            client.lastLocation.addOnSuccessListener { loc ->
+                if (loc != null && previewCallback != null) {
+                    if (latestPreview == null) latestPreview = loc
+                    emitPreview(loc)
+                }
+            }
+            if (previewCallback == null) {
+                val cb = object : LocationCallback() {
+                    override fun onLocationResult(result: LocationResult) {
+                        for (loc in result.locations) {
+                            latestPreview = loc
+                            emitPreview(loc)
+                        }
+                    }
+                }
+                previewCallback = cb
+                val request = LocationRequest.Builder(1000L)
+                    .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+                    .setMinUpdateIntervalMillis(1000L)
+                    .setWaitForAccurateLocation(false)
+                    .setMaxUpdateDelayMillis(0)
+                    .build()
+                client.requestLocationUpdates(request, ContextCompat.getMainExecutor(context), cb)
+            }
+            true
+        } catch (e: SecurityException) {
+            previewCallback = null
+            false
+        } catch (e: Exception) {
+            e.printStackTrace()
+            previewCallback = null
+            false
+        }
+    }
+
+    private fun stopWarmUp() {
+        previewCallback?.let { cb -> fused?.removeLocationUpdates(cb) }
+        previewCallback = null
+    }
+
+    private fun emitPreview(loc: Location) {
+        val map = MwendoTrackingService.locationToMap(loc).toMutableMap()
+        map["preview"] = true
+        eventSink?.success(map)
+    }
+
+    /**
+     * Recording just started: give the run the freshest warm fix as its first
+     * point (if it is recent), then drop the warm-up request. The service's own
+     * high-accuracy request is already registered, so the GNSS stays locked —
+     * no cold start in between.
+     */
+    private fun handOverFromWarmUp(svc: MwendoTrackingService) {
+        val warm = latestPreview
+        if (warm != null && previewCallback != null) {
+            val ageMs = (SystemClock.elapsedRealtimeNanos() - warm.elapsedRealtimeNanos) / 1_000_000
+            if (ageMs in 0..10_000 && warm.hasAccuracy() && warm.accuracy <= 30f) {
+                svc.seed(warm)
+            }
+        }
+        stopWarmUp()
+        latestPreview = null
+    }
+
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        stopWarmUp()
         // Do not stop the foreground service here: it must survive a transient
         // Flutter engine detach so a background run keeps recording. It is torn
         // down only by an explicit `stop()` from Dart.

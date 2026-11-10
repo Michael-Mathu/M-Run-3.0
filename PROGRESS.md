@@ -126,3 +126,11 @@ Real photos for 28 of 30 legends from Wikimedia Commons (CC BY / CC BY-SA / CC0 
 ## November 2026 revamp, round 4 — performance — DONE
 
 Frame-timing probe added; on the emulator dropped frames while scrolling Legends fell from 32–71 to 13–17 per 120 and an idle Home now renders nothing. Recovery journaling is incremental (no more O(n²) work on long runs), the live map no longer copies the route every second, SQLite runs off the UI isolate, two infinite animations were removed, glass blur is shared and adapts to the device (Settings → Transparency effects). Tracking, backgrounding, kill-and-recover and save were re-tested end to end with simulated GPS. 68/68 app tests, 55/55 pipeline tests. Details: `docs/REVAMP_PLAN.md` → "Round 4".
+
+## November 2026 revamp, round 5 — instant GPS — DONE
+
+GPS now warms up at launch and on the Run tab (bounded, never in background), shows the cached position instantly, hands the warm fix to the run as its first point, and no longer waits for an "accurate" first fix; warm-up gate 15 m / 10 s; live GPS status pill before and during runs. Emulator: GPS ready in ~1.5 s, recording with ±5 m one second after Start. Kotlin compiled; Swift not (no Xcode). app 68/68, gps_pipeline 57/57, engine 3/3. Details: `docs/REVAMP_PLAN.md` → "Round 5".
+
+## November 2026 revamp, round 6 — field-test fixes — DONE
+
+Start button follows the chosen activity; stopping a run opens it (route + distance) instead of resetting silently; accuracy limits raised for budget phones (run 32 m); Approximate-location detection with a warning and a Fix banner; GPS start failures, no-signal and mock-location banners; GPS details sheet on the status pill; You header redesigned (progress ring around the photo, level badge). Verified on the emulator, including a run with the screen locked. app 68/68, gps_pipeline 57/57, engine 3/3. Details: `docs/REVAMP_PLAN.md` → "Round 6".

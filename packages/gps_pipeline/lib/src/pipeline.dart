@@ -38,8 +38,11 @@ class GpsPipeline {
   // off, which draws a "hook" from a phantom start point. Until the first point
   // is accepted, demand a tighter accuracy — but only for a short window so a
   // run in poor sky conditions still starts recording.
-  static const double _warmupAccuracyM = 12.0;
-  static const Duration _warmupWindow = Duration(seconds: 20);
+  // Tuned for the pre-warmed GPS (the app locks satellites before Start): 15 m
+  // still rejects cell/Wi-Fi fixes, and 10 s caps the wait (was 12 m / 20 s,
+  // which made "Searching for GPS" linger even with a usable signal).
+  static const double _warmupAccuracyM = 15.0;
+  static const Duration _warmupWindow = Duration(seconds: 10);
   DateTime? _firstSeenAt;
 
   final TrackVersion trackVersion = TrackVersion.kalmanEkf;

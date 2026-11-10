@@ -78,6 +78,21 @@ abstract class MwendoGpsEnginePlatform extends PlatformInterface {
   }
 
   Stream<TrackPoint> startRecording({BatteryProfile profile});
+
+  /// Starts a pre-run GPS warm-up so satellites are locked before recording
+  /// starts, and returns the stream of *preview* fixes (never recorded). The
+  /// first event is usually the system's cached position, delivered
+  /// immediately. Recording automatically ends the warm-up and uses the
+  /// freshest warm fix as its first point.
+  Stream<TrackPoint> warmUp() => const Stream.empty();
+
+  /// Stops the warm-up (no effect while recording).
+  Future<void> coolDown() async {}
+
+  /// Location permission level: 'precise', 'approximate' (Android 12+ /
+  /// iOS 14+ "Approximate"/"Precise: Off" — too coarse to track a run) or
+  /// 'none'. 'unknown' when the platform can't tell.
+  Future<String> locationAccuracy() async => 'unknown';
   Future<void> pause();
   Future<void> resume();
   Future<RecordingSummary> stop();

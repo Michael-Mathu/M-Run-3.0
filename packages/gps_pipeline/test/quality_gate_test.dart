@@ -22,8 +22,8 @@ void main() {
     });
 
     test('accuracy worse than the profile max is rejected as poorAccuracy', () {
-      final gate = const QualityGate(profile: ActivityProfile.run); // maxAccuracyM: 20
-      final r = gate.accept(_fix(accuracy: 25));
+      final gate = const QualityGate(profile: ActivityProfile.run); // maxAccuracyM: 32
+      final r = gate.accept(_fix(accuracy: 40));
       expect(r.passes, isFalse);
       expect(r.rejectReason, RejectReason.poorAccuracy);
     });
@@ -44,9 +44,9 @@ void main() {
     });
 
     test('different profiles have different accuracy ceilings', () {
-      final drive = const QualityGate(profile: ActivityProfile.drive); // maxAccuracyM: 30
-      final run = const QualityGate(profile: ActivityProfile.run); // maxAccuracyM: 20
-      final fix = _fix(accuracy: 25);
+      final drive = const QualityGate(profile: ActivityProfile.drive); // maxAccuracyM: 50
+      final run = const QualityGate(profile: ActivityProfile.run); // maxAccuracyM: 32
+      final fix = _fix(accuracy: 40);
       expect(drive.accept(fix).passes, isTrue);
       expect(run.accept(fix).passes, isFalse);
     });

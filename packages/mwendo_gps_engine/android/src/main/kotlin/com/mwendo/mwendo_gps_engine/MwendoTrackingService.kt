@@ -86,6 +86,16 @@ class MwendoTrackingService : Service() {
         requestLocationUpdatesWithRetry(buildLocationRequest(profile), locationCallback!!, 3, 250L)
     }
 
+    /**
+     * Emits a recent fix (from the plugin's pre-run GPS warm-up) as the run's
+     * first point, so recording starts with a real position immediately
+     * instead of waiting for the next GNSS delivery. The Dart pipeline still
+     * applies its accuracy gates to it like any other fix.
+     */
+    fun seed(location: Location?) {
+        if (location != null) processLocation(location)
+    }
+
     fun resume() {
         locationCallback?.let {
             requestLocationUpdatesWithRetry(buildLocationRequest(currentProfile), it, 3, 250L)
@@ -110,9 +120,13 @@ class MwendoTrackingService : Service() {
             .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
             // Allow the provider to deliver fixes as fast as they are ready.
             .setMinUpdateIntervalMillis(interval)
-            // Wait for a real GNSS fix rather than seeding the track with a coarse
-            // network fix that shows up as a start-of-run hook.
-            .setWaitForAccurateLocation(true)
+            // Deliver the first fix as soon as one exists. Waiting for an
+            // "accurate" one (the old setting) held back every early fix for
+            // a long time; coarse start-of-run fixes are filtered in Dart by
+            // the pipeline's quality gate and warm-up gate instead.
+            .setWaitForAccurateLocation(false)
+            // Never batch: each fix is delivered immediately.
+            .setMaxUpdateDelayMillis(0)
             .build()
     }
 
@@ -167,13 +181,20 @@ class MwendoTrackingService : Service() {
     }
 
     private fun processLocation(location: Location) {
-        // -1 = "no speed reported". Reporting 0 made the pipeline think the
-        // runner was standing still (common on Wi-Fi / cell assisted fixes).
-        val speedMps = if (location.hasSpeed()) maxOf(0.0, location.speed.toDouble()) else -1.0
-        
         try {
-            listener?.onLocation(
-                mapOf(
+            listener?.onLocation(locationToMap(location))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    companion object {
+        /** Platform-neutral fix map sent to Dart (see NormalizedFix.fromMap). */
+        fun locationToMap(location: Location): Map<String, Any?> {
+            // -1 = "no speed reported". Reporting 0 made the pipeline think the
+            // runner was standing still (common on Wi-Fi / cell assisted fixes).
+            val speedMps = if (location.hasSpeed()) maxOf(0.0, location.speed.toDouble()) else -1.0
+            return mapOf(
                     "lat" to location.latitude,
                     "lng" to location.longitude,
                     "elevation" to location.altitude,
@@ -188,10 +209,7 @@ class MwendoTrackingService : Service() {
                     "fixType" to "unknown", // Not exposed directly
                     "bearing" to if (location.hasBearing()) location.bearing.toDouble() else null,
                     "bearingAccuracy" to if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && location.hasBearingAccuracy()) location.bearingAccuracyDegrees.toDouble() else null,
-                ),
             )
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
     }
 

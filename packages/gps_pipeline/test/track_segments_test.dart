@@ -206,6 +206,28 @@ void main() {
       expect(r.rejectReason, RejectReason.poorAccuracy);
     });
 
+    test('a good first fix is accepted immediately', () {
+      final p = GpsPipeline(profile: ActivityProfile.run);
+      // The spike look-ahead holds early fixes briefly; the first one released
+      // must be the first fix, accepted (not gated by the warm-up).
+      PipelineResult? first;
+      for (var i = 0; i < 4 && first == null; i++) {
+        first = p.process(_fix(t0.add(Duration(seconds: i)), i * 0.00003, 0, acc: 6));
+      }
+      expect(first, isNotNull);
+      expect(first!.raw.timestamp, t0);
+      expect(first.isAccepted, isTrue);
+    });
+
+    test('the warm-up only delays a weak start by 10 s, not forever', () {
+      final p = GpsPipeline(profile: ActivityProfile.run);
+      PipelineResult? last;
+      for (var i = 0; i <= 12; i++) {
+        last = p.process(_fix(t0.add(Duration(seconds: i)), i * 0.00003, 0, acc: 18)) ?? last;
+      }
+      expect(last!.isAccepted, isTrue);
+    });
+
     test('reprocess is deterministic regardless of prior live state', () {
       final fixes = [
         for (var i = 0; i < 60; i++)

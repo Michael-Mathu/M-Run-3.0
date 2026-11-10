@@ -19,6 +19,15 @@ class MwendoGpsEngine {
     return MwendoGpsEnginePlatform.instance.startRecording(profile: profile);
   }
 
+  /// Pre-run GPS warm-up; see [MwendoGpsEnginePlatform.warmUp].
+  Stream<TrackPoint> warmUp() => MwendoGpsEnginePlatform.instance.warmUp();
+
+  /// Stops the pre-run warm-up.
+  Future<void> coolDown() => MwendoGpsEnginePlatform.instance.coolDown();
+
+  /// 'precise' | 'approximate' | 'none' | 'unknown'.
+  Future<String> locationAccuracy() => MwendoGpsEnginePlatform.instance.locationAccuracy();
+
   Future<void> pause() {
     return MwendoGpsEnginePlatform.instance.pause();
   }

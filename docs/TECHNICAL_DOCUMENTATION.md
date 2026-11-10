@@ -106,7 +106,7 @@ M-Run-2.0/
 └──────┬───────┘ └──────────────────────┘
        │
        ├─► 1. FixValidator: Coordinate range, monotonic timestamp, mock check
-       ├─► 1b. Warm-up gate: reject >12m fixes until first accept (max 20s)
+       ├─► 1b. Warm-up gate: reject >15m fixes until first accept (max 10s)
        ├─► 2. QualityGate: Accuracy threshold (profile limit, e.g. <=20m run)
        ├─► 3. OutlierDetector: Uncertainty-adjusted velocity & 3-point spike rejection
        ├─► 4. KalmanFilter: 2D ENU; gated fixes dropped, re-anchor after 3 (no dead-reckoning)

@@ -20,6 +20,8 @@ class LevelRing extends ConsumerWidget {
     this.color = AppTheme.brand,
   });
 
+  static const double _stroke = 5;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final text = Theme.of(context).textTheme;
@@ -40,21 +42,29 @@ class LevelRing extends ConsumerWidget {
             ).createShader(rect),
             child: CircularProgressIndicator(
               value: progress.clamp(0, 1),
-              strokeWidth: 5,
+              strokeWidth: _stroke,
               backgroundColor: cs.onSurface.withValues(alpha: 0.12),
               valueColor: const AlwaysStoppedAnimation(Colors.white),
             ),
           ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(ref.tr('lv'),
-                  style: text.labelSmall!.copyWith(
-                      color: cs.onSurfaceVariant, letterSpacing: 1)),
-              Text(level.toString(),
-                  style: text.titleLarge!.copyWith(
-                      color: cs.onSurface, fontWeight: FontWeight.w800)),
-            ],
+          // The label always fits inside the ring: tight line heights, and
+          // scaled down within the stroke (it used to overflow onto the arc).
+          Padding(
+            padding: EdgeInsets.all(_stroke + size * 0.12),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(ref.tr('lv'),
+                      style: text.labelSmall!.copyWith(
+                          color: cs.onSurfaceVariant, letterSpacing: 0.5, height: 1.0)),
+                  Text(level.toString(),
+                      style: text.titleLarge!.copyWith(
+                          color: cs.onSurface, fontWeight: FontWeight.w800, height: 1.05)),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -99,6 +109,88 @@ class XpBar extends StatelessWidget {
           style: text.labelSmall!.copyWith(color: cs.onSurfaceVariant),
         ),
       ],
+    );
+  }
+}
+
+
+/// Profile photo wrapped in a level-progress ring with a level badge on its
+/// edge (the Apple Fitness / Game Center pattern). Replaces the separate
+/// "Lv" ring that sat beside the name and collided with it.
+class LevelAvatar extends StatelessWidget {
+  final Widget avatar; // a CircleAvatar sized to [avatarRadius]
+  final double avatarRadius;
+  final int level;
+  final double progress; // 0..1
+
+  const LevelAvatar({
+    super.key,
+    required this.avatar,
+    required this.level,
+    required this.progress,
+    this.avatarRadius = 34,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
+    final grad = tokens.brandGradient;
+    const stroke = 3.5;
+    const gap = 3.0;
+    final size = (avatarRadius + gap + stroke) * 2;
+    final surface = Theme.of(context).scaffoldBackgroundColor;
+    return SizedBox(
+      width: size,
+      height: size + 6, // room for the badge overhang
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.topCenter,
+        children: [
+          SizedBox(
+            width: size,
+            height: size,
+            child: ShaderMask(
+              shaderCallback: (rect) => SweepGradient(
+                colors: [grad.colors.first, tokens.flagGreen, grad.colors.last],
+                startAngle: -math.pi / 2,
+                endAngle: 3 * math.pi / 2,
+              ).createShader(rect),
+              child: CircularProgressIndicator(
+                value: progress.clamp(0, 1),
+                strokeWidth: stroke,
+                strokeCap: StrokeCap.round,
+                backgroundColor: cs.onSurface.withValues(alpha: 0.10),
+                valueColor: const AlwaysStoppedAnimation(Colors.white),
+              ),
+            ),
+          ),
+          Positioned(
+            top: gap + stroke,
+            child: avatar,
+          ),
+          Positioned(
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: cs.primary,
+                borderRadius: BorderRadius.circular(AppTheme.rFull),
+                border: Border.all(color: surface, width: 2),
+              ),
+              child: Text(
+                '$level',
+                style: Theme.of(context).textTheme.labelMedium!.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

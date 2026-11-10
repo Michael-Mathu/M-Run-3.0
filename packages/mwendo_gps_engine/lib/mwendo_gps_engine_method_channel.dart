@@ -11,6 +11,7 @@ class MethodChannelMwendoGpsEngine extends MwendoGpsEnginePlatform {
 
   final _stateController = StreamController<EngineState>.broadcast();
   final _trackpointController = StreamController<TrackPoint>.broadcast();
+  final _previewController = StreamController<TrackPoint>.broadcast();
 
   MethodChannelMwendoGpsEngine() {
     _eventChannel.receiveBroadcastStream().listen(
@@ -30,12 +31,18 @@ class MethodChannelMwendoGpsEngine extends MwendoGpsEnginePlatform {
     if (event is! Map) return;
     final Map<dynamic, dynamic> data = event;
     final rawFix = NormalizedFix.fromMap(data);
-    _trackpointController.add(TrackPoint(
+    final point = TrackPoint(
       raw: rawFix,
       heartRate: data['heart_rate'] as int?,
       cadence: data['cadence'] as int?,
       state: data['state'] as String? ?? 'idle',
-    ));
+    );
+    // Warm-up fixes go to their own stream so they can never be recorded.
+    if (data['preview'] == true) {
+      _previewController.add(point);
+    } else {
+      _trackpointController.add(point);
+    }
   }
 
   @override
@@ -44,8 +51,38 @@ class MethodChannelMwendoGpsEngine extends MwendoGpsEnginePlatform {
     methodChannel.invokeMethod('startRecording', {'profile': profile.name}).catchError((dynamic e) {
       debugPrint('Failed to start native recording: $e');
       _stateController.add(EngineState.idle);
+      // Surface the failure on the recording stream so the app can stop and
+      // explain, instead of showing "Recording" with no GPS behind it.
+      _trackpointController.addError(e is Object ? e : StateError('$e'));
     });
     return _trackpointController.stream;
+  }
+
+  @override
+  Stream<TrackPoint> warmUp() {
+    methodChannel.invokeMethod<bool>('warmUp').catchError((Object e) {
+      debugPrint('GPS warm-up failed: $e');
+      return false;
+    });
+    return _previewController.stream;
+  }
+
+  @override
+  Future<String> locationAccuracy() async {
+    try {
+      return await methodChannel.invokeMethod<String>('locationAccuracy') ?? 'unknown';
+    } catch (_) {
+      return 'unknown';
+    }
+  }
+
+  @override
+  Future<void> coolDown() async {
+    try {
+      await methodChannel.invokeMethod('coolDown');
+    } catch (e) {
+      debugPrint('GPS cool-down failed: $e');
+    }
   }
 
   @override

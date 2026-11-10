@@ -106,17 +106,21 @@ class _YouPageState extends ConsumerState<YouPage> {
                             button: true,
                             child: GestureDetector(
                               onTap: () => _EditPhotoSheet.show(context, ref),
-                              child: profile.photoPath != null
-                                  ? CircleAvatar(
-                                      radius: 34,
-                                      backgroundImage: FileImage(File(profile.photoPath!)),
-                                    )
-                                  : CircleAvatar(
-                                      radius: 34,
-                                      backgroundColor: cs.primary,
-                                      child: const Icon(Icons.person_rounded,
-                                          color: Colors.white, size: 36),
-                                    ),
+                              child: LevelAvatar(
+                                level: g.level,
+                                progress: g.levelProgress,
+                                avatar: profile.photoPath != null
+                                    ? CircleAvatar(
+                                        radius: 34,
+                                        backgroundImage: FileImage(File(profile.photoPath!)),
+                                      )
+                                    : CircleAvatar(
+                                        radius: 34,
+                                        backgroundColor: cs.primary.withValues(alpha: 0.15),
+                                        child: Icon(CupertinoIcons.person_fill,
+                                            color: cs.primary, size: 34),
+                                      ),
+                              ),
                             ),
                           ),
                           const SizedBox(width: AppTheme.s16),
@@ -133,14 +137,16 @@ class _YouPageState extends ConsumerState<YouPage> {
                                         style: text.headlineMedium,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis),
+                                    const SizedBox(height: 2),
                                     Text('${L10n.tr('level', locale)} ${g.level} · ${g.title}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         style: text.bodyMedium!.copyWith(color: cs.onSurfaceVariant)),
                                   ],
                                 ),
                               ),
                             ),
                           ),
-                          LevelRing(level: g.level, progress: g.levelProgress, size: 56),
                         ],
                       ),
                       const SizedBox(height: AppTheme.s16),

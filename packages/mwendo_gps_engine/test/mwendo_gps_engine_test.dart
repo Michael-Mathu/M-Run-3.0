@@ -7,6 +7,15 @@ class MockMwendoGpsEnginePlatform
     with MockPlatformInterfaceMixin
     implements MwendoGpsEnginePlatform {
   @override
+  Stream<TrackPoint> warmUp() => const Stream.empty();
+
+  @override
+  Future<void> coolDown() async {}
+
+  @override
+  Future<String> locationAccuracy() async => 'precise';
+
+  @override
   Stream<TrackPoint> startRecording(
           {BatteryProfile profile = BatteryProfile.standard}) =>
       const Stream.empty();

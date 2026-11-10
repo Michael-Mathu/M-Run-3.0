@@ -1,3 +1,25 @@
+## Unreleased (2026-11-10) — tracking robustness
+
+* New `locationAccuracy()`: `'precise'`, `'approximate'` (Android 12+
+  "Approximate" / iOS 14+ "Precise: Off"), `'none'` or `'unknown'`.
+* A failed native start (`FOREGROUND_FAILED`, `FOREGROUND_START_FAILED`,
+  permission errors) is now delivered as an error on the `startRecording()`
+  stream instead of only being logged, so the app can stop and explain.
+
+## Unreleased (2026-11-10) — instant GPS
+
+* New `warmUp()` / `coolDown()`: a pre-run high-accuracy location request so
+  satellites are locked before recording. `warmUp()` returns a stream of
+  *preview* fixes (event key `preview: true`, never mixed into the recording
+  stream); the first is the OS's cached position, delivered immediately.
+* Recording start hands the freshest warm fix (≤ 10 s, ≤ 30 m) to the run as
+  its first point, then ends the warm-up (no GNSS cold start in between).
+* Android: the recording request no longer uses
+  `setWaitForAccurateLocation(true)` (which held back early fixes) and sets
+  `setMaxUpdateDelayMillis(0)` (no batching).
+* iOS: same API (Core Location at best accuracy while warming; cached
+  `manager.location` emitted immediately). Not compiled here (no Xcode).
+
 ## Unreleased (2026-11-09)
 
 * **Breaking contract change: unknown speed is now `-1`, not `0`.** Android

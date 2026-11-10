@@ -63,7 +63,7 @@ The GPS pipeline operates as a deterministic multi-stage filter. Raw fixes pass 
 1. FixValidator ─────────────► [Invalid Lat/Lng, Non-monotonic Time, Mocked] ──► REJECT
    │
    ▼
-1b. Warm-up gate ────────────► [No point accepted yet AND accuracy > 12m, first 20s] ► REJECT
+1b. Warm-up gate ────────────► [No point accepted yet AND accuracy > 15m, first 10s] ► REJECT
    │
    ▼
 2. QualityGate ──────────────► [Accuracy > profile limit, e.g. 20m Run] ────────► REJECT
@@ -95,18 +95,29 @@ The GPS pipeline operates as a deterministic multi-stage filter. Raw fixes pass 
 * Rejects software-mocked or spoofed provider fixes (`isMocked == true`).
 
 ### Stage 1b: Warm-up gate (`GpsPipeline`)
-Until the first point of a run is accepted, fixes worse than 12 m are rejected for up to 20 s. Cold-start fixes often come from cell towers or Wi-Fi (via mobile data) and are 20–50 m off; accepting one drew a "hook" at the start of the run. After 20 s the gate opens anyway so a run in poor signal still records.
+Until the first point of a run is accepted, fixes worse than 15 m are rejected for up to 10 s (was 12 m / 20 s before the GPS warm-up existed). Cold-start fixes often come from cell towers or Wi-Fi (via mobile data) and are 20–50 m off; accepting one drew a "hook" at the start of the run. After 10 s the gate opens anyway so a run in poor signal still records.
+
+### Pre-run GPS warm-up (`MwendoGpsEngine.warmUp`)
+Satellite acquisition is the slow part of starting a run, so the app keeps a high-accuracy location request alive at launch (90 s) and while the Run tab is open (3 min), stopping when the app is backgrounded. Warm fixes arrive on a separate *preview* stream (never recorded): the first is the OS's cached position, delivered instantly; they drive the pre-run map camera and the "Locating… / GPS ready ±5 m" pill. When recording starts, the native side hands the freshest warm fix (≤ 10 s old, ≤ 30 m) to the run as its first point and ends the warm-up without a GNSS cold start in between. The recording request no longer waits for an "accurate" first fix (`setWaitForAccurateLocation(false)`, no batching); coarse fixes are filtered by the stages below.
 
 ### Stage 2: Quality Gate (`QualityGate`)
 * Rejects fixes where horizontal accuracy radius exceeds the activity profile limit:
 
   | Profile | `maxAccuracyM` | `maxSpeedMps` |
   | :--- | :--- | :--- |
-  | run | 20 | 10 |
-  | walk | 25 | 4 |
-  | cycle | 20 | 20 |
-  | hike | 30 | 6 |
-  | drive | 30 | 60 |
+  | run | 32 | 10 |
+  | walk | 35 | 4 |
+  | cycle | 32 | 20 |
+  | hike | 40 | 6 |
+  | drive | 50 | 60 |
+  | indoorPoor | 50 | — |
+
+  Raised on 2026-11-10 (were 20 / 25 / 20 / 30 / 30): many budget phones report
+  20–35 m accuracy outdoors even with a good lock, and the old run limit
+  rejected every fix, so a run recorded no route and no distance. The Kalman
+  filter already weights each fix by its accuracy, so a 30 m fix moves the
+  track far less than a 5 m one. "Approximate" location (1–3 km) is still
+  rejected; the app now detects it and asks for Precise.
 * Computes inverse-variance weighting factor:
   $$w = \frac{1}{\max(\sigma_{\text{accuracy}}^2, 25.0)}$$
   Capping minimum variance at $25\text{ m}^2$ prevents sensor overfitting.

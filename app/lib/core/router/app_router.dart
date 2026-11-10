@@ -257,7 +257,46 @@ class ScaffoldWithNavBar extends ConsumerStatefulWidget {
   ConsumerState<ScaffoldWithNavBar> createState() => _ScaffoldWithNavBarState();
 }
 
-class _ScaffoldWithNavBarState extends ConsumerState<ScaffoldWithNavBar> {
+class _ScaffoldWithNavBarState extends ConsumerState<ScaffoldWithNavBar>
+    with WidgetsBindingObserver {
+  static const _runTab = 2;
+  int? _lastIndex;
+
+  // GPS warm-up policy (see TrackingModel.warmUpGps): a short warm-up at
+  // launch / return to the app — most opens end in a run — and a longer one
+  // while the Run tab is open, so satellites are locked before Start. Stops
+  // when the app is backgrounded (a recording run is unaffected).
+  void _warm() {
+    final onRun = widget.shell.currentIndex == _runTab;
+    ref.read(trackingModelProvider.notifier).warmUpGps(
+          duration: onRun ? const Duration(minutes: 3) : const Duration(seconds: 90),
+        );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _warm();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _warm();
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      ref.read(trackingModelProvider.notifier).coolDownGps();
+    }
+  }
+
   // Swipe-to-switch-tab: detect a horizontal fling on the shell body and move
   // to the adjacent branch. Lightweight alternative to wrapping the shell in a
   // PageView, which would fight StatefulShellRoute's internal navigators.
@@ -283,6 +322,16 @@ class _ScaffoldWithNavBarState extends ConsumerState<ScaffoldWithNavBar> {
   Widget build(BuildContext context) {
     final locale = ref.watch(localeProvider);
     final index = widget.shell.currentIndex;
+    if (index != _lastIndex) {
+      final enteredRun = index == _runTab && _lastIndex != null;
+      _lastIndex = index;
+      // Covers taps and programmatic navigation (e.g. Home's "Go for a run").
+      if (enteredRun) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _warm();
+        });
+      }
+    }
     void go(int i) {
       if (i != index) Haptics.selection();
       widget.shell.goBranch(i, initialLocation: i == index);

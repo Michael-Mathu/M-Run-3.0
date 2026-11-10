@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:gps_pipeline/gps_pipeline.dart' show ActivityProfile;
+import 'package:latlong2/latlong.dart' as latlong;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:mwendo_app/core/permissions/location_permission.dart';
@@ -21,6 +23,7 @@ import 'package:mwendo_app/features/learn/data/beat_legends.dart';
 import 'package:mwendo_app/features/safety/safety_service.dart';
 import 'package:mwendo_app/features/tracking/tracking_controller.dart';
 import 'package:mwendo_app/features/tracking/activity_type_selector.dart';
+import 'package:mwendo_app/features/tracking/gps_status_widgets.dart';
 import 'package:mwendo_app/features/tracking/recovery_card.dart';
 import 'package:mwendo_app/widgets/celebration_overlay.dart';
 import 'package:mwendo_app/widgets/glass.dart';
@@ -115,6 +118,8 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
       }
     });
 
+    final issueSpace = m.gpsIssue != GpsIssue.none ? kGpsIssueBannerSpace : 0.0;
+
     return Scaffold(
       body: Stack(
         children: [
@@ -134,6 +139,9 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
                         points: ref.read(trackingModelProvider.notifier).flatRoute,
                         segments: ref.read(trackingModelProvider.notifier).mapSegments,
                         routeRevision: ref.read(trackingModelProvider.notifier).routeRevision,
+                        previewLocation: m.previewLat == null
+                            ? null
+                            : latlong.LatLng(m.previewLat!, m.previewLng!),
                         mode: MapMode.live,
                         locationEnabled: _hasLocationPermission,
                         isRecording: isRecording,
@@ -153,12 +161,27 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
                     Positioned(
                       top: MediaQuery.of(context).padding.top + AppTheme.s12,
                       left: AppTheme.s16,
-                      child: _StatusPill(state: m.state, accuracy: m.currentAccuracy),
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => showGpsDetailsSheet(context),
+                        child: _StatusPill(
+                          state: m.state,
+                          accuracy: m.currentAccuracy,
+                          gpsAvailable: _hasLocationPermission,
+                        ),
+                      ),
                     ),
+                    if (m.gpsIssue != GpsIssue.none)
+                      Positioned(
+                        top: MediaQuery.of(context).padding.top + AppTheme.s12 + 48,
+                        left: AppTheme.s16,
+                        right: AppTheme.s16,
+                        child: GpsIssueBanner(issue: m.gpsIssue),
+                      ),
                     if (!isIdle)
                       ghostRace.maybeWhen(
                         racing: (racing) => Positioned(
-                          top: MediaQuery.of(context).padding.top + AppTheme.s12 + 36,
+                          top: MediaQuery.of(context).padding.top + AppTheme.s12 + 36 + issueSpace,
                           left: AppTheme.s16,
                           child: _GhostChip(
                             ghost: racing.ghost,
@@ -167,7 +190,7 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
                           ),
                         ),
                         armed: (ghost, tier) => Positioned(
-                          top: MediaQuery.of(context).padding.top + AppTheme.s12 + 36,
+                          top: MediaQuery.of(context).padding.top + AppTheme.s12 + 36 + issueSpace,
                           left: AppTheme.s16,
                           child: _GhostChipArmed(ghost: ghost, tier: tier),
                         ),
@@ -183,7 +206,7 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
                     // Pause Semantics Card
                     if (m.state == AppEngineState.paused)
                       Positioned(
-                        top: MediaQuery.of(context).padding.top + AppTheme.s12 + (ghostRace is GhostRaceRacingData ? 72 : 36),
+                        top: MediaQuery.of(context).padding.top + AppTheme.s12 + (ghostRace is GhostRaceRacingData ? 72 : 36) + issueSpace,
                         left: AppTheme.s16,
                         right: AppTheme.s16,
                         child: GlassSurface(
@@ -399,6 +422,37 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
     final ok = await ensureLocationPermission(context, ref);
     if (!ok) return;
 
+    // 1b. "Approximate" location (Android 12+ / iOS 14+) counts as granted,
+    // but its 1–3 km fixes are all rejected: the run would record no route
+    // and no distance. Ask for Precise before starting.
+    final tracking = ref.read(trackingModelProvider.notifier);
+    await tracking.checkLocationAccuracy();
+    if (tracking.diagnostics.permission == 'approximate' && context.mounted) {
+      final openSettings = await showCupertinoDialog<bool>(
+        context: context,
+        builder: (dlg) => CupertinoAlertDialog(
+          title: Text(L10n.tr('gps_issue_approximate_title', locale)),
+          content: Text(L10n.tr('gps_issue_approximate_body', locale)),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(dlg).pop(false),
+              child: Text(L10n.tr('start_anyway', locale)),
+            ),
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () => Navigator.of(dlg).pop(true),
+              child: Text(L10n.tr('open_settings', locale)),
+            ),
+          ],
+        ),
+      );
+      if (openSettings == true) {
+        openAppSettings();
+        return;
+      }
+      if (!context.mounted) return;
+    }
+
     // 2. Notifications (Android 13+)
     final notif = await Permission.notification.status;
     if (!notif.isGranted) {
@@ -531,7 +585,14 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
       return;
     }
 
-    var record = notifier.buildRunRecord('Run');
+    var record = notifier.buildRunRecord(switch (m.profile) {
+      ActivityProfile.walk => 'Walk',
+      ActivityProfile.cycle => 'Ride',
+      ActivityProfile.hike => 'Hike',
+      ActivityProfile.drive => 'Drive',
+      ActivityProfile.indoorPoor => 'Workout',
+      _ => 'Run',
+    });
     await notifier.stop();
     // Invalidate repository to force all dependent providers to re-read
     ref.invalidate(activityRepositoryProvider);
@@ -606,9 +667,11 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
     }
 
     // Save the record now that it is fully updated
+    var saved = false;
     try {
       final repo = ref.read(activityRepositoryProvider);
       await repo.save(record);
+      saved = true;
       debugPrint('Run saved successfully: id=${record.id}, distance=${record.distanceM}m');
     } catch (e, st) {
       debugPrint('Run save failed: $e\n$st');
@@ -646,6 +709,11 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
             });
           },
         );
+      } else if (saved) {
+        // Show the finished run — map with the route, distance, splits.
+        // (Before, a normal run was saved silently and the Run screen just
+        // reset, so it looked as if nothing had been recorded.)
+        GoRouter.of(context).push('/activity/${record.id}');
       }
 
       if (newlyGhost.isNotEmpty) {
@@ -667,9 +735,19 @@ class _StartButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
     final cs = Theme.of(context).colorScheme;
+    // The button names the activity picked above it ("Start walk", ...).
+    final profile = ref.watch(trackingModelProvider.select((m) => m.profile));
+    final startLabel = L10n.tr(switch (profile) {
+      ActivityProfile.walk => 'start_walk',
+      ActivityProfile.cycle => 'start_ride',
+      ActivityProfile.hike => 'start_hike',
+      ActivityProfile.drive => 'start_drive',
+      ActivityProfile.indoorPoor => 'start_workout',
+      _ => 'start_run',
+    }, locale);
     return Semantics(
       button: true,
-      label: L10n.tr('start_run_control', locale),
+      label: startLabel,
       excludeSemantics: true,
       child: _AnimatedBounceButton(
         onTap: onStart,
@@ -687,7 +765,7 @@ class _StartButton extends ConsumerWidget {
               const Icon(CupertinoIcons.play_fill, size: 20, color: Colors.white),
               const SizedBox(width: AppTheme.s10),
               Text(
-                L10n.tr('start_run', locale),
+                startLabel,
                 style: AppTheme.bodyFont(size: 18, weight: FontWeight.w700, color: Colors.white),
               ),
             ],
@@ -881,7 +959,8 @@ class _MapChip extends StatelessWidget {
 class _StatusPill extends ConsumerWidget {
   final AppEngineState state;
   final double accuracy;
-  const _StatusPill({required this.state, required this.accuracy});
+  final bool gpsAvailable;
+  const _StatusPill({required this.state, required this.accuracy, this.gpsAvailable = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -895,6 +974,22 @@ class _StatusPill extends ConsumerWidget {
     };
 
     var (label, color) = map[state] ?? (L10n.tr('unknown', locale), tokens.idle);
+
+    // Before a run: live GPS status from the warm-up, so you know when it's
+    // safe to start (green = locked, orange = still weak / locating).
+    // (A warm-up fix proves permission even before the async check returns.)
+    if (state == AppEngineState.idle && (gpsAvailable || accuracy.isFinite)) {
+      if (!accuracy.isFinite) {
+        color = tokens.warning;
+        label = L10n.tr('gps_locating', locale);
+      } else if (accuracy <= 15.0) {
+        color = AppTheme.success;
+        label = L10n.tr('gps_ready', locale);
+      } else {
+        color = tokens.warning;
+        label = L10n.tr('gps_poor', locale);
+      }
+    }
 
     // GPS quality while recording: green-ish red dot = good, orange = poor.
     if (state == AppEngineState.recording) {

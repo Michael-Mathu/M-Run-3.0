@@ -381,3 +381,91 @@ stop/save (run appears on Home). Fixed along the way: the map stopped
 following when a run started (first-round bug), the live pace could show
 nonsense like "2179:28" (now "--:--" below walking speed), and the floating
 control bar covered the metrics (it double-counted the tab-bar height).
+
+---
+
+## Round 5 (10 November 2026): instant GPS
+
+Reported on a real phone: getting a GPS position always took a long time.
+Causes, in order of impact:
+
+1. **Cold start every time.** GPS was only switched on when Start was tapped,
+   so every run paid the full satellite-acquisition time.
+2. **The Android request waited for an "accurate" first fix**
+   (`setWaitForAccurateLocation(true)`), holding back early fixes.
+3. **My warm-up gate** rejected anything worse than 12 m for up to 20 s,
+   with the pill saying "Searching for GPS" even while fixes arrived.
+4. **The pre-run map dot** used MapLibre's default *balanced* (cell/Wi-Fi)
+   location engine.
+
+Fixes:
+
+- **GPS warm-up** (`MwendoGpsEngine.warmUp/coolDown`, Android + iOS): starts
+  at app launch (90 s) and whenever the Run tab is opened (3 min); stops when
+  the app goes to the background. The OS's cached position is shown
+  instantly; satellites are locked by the time you tap Start.
+- **Instant first point:** recording hands the freshest warm fix to the run.
+- Recording request: no wait-for-accurate, no batching.
+- Warm-up gate retuned to 15 m / 10 s (tests added).
+- Status pill before a run: **Locating…** → **GPS ready ±5 m** (green) or
+  **GPS weak ±25 m** (orange); during a run it shows the live accuracy even
+  while the pipeline is still holding fixes back.
+- Map: centres on the warm-up fix immediately; MapLibre's own dot uses high
+  accuracy.
+
+Emulator check (simulated stationary GPS, release build): opening the Run
+tab showed the street-level map and **GPS ready ±5 m** within ~1.5 s; one
+second after Start the pill read **Recording ±5 m** (previously "Searching
+for GPS"). Real-world time to a satellite lock still depends on sky view and
+the phone, but it now happens before Start instead of after.
+
+Battery: the warm-up is bounded (90 s / 3 min, never in the background) and
+uses the same GPS session the run would use anyway.
+
+---
+
+## Round 6 (10 November 2026): field-test fixes
+
+Reported from a run on a real phone:
+
+1. **"Go for a run" ignored the chosen activity.** The Start button now
+   follows the selection: Go for a run / walk / ride / hike, Start drive,
+   Start workout (English and Swahili).
+2. **No route and no distance after a run.** Several causes, all fixed:
+   - **No summary after stopping.** A normal run was saved silently and the
+     Run screen just reset, so nothing showed the route or distance. Stopping
+     now opens the saved run (map with the route, distance, pace, time). Runs
+     are also saved with their real type (Walk, Ride, Hike…) instead of
+     always "Run", and the chosen activity is kept for the next run.
+   - **Accuracy limits too strict for many phones.** Run fixes worse than
+     20 m were all thrown away; budget phones often report 20–35 m outdoors.
+     New limits: run 32 m, walk 35, cycle 32, hike 40, drive 50.
+   - **"Approximate" location went unnoticed.** Android 12+ lets you grant
+     only approximate location (1–3 km), which the app counted as granted;
+     every fix was then rejected. The app now detects it, warns before
+     starting (Open Settings / Start anyway) and shows a "Precise location is
+     off — Fix" banner on the Run screen.
+   - **Silent GPS failures.** If the tracking service failed to start, the
+     timer kept counting with no GPS behind it. Now the run is stopped (or
+     paused, if something was already recorded) with a "GPS couldn't start"
+     banner. A "No GPS signal" banner appears if no fix arrives for 25 s, and
+     a "Mock location detected" banner if a mock-location app is active.
+   - **GPS details.** Tap the status pill on the Run screen for a sheet with
+     permission level, accuracy, fixes received / used / rejected and why,
+     time since the last fix and the source. If a run ever records nothing
+     again, this shows why.
+   - After a run the GPS warms up again, so the pill no longer sticks on
+     "Locating…".
+3. **Overlapping level graphic on the You page.** The separate "Lv 1" ring
+   (its label overflowed onto the arc) was replaced by a progress ring around
+   the profile photo with a level badge on its edge, the Apple Fitness /
+   Game Center pattern. `LevelRing` itself was also fixed (label scales to
+   fit) for the Challenges page.
+
+Emulator check (release build): Approximate-only permission showed the
+banner; Cycle showed "Go for a ride"; a simulated 80-second run at ~3 m/s,
+with the screen locked for 35 s in the middle, drew the full route and
+measured 0.25 km (~240 m expected); stopping a simulated walk opened the
+saved Walk with its route and 0.18 km; the You header no longer overlaps.
+Kotlin compiled; Swift not (no Xcode). app 68/68, gps_pipeline 57/57,
+engine 3/3.

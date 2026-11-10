@@ -82,6 +82,11 @@ class MwendoMap extends StatefulWidget {
   /// pushes the route only when the revision changes — no per-rebuild copies.
   final int? routeRevision;
 
+  /// Live mode, before a run: the latest GPS warm-up position. The camera
+  /// jumps to it as soon as it arrives (often the cached last-known position,
+  /// instantly) instead of waiting for the map's own location engine.
+  final latlong.LatLng? previewLocation;
+
   const MwendoMap({
     super.key,
     required this.points,
@@ -94,6 +99,7 @@ class MwendoMap extends StatefulWidget {
     this.userDistanceM = 0,
     this.raceState,
     this.routeRevision,
+    this.previewLocation,
   });
 
   @override
@@ -158,6 +164,11 @@ class _MwendoMapState extends State<MwendoMap> {
         if (widget.isRecording) _autoFollow = true;
         if (!widget.isRecording) _zoomedForRun = false;
       });
+    }
+    final preview = widget.previewLocation;
+    if (_isLive && !widget.isRecording && preview != null && !_firstFixDone && _ctrl != null) {
+      _firstFixDone = true;
+      _ctrl!.animateCamera(CameraUpdate.newLatLngZoom(_toMl(preview), 16));
     }
     if (widget.ghost != old.ghost ||
         widget.userDistanceM != old.userDistanceM ||
@@ -495,13 +506,14 @@ class _MwendoMapState extends State<MwendoMap> {
     }
 
     final last = _lastPoint;
-    final initialTarget = _toMl(last ?? kDefaultCenter);
+    final start = last ?? (_isLive ? widget.previewLocation : null);
+    final initialTarget = _toMl(start ?? kDefaultCenter);
 
     final map = MapLibreMap(
       key: const ValueKey('mwendo-map-osm'),
       initialCameraPosition: CameraPosition(
         target: initialTarget,
-        zoom: _isLive ? (last != null ? 16 : 12) : widget.zoom,
+        zoom: _isLive ? (start != null ? 16 : 12) : widget.zoom,
       ),
       styleString: kOsmStyle,
       // OSM attribution is a licence requirement — keep it, but out of the way
@@ -512,6 +524,16 @@ class _MwendoMapState extends State<MwendoMap> {
         Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),
       },
       myLocationEnabled: _showNativePuck,
+      // The map's own location dot defaults to "balanced" (cell/Wi-Fi)
+      // accuracy; ask for GPS so the pre-run dot is precise. (The OS merges
+      // this with the app's warm-up request — no extra GPS session.)
+      locationEnginePlatforms: defaultTargetPlatform == TargetPlatform.iOS
+          ? const LocationEnginePlatforms.iOS(enableHighAccuracy: true)
+          : const LocationEnginePlatforms.android(
+              enableHighAccuracy: true,
+              interval: 1000,
+              priority: LocationPriority.highAccuracy,
+            ),
       myLocationTrackingMode: _trackingMode,
       onMapCreated: (c) {
         _ctrl = c;

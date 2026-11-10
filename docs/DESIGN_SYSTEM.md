@@ -38,6 +38,20 @@
   are applied only to number styles, because Inter's `tnum` also widens
   hyphens.
 
+## Round 6 (2026-11-10): field-test fixes
+
+- **Start button** reads the chosen activity: "Go for a run / walk / ride /
+  hike", "Start drive", "Start workout".
+- **GPS issue banner** (`GpsIssueBanner`, `features/tracking/gps_status_widgets.dart`):
+  a solid card (not glass, so it reads over a busy map) under the status pill
+  for Approximate location, GPS start failure, no signal and mock location,
+  with a Fix button (opens Settings) or a dismiss button. Chips below the
+  pill move down while it shows.
+- **GPS details sheet**: tap the status pill.
+- **You header**: `LevelAvatar` (`widgets/level_ring.dart`) puts the level
+  progress ring around the profile photo with a level badge on its lower
+  edge; the separate "Lv" ring is gone from the header.
+
 ## Performance rules (round 4)
 
 - Glass blur is the costliest effect. `GlassSurface` has no shadow by

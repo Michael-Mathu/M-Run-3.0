@@ -18,6 +18,12 @@ public class MwendoGpsEnginePlugin: NSObject, FlutterPlugin, CLLocationManagerDe
     // docs/BUILD_PLAN.md SEC-14).
     private var pendingStartResult: FlutterResult?
 
+    // Pre-run GPS warm-up: while the Run screen is open, Core Location runs at
+    // best accuracy so satellites are locked before Start is tapped. Fixes are
+    // tagged "preview" until recording begins.
+    private var isRecording = false
+    private var isPreviewing = false
+
     public static func register(with registrar: FlutterPluginRegistrar) {
         let methodChannel = FlutterMethodChannel(name: "mwendo_gps_engine", binaryMessenger: registrar.messenger())
         let eventChannel = FlutterEventChannel(name: "mwendo_gps_engine/events", binaryMessenger: registrar.messenger())
@@ -30,6 +36,12 @@ public class MwendoGpsEnginePlugin: NSObject, FlutterPlugin, CLLocationManagerDe
         switch call.method {
         case "startRecording":
             startRecording(result: result)
+        case "warmUp":
+            warmUp(result: result)
+        case "coolDown":
+            coolDown(result: result)
+        case "locationAccuracy":
+            locationAccuracy(result: result)
         case "pause":
             pause(result: result)
         case "resume":
@@ -83,8 +95,11 @@ public class MwendoGpsEnginePlugin: NSObject, FlutterPlugin, CLLocationManagerDe
 
         switch currentAuthorizationStatus(manager) {
         case .authorizedAlways, .authorizedWhenInUse:
+            isPreviewing = false
+            isRecording = true
             manager.startUpdatingLocation()
             result(["activity_id": activityId])
+            seedFromLastLocation(manager)
         case .notDetermined:
             // Async: the actual decision comes back through
             // locationManagerDidChangeAuthorization/didChangeAuthorization.
@@ -103,6 +118,70 @@ public class MwendoGpsEnginePlugin: NSObject, FlutterPlugin, CLLocationManagerDe
         }
     }
 
+    private func warmUp(result: FlutterResult) {
+        if isRecording {
+            result(true)
+            return
+        }
+        if locationManager == nil {
+            locationManager = CLLocationManager()
+            locationManager?.delegate = self
+        }
+        guard let manager = locationManager else {
+            result(false)
+            return
+        }
+        let status = currentAuthorizationStatus(manager)
+        guard status == .authorizedAlways || status == .authorizedWhenInUse else {
+            result(false)
+            return
+        }
+        manager.desiredAccuracy = kCLLocationAccuracyBest
+        manager.activityType = .fitness
+        manager.distanceFilter = kCLDistanceFilterNone
+        isPreviewing = true
+        // Instant: Core Location's cached position, if reasonably recent.
+        if let cached = manager.location, -cached.timestamp.timeIntervalSinceNow < 120 {
+            processLocation(cached)
+        }
+        manager.startUpdatingLocation()
+        result(true)
+    }
+
+    /// "precise", "approximate" (iOS 14 Precise Location off) or "none".
+    private func locationAccuracy(result: FlutterResult) {
+        let manager = locationManager ?? CLLocationManager()
+        let status = currentAuthorizationStatus(manager)
+        guard status == .authorizedAlways || status == .authorizedWhenInUse else {
+            result("none")
+            return
+        }
+        if #available(iOS 14.0, *) {
+            result(manager.accuracyAuthorization == .fullAccuracy ? "precise" : "approximate")
+        } else {
+            result("precise")
+        }
+    }
+
+    private func coolDown(result: FlutterResult) {
+        if !isRecording && isPreviewing {
+            isPreviewing = false
+            locationManager?.stopUpdatingLocation()
+        }
+        result(nil)
+    }
+
+    /// Recording just started: emit the freshest known fix as the first point
+    /// (the Dart pipeline still gates it on accuracy) so the run has a position
+    /// immediately instead of waiting for the next GNSS delivery.
+    private func seedFromLastLocation(_ manager: CLLocationManager) {
+        guard let loc = manager.location else { return }
+        let age = -loc.timestamp.timeIntervalSinceNow
+        if age >= 0 && age <= 10 && loc.horizontalAccuracy >= 0 && loc.horizontalAccuracy <= 30 {
+            processLocation(loc)
+        }
+    }
+
     private func pause(result: FlutterResult) {
         locationManager?.stopUpdatingLocation()
         result(nil)
@@ -114,6 +193,8 @@ public class MwendoGpsEnginePlugin: NSObject, FlutterPlugin, CLLocationManagerDe
     }
 
     private func stop(result: FlutterResult) {
+        isRecording = false
+        isPreviewing = false
         locationManager?.stopUpdatingLocation()
         let duration = Int(Date().timeIntervalSince1970 * 1000) - startTime
         result([
@@ -166,6 +247,8 @@ public class MwendoGpsEnginePlugin: NSObject, FlutterPlugin, CLLocationManagerDe
         switch status {
         case .authorizedAlways, .authorizedWhenInUse:
             pendingStartResult = nil
+            isPreviewing = false
+            isRecording = true
             locationManager?.startUpdatingLocation()
             pending(["activity_id": activityId])
         case .denied, .restricted:
@@ -219,6 +302,7 @@ public class MwendoGpsEnginePlugin: NSObject, FlutterPlugin, CLLocationManagerDe
             "fixType": "unknown",
             "bearing": bearing,
             "bearingAccuracy": bearingAccuracy,
+            "preview": isPreviewing && !isRecording,
         ])
     }
 }
