@@ -14,6 +14,9 @@ class SampleActivity {
   final int avgHeartRate;
   final int avgCadence;
   final List<LatLng> route;
+
+  /// Drawable pieces of [route], split at pauses. Defaults to one segment.
+  final List<List<LatLng>> routeSegments;
   final List<double> elevation; // metres, per sampled point
   final List<double> pace; // min/km, per sampled point
   final List<DateTime> times; // UTC timestamp per sampled point
@@ -29,10 +32,11 @@ class SampleActivity {
     required this.avgHeartRate,
     required this.avgCadence,
     required this.route,
+    List<List<LatLng>>? routeSegments,
     required this.elevation,
     required this.pace,
     required this.times,
-  });
+  }) : routeSegments = routeSegments ?? [route];
 
   double get avgPaceMinPerKm =>
       distanceM > 0 ? (durationMs / 60000) / (distanceM / 1000) : 0;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mwendo_app/core/perf/glass_quality.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/palette_provider.dart';
@@ -19,6 +20,15 @@ class MwendoApp extends ConsumerWidget {
       themeMode: mode,
       routerConfig: ref.watch(appRouterProvider),
       debugShowCheckedModeBanner: false,
+      // One shared backdrop for every grouped glass blur on screen (tab bar,
+      // floating panels), so the engine snapshots the background once per
+      // frame instead of once per blurred element.
+      builder: (context, child) {
+        Widget app = BackdropGroup(child: child ?? const SizedBox.shrink());
+        final glass = GlassQuality.instance;
+        if (glass != null) app = GlassScope(notifier: glass, child: app);
+        return app;
+      },
     );
   }
 }

@@ -9,12 +9,12 @@ import 'package:share_plus/share_plus.dart';
 import 'package:mwendo_app/core/l10n/app_strings.dart';
 import 'package:mwendo_app/core/theme/app_theme.dart';
 import 'package:mwendo_app/core/utils/format.dart';
-import 'package:mwendo_app/core/utils/haptics.dart';
 import 'package:mwendo_app/data/gpx_export.dart';
 import 'package:mwendo_app/data/models/run_record.dart';
 import 'package:mwendo_app/data/repositories/activity_repository.dart';
 import 'package:mwendo_app/data/sample_activities.dart';
 import 'package:mwendo_app/widgets/app_card.dart';
+import 'package:mwendo_app/widgets/route_thumbnail.dart';
 import 'package:mwendo_app/widgets/skeleton.dart';
 import 'package:mwendo_app/widgets/trailing_chevron.dart';
 
@@ -56,7 +56,7 @@ class _ActivityListPageState extends ConsumerState<ActivityListPage> {
     final runs = ref.watch(activitiesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(L10n.tr('activity', locale)), centerTitle: false),
+      appBar: AppBar(title: Text(L10n.tr('activity', locale))),
       body: AnimatedSwitcher(
         duration: AppTheme.dMed,
         transitionBuilder: (child, animation) =>
@@ -95,7 +95,7 @@ class _ActivityListPageState extends ConsumerState<ActivityListPage> {
                 child: CustomScrollView(
                   slivers: [
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(AppTheme.s24, AppTheme.s16, AppTheme.s24, 0),
+                      padding: const EdgeInsets.fromLTRB(AppTheme.s16, AppTheme.s8, AppTheme.s16, 0),
                       sliver: SliverList(
                         delegate: SliverChildListDelegate([
                           Row(
@@ -157,9 +157,9 @@ class _ActivityListPageState extends ConsumerState<ActivityListPage> {
                       ),
                     ),
                     SliverPadding(
-                      padding: const EdgeInsets.all(AppTheme.s24),
+                      padding: const EdgeInsets.fromLTRB(AppTheme.s16, AppTheme.s8, AppTheme.s16, 120),
                       sliver: SliverList.separated(
-                        separatorBuilder: (_, index) => const SizedBox(height: AppTheme.s12),
+                        separatorBuilder: (_, index) => const SizedBox(height: AppTheme.s8),
                         itemCount: sorted.length,
                         itemBuilder: (_, i) => _ActivityTile(
                           a: sorted[i].toSampleActivity(),
@@ -175,17 +175,6 @@ class _ActivityListPageState extends ConsumerState<ActivityListPage> {
           },
         ),
       ),
-      floatingActionButton: !runs.isLoading
-          ? FloatingActionButton.extended(
-              heroTag: 'activity-fab',
-              onPressed: () {
-                Haptics.light();
-                context.go('/run');
-              },
-              icon: const Icon(Icons.add_rounded),
-              label: Text(L10n.tr('start_run', locale)),
-            )
-          : null,
     );
   }
 
@@ -232,12 +221,12 @@ class _Chip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: AppTheme.s16, vertical: AppTheme.s8),
           decoration: BoxDecoration(
-            color: active ? AppTheme.brand : Theme.of(context).colorScheme.surface,
+            color: active ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(AppTheme.rFull),
           ),
           child: Text(label,
-              style: text.labelMedium!.copyWith(
-                  color: active ? Colors.white : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7))),
+              style: text.labelLarge!.copyWith(
+                  color: active ? Colors.white : Theme.of(context).colorScheme.onSurface)),
         ),
       ),
     );
@@ -294,40 +283,32 @@ class _ActivityTile extends ConsumerWidget {
       useInkWell: true,
       child: Row(
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: a.type == 'Run' ? cs.primaryContainer : cs.secondaryContainer,
-              borderRadius: BorderRadius.circular(AppTheme.r12),
-            ),
-            child: Icon(
-              a.type == 'Run' ? Icons.directions_run_rounded : Icons.directions_bike_rounded,
-              color: a.type == 'Run' ? cs.onPrimaryContainer : cs.onSecondaryContainer,
-              size: 28,
-            ),
+          RouteThumbnail(
+            segments: a.routeSegments,
+            size: 56,
+            fallbackIcon:
+                a.type == 'Run' ? Icons.directions_run_rounded : Icons.directions_bike_rounded,
           ),
           const SizedBox(width: AppTheme.s16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Text(a.type, style: text.titleMedium),
-                    const SizedBox(width: AppTheme.s8),
-                  ],
-                ),
+                Text(formatDistance(a.distanceM), style: text.titleMedium),
                 const SizedBox(height: AppTheme.s2),
                 Text(
-                  '${formatDistance(a.distanceM)} · ${formatDuration(a.durationMs)}',
-                  style: text.bodySmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.6)),
+                  '${a.type} · ${formatDuration(a.durationMs)}',
+                  style: text.bodySmall!.copyWith(color: cs.onSurfaceVariant),
+                ),
+                Text(
+                  formatDate(a.startedAt),
+                  style: text.bodySmall!.copyWith(color: cs.onSurfaceVariant),
                 ),
               ],
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.gps_fixed_rounded, size: 20),
+            icon: Icon(Icons.ios_share_rounded, size: 20, color: cs.primary),
             tooltip: L10n.tr('export_gpx', locale),
             onPressed: onExportGpx,
           ),

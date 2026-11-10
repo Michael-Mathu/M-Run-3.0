@@ -28,7 +28,7 @@
 ```
 
 ### 1.2 Core Purpose & Objectives
-* **Eliminate Telemetry Drift & "Ghost Traces"**: Standard GPS engines suffer from multipath interference, urban canyons, and stationary position wandering. Mwendo implements a multi-stage deterministic pipeline (Quality Gate, Outlier Lookahead, Local ENU 2D Kalman Filter, Stationary Clustering, and Post-Session OSRM Map Matching) that produces smooth tracks while maintaining raw measurement provenance.
+* **Eliminate Telemetry Drift & "Ghost Traces"**: Standard GPS engines suffer from multipath interference, urban canyons, and stationary position wandering. Mwendo implements a multi-stage deterministic pipeline (cold-start warm-up gate, Quality Gate, uncertainty-aware Outlier Lookahead, Local ENU 2D Kalman Filter that never invents points, Stationary Clustering, and gap-aware track segments) that produces smooth tracks while maintaining raw measurement provenance. Distance is integrated from the phone's Doppler speed. See [ARCHITECTURE.md](ARCHITECTURE.md) and [REVAMP_PLAN.md](REVAMP_PLAN.md) for the November 2026 accuracy fixes.
 * **Offline-First Resilience**: Full autonomous operation without network connectivity. Workouts are recorded into local SQLite storage via Drift and protected against OS task kills or battery death through a durable session draft journal (`SessionDrafts` and `SessionPoints` tables in Drift SQLite).
 * **"Beat Legends" Pacing Engine**: Runners can race in real-time against mathematical models of iconic world-record performances (Eliud Kipchoge, Kelvin Kiptum, Faith Kipyegon, Kenenisa Bekele, etc.) dynamically scaled across difficulty tiers (*Bronze, Silver, Gold, G.O.A.T.*), or against their own local offline activity personal bests.
 * **High-Throughput Geospatial Cloud Backend**: A lightweight Go service featuring PostGIS `GEOGRAPHY(LineString, 4326)` geospatial indexing, Douglas-Peucker route simplification (`ST_Simplify`), and Redis Sorted Set weekly leaderboards with graceful in-memory fallbacks.
@@ -39,7 +39,8 @@
 | **GPS Processing** | Raw averaging or basic thresholding | Multi-stage pipeline with 2D ENU Kalman Filter and 3-point lookahead spike suppression |
 | **Stationary Drift** | Accumulates false distance while standing still | Density-weighted stationary centroid clustering |
 | **Crash Protection** | Run lost if OS kills background activity | Durable SQLite session draft journal with auto-restore on restart |
-| **Map Rendering** | Generic vector tiles with online dependencies | Local MapLibre GL dark Carto basemap with dynamic ghost overlay & auto-follow toggle |
+| **Map Rendering** | Raster tiles, heavy on mobile data | MapLibre GL with OpenStreetMap vector tiles (OpenFreeMap "Liberty" style), segmented route lines, ghost overlay & auto-follow toggle |
+| **Distance** | Sum of jittery point-to-point hops | Doppler-speed integration with accuracy-aware fallback (~2% typical error in simulation) |
 | **Virtual Pacing** | Static target split pace | Segment-by-segment spline interpolation against historical splits or local offline runs |
 | **Cloud Dependency**| Mandatory account lock-in for saving data | 100% offline-first local SQLite with selective cloud sync |
 
@@ -57,7 +58,7 @@ M-Run-2.0/
 │   │   ├── core/               # Gamification, l10n, theme, permissions, safety
 │   │   ├── data/               # Drift SQLite database, models, repositories, GPX
 │   │   ├── design_system/      # Atomic UI components, cards, banners, HUDs
-│   │   ├── features/           # Feature slices: tracking, beat, learn, explore, etc.
+│   │   ├── features/           # Feature slices: tracking, legends, beat, learn, etc.
 │   │   └── widgets/            # MapLibre map wrappers, metrics tiles, overlays
 │   └── test/                   # Widget and repository integration tests
 ├── packages/
@@ -105,12 +106,13 @@ M-Run-2.0/
 └──────┬───────┘ └──────────────────────┘
        │
        ├─► 1. FixValidator: Coordinate range, monotonic timestamp, mock check
-       ├─► 2. QualityGate: Accuracy threshold (<=30m run, <=75m cycle)
-       ├─► 3. OutlierDetector: Implied velocity & 3-point lookahead spike rejection
-       ├─► 4. KalmanFilter: 2D State-Space (East/North/Velocities) in ENU Frame
+       ├─► 1b. Warm-up gate: reject >12m fixes until first accept (max 20s)
+       ├─► 2. QualityGate: Accuracy threshold (profile limit, e.g. <=20m run)
+       ├─► 3. OutlierDetector: Uncertainty-adjusted velocity & 3-point spike rejection
+       ├─► 4. KalmanFilter: 2D ENU; gated fixes dropped, re-anchor after 3 (no dead-reckoning)
        ├─► 5. StationarySuppressor: Density-weighted centroid aggregation
        ├─► 6. GapDetector: Signal loss demarcation (gapShort / gapLong)
-       └─► 7. MapMatcher: Post-session OSRM Hidden Markov Map Matching
+       └─► 7. TrackSegments + DistanceAccumulator: line breaks at gaps; Doppler distance
                │
                ▼ (PipelineResult: FilterStatus.filtered / stationary)
 ┌──────────────────────────────┐
@@ -148,7 +150,7 @@ Future<void> _enqueue(Future<void> Function() op) {
 Latitude and Longitude are projected into a tangent Euclidean plane (East-North-Up in metres) relative to an origin point using flat-earth trigonometric approximations. The state vector $x = [e, n, v_e, v_n]^T$ is updated dynamically:
 $$\hat{x}_{k|k-1} = F \hat{x}_{k-1|k-1}$$
 $$P_{k|k-1} = F P_{k-1|k-1} F^T + Q$$
-Adaptive process noise $Q$ scales dynamically depending on whether the runner's speed exceeds $0.3\text{ m/s}$. Measurements exceeding the Mahalanobis innovation threshold ($d^2 > 25.0$, $\sim 5\sigma$) are rejected to stop multipath jumps.
+Adaptive process noise $Q$ scales dynamically depending on whether the runner's speed (the larger of device and filter speed) exceeds $0.3\text{ m/s}$. Measurement noise uses the fix's real accuracy (floor 3 m). Measurements exceeding the Mahalanobis innovation threshold ($d^2 > 25.0$, $\sim 5\sigma$) are dropped; the filter never outputs its own prediction as a point, and re-anchors on the measurement after 3 consecutive rejections.
 
 #### 4. Sealed Class Hierarchies for Reactive State
 Ghost racing telemetry utilizes Dart 3 sealed class models (`GhostRaceStateData`), guaranteeing exhaustive pattern matching in the UI without unhandled edge states:
@@ -335,11 +337,11 @@ Central orchestration pipeline for incoming raw GPS fixes.
 ```dart
 GpsPipeline({
   required ActivityProfile profile,
-  bool enableMapMatching = false,
+  double? kalmanMotionSigma,
 })
 ```
-* `profile`: Activity configuration (`ActivityProfile.run`, `cycle`, `drive`) governing speed ceilings and accuracy cutoffs.
-* `enableMapMatching`: Enables post-session OSRM road snapping.
+* `profile`: Activity configuration (`ActivityProfile.run`, `walk`, `cycle`, `hike`, `drive`) governing speed ceilings and accuracy cutoffs.
+* `kalmanMotionSigma`: Optional override of the Kalman process noise (tests/tuning).
 
 ##### Methods
 * **`PipelineResult? process(RawFix fix)`**
@@ -349,7 +351,7 @@ GpsPipeline({
 * **`List<PipelineResult> reprocess(List<RawFix> fixes)`**
   * *Description:* Synchronously recalculates an entire array of raw points without state bleed.
 * **`Future<List<PipelineResult>> reprocessAsync(List<RawFix> fixes)`**
-  * *Description:* Full reprocessing pipeline including asynchronous OSRM map-matching network requests.
+  * *Description:* Async wrapper around `reprocess`. No network calls (map matching is no longer used).
 
 ##### Models & Enums
 ```dart
@@ -360,7 +362,7 @@ class RawFix {
   final double lng;
   final double elevation;
   final DateTime timestamp;
-  final double speedMps;
+  final double speedMps;   // -1 = not reported by the device
   final int? heartRate;
   final int? cadence;
   final int accuracy;
@@ -679,13 +681,13 @@ void analyzeRunQuality(List<RawFix> rawFixes) {
 | :--- | :--- | :--- |
 | `flutter_riverpod` | `^3.3.2` | Reactive, compile-safe dependency injection and state management without `BuildContext` leaks. |
 | `drift` / `sqlite3_flutter_libs` | `^2.19.0` | Type-safe, reactive SQLite ORM supporting fast queries, migrations, and offline transactions. |
-| `maplibre_gl` | `^0.26.2` | High-performance vector tile rendering with offline Carto dark styles and custom line layer shaders. |
+| `maplibre_gl` | `^0.26.2` | Vector map rendering; OpenStreetMap tiles from OpenFreeMap (`liberty` style), GeoJSON route layers. |
 | `go_router` | `^17.3.0` | Declarative routing with `StatefulShellRoute` tab persistence, custom transitions, and redirect guards. |
 | `dio` | `^5.4.0` | Interceptor-based HTTP client handling JWT authorization headers, timeouts, and token refreshes. |
 | `fl_chart` | `^1.2.0` | Hardware-accelerated elevation and pace split charting. |
 | `permission_handler` | `^11.4.0` | Granular OS location and activity recognition permission requests. |
+| `cupertino_icons` | `^1.0.8` | SF Symbols-style icon font for the iOS look (tab bar, list rows, controls). |
 | `uuid` | `^4.2.0` | Cryptographically secure UUID v4 generation for local entity IDs. |
-| `google_fonts` | `^6.2.1` | Typography system loading curated font weights. |
 
 ---
 
@@ -737,7 +739,7 @@ cd backend && go test -v ./...
    * Bugfixes: `fix/issue-description` (e.g. `fix/kalman-singularity`)
    * Documentation: `docs/topic-name`
 2. **Commit Convention**: Follow Conventional Commits:
-   * `feat: add post-session OSRM map matching`
+   * `feat: add doppler-speed distance accumulator`
    * `fix: prevent race condition in tracking model lock queue`
    * `refactor: optimize PostGIS trackpoint spatial index`
 3. **Pull Request Checklist**:

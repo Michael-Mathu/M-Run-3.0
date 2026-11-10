@@ -59,19 +59,28 @@ class KalmanFilter {
   final double motionSigmaMoving;
   final double motionSigmaStationary;
 
-  // Dead-reckoning: when a fix is gated out (large innovation = drift/jump), keep
-  // advancing the prediction and emit it as a bridge for up to this many
-  // consecutive rejections, instead of dropping points and later snapping across
-  // the excursion in one long straight segment. Beyond the cap it is a true gap.
-  final int maxDeadReckonSteps;
+  // Re-anchoring: when this many consecutive fixes are gated out, the filter's
+  // own estimate is what's wrong (sharp turn, or the user really is somewhere
+  // else after a signal dropout), so the filter restarts at the measurement.
+  //
+  // This replaces the old dead-reckoning bridge, which emitted the *predicted*
+  // position as an accepted point for every gated fix. A prediction is just
+  // "keep going straight at the last speed", so at every corner it drew a
+  // straight line through buildings — the phantom "places I never went" traces.
+  // A fitness track must only contain positions the GPS actually measured.
+  final int reanchorAfterRejections;
   int _consecutiveRejections = 0;
+
+  /// Accuracy floor (m). Phones routinely report 1–3 m accuracy that they
+  /// cannot actually deliver; trusting it lets single noisy fixes yank the line.
+  static const double _minAccuracyM = 3.0;
 
   KalmanFilter({
     required double originLat,
     required double originLng,
     this.motionSigmaMoving = 0.7,
     this.motionSigmaStationary = 0.3,
-    this.maxDeadReckonSteps = 5,
+    this.reanchorAfterRejections = 3,
   })  : _originLat = originLat,
         _originLng = originLng;
 
@@ -89,7 +98,7 @@ class KalmanFilter {
         trackVersion: trackVersion,
         smoothedLat: fix.lat,
         smoothedLng: fix.lng,
-        smoothedSpeedMps: fix.speedMps,
+        smoothedSpeedMps: max(0.0, fix.speedMps),
         filterStatus: FilterStatus.filtered,
       );
     }
@@ -107,16 +116,21 @@ class KalmanFilter {
       );
     }
 
-    // Adaptive process noise based on whether we are moving
-    final motionSigma =
-        fix.speedMps > 0.3 ? motionSigmaMoving : motionSigmaStationary;
+    final s = _state!;
+
+    // Adaptive process noise based on whether we are moving. Many fused/network
+    // fixes carry no speed (reported as 0), so fall back to the filter's own
+    // velocity estimate — otherwise a moving runner gets the heavily-damped
+    // "stationary" model and the line lags and cuts every corner.
+    final filterSpeed = sqrt(s.vEast * s.vEast + s.vNorth * s.vNorth);
+    final motionSigma = max(fix.speedMps, filterSpeed) > 0.3
+        ? motionSigmaMoving
+        : motionSigmaStationary;
     final qPos = (motionSigma * dt * dt / 2);
     final qVel = motionSigma * dt;
     final qPosSq = qPos * qPos;
     final qVelSq = qVel * qVel;
     final qPosVel = qPos * qVel;
-
-    final s = _state!;
 
     // 1. Predict
     // x = F * x
@@ -148,13 +162,13 @@ class KalmanFilter {
 
     // 2. Update
     // Measurement noise R
-    double rVariance =
-        fix.accuracy > 0 ? (fix.accuracy * fix.accuracy).toDouble() : 100.0;
-
-    // Cap innovation variance when stationary to eagerly reject jitter
-    if (fix.speedMps < 0.1) {
-      rVariance = min(rVariance, 25.0); // 5m max variance
-    }
+    // Always use the reported accuracy. The old code capped variance at 5 m
+    // whenever speed was < 0.1 m/s — but a fix with *no* speed (common on
+    // mobile-data / Wi-Fi assisted fixes) reports 0, so a 20 m-accurate
+    // network fix was trusted as if it were 5 m and dragged the line sideways.
+    final accuracyM =
+        fix.accuracy > 0 ? max(fix.accuracy.toDouble(), _minAccuracyM) : 10.0;
+    final rVariance = accuracyM * accuracyM;
 
     // Innovation y = z - H * x
     final yEast = measuredEast - predEast;
@@ -168,7 +182,29 @@ class KalmanFilter {
     // Innovation gate (simplified Mahalanobis)
     final mahalanobisSq = (yEast * yEast) / s00 + (yNorth * yNorth) / s11;
     if (mahalanobisSq > innovationGateSq) {
-      // Reject measurement, keep prediction
+      _consecutiveRejections++;
+
+      if (_consecutiveRejections >= reanchorAfterRejections) {
+        // Several measurements in a row disagree with the model: trust the GPS.
+        // Restart the filter at this measured position (zero velocity, fresh
+        // covariance) and emit the measured point itself — never a guess.
+        _consecutiveRejections = 0;
+        _state = KalmanState(east: measuredEast, north: measuredNorth);
+        _lastTimestamp = fix.timestamp;
+        return PipelineResult(
+          raw: fix,
+          pointIndex: pointIndex,
+          trackVersion: trackVersion,
+          smoothedLat: fix.lat,
+          smoothedLng: fix.lng,
+          smoothedSpeedMps: max(0.0, fix.speedMps),
+          filterStatus: FilterStatus.filtered,
+          innovationDistance: sqrt(distSq),
+        );
+      }
+
+      // Reject this measurement and carry the prediction internally only. The
+      // predicted position is NOT emitted as a track point.
       _state = KalmanState(
         east: predEast,
         north: predNorth,
@@ -192,29 +228,7 @@ class KalmanFilter {
         p33: p33,
       );
       _lastTimestamp = fix.timestamp;
-      _consecutiveRejections++;
 
-      if (_consecutiveRejections <= maxDeadReckonSteps) {
-        // Bridge the excursion: emit the dead-reckoned prediction so the track
-        // advances along the last known heading instead of freezing and later
-        // snapping across the gap in one straight segment.
-        final (drLat, drLng) =
-            CoordinateUtil.fromEnu(_originLat, _originLng, predEast, predNorth);
-        final drSpeed = sqrt(predVEast * predVEast + predVNorth * predVNorth);
-        return PipelineResult(
-          raw: fix,
-          pointIndex: pointIndex,
-          trackVersion: trackVersion,
-          smoothedLat: drLat,
-          smoothedLng: drLng,
-          smoothedSpeedMps: drSpeed,
-          filterStatus: FilterStatus.filtered,
-          innovationDistance: sqrt(distSq),
-          isDeadReckoned: true,
-        );
-      }
-
-      // Sustained excursion beyond the bridge budget: declare a true gap.
       return PipelineResult(
         raw: fix,
         pointIndex: pointIndex,

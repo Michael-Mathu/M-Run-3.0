@@ -43,8 +43,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
         hint: L10n.tr('onboarding_safe_hint', locale),
       ),
       _Slide(
-        emoji: '🌍',
-        icon: Icons.map_rounded,
+        emoji: '🏅',
+        icon: Icons.emoji_events_rounded,
         title: L10n.tr('onboarding_explore_title', locale),
         body: L10n.tr('onboarding_explore_body', locale),
         hint: L10n.tr('onboarding_explore_hint', locale),
@@ -171,16 +171,16 @@ class _Slide extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: AppTheme.s12, vertical: AppTheme.s6),
             decoration: BoxDecoration(
-              color: AppTheme.brand.withValues(alpha: 0.14),
+              color: cs.primaryContainer,
               borderRadius: BorderRadius.circular(AppTheme.rFull),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 16, color: AppTheme.brand),
+                Icon(icon, size: 16, color: cs.primary),
                 const SizedBox(width: AppTheme.s6),
                 Text('GPS · $hint',
-                    style: text.labelSmall!.copyWith(color: AppTheme.brand)),
+                    style: text.labelMedium!.copyWith(color: cs.primary)),
               ],
             ),
           ),

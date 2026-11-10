@@ -57,10 +57,10 @@ void showLocationDeniedOverlay(BuildContext context, WidgetRef ref) {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: AppTheme.brand.withValues(alpha: 0.16),
+                color: cs.primaryContainer,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.location_on_rounded, color: AppTheme.brand, size: 36),
+              child: Icon(Icons.location_on_rounded, color: cs.primary, size: 36),
             ),
             const SizedBox(height: AppTheme.s16),
             Text(L10n.tr('gps_required_title', locale),

@@ -6,8 +6,22 @@ import 'package:mwendo_app/data/models/run_record.dart';
 /// `<time>` per point, and `<speed>` (m/s, derived from the stored pace) so the
 /// export round-trips the timing/speed the app actually recorded.
 String gpxFromRunRecord(RunRecord r) {
+  // One <trkseg> per drawn segment, so a pause is a break in other apps too
+  // (Strava/Garmin import) instead of a straight line. Segments are built
+  // from the same accepted points as [r.route], in order, so a running index
+  // keeps elevation/time/pace aligned.
   final pts = StringBuffer();
+  final segLengths = r.routeSegments.map((s) => s.length).toList();
+  var segIdx = 0;
+  var inSeg = 0;
   for (int i = 0; i < r.route.length; i++) {
+    if (i > 0 && segIdx < segLengths.length && inSeg >= segLengths[segIdx]) {
+      pts.writeln('    </trkseg>');
+      pts.writeln('    <trkseg>');
+      segIdx++;
+      inSeg = 0;
+    }
+    inSeg++;
     final p = r.route[i];
     final ele = i < r.elevation.length ? r.elevation[i] : 0.0;
     final time = i < r.times.length ? r.times[i].toUtc().toIso8601String() : '';

@@ -261,7 +261,6 @@ return Scaffold(
                             icon: const Icon(Icons.trending_up_rounded),
                             label: Text(L10n.tr('try_harder_tier', locale)),
                             style: FilledButton.styleFrom(
-                              backgroundColor: AppTheme.brand,
                               padding: const EdgeInsets.symmetric(vertical: AppTheme.s16),
                             ),
                           ),
@@ -485,7 +484,7 @@ child: _SummaryTile(
                   icon: Icons.timer_rounded,
                   label: L10n.tr('your_time', locale),
                   value: formatDuration(userElapsedMs),
-                  color: AppTheme.brand,
+                  color: cs.primary,
                 ),
               ),
               Expanded(

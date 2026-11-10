@@ -27,6 +27,18 @@ class StationarySuppressor {
     this.confirmSeconds = 5,
   });
 
+  /// Clears all state so a new session (or a full reprocess of a saved one)
+  /// starts clean instead of inheriting the previous run's stop/drift state.
+  void reset() {
+    _state = StationaryState.moving;
+    _stateChangeTime = null;
+    _sumLat = 0;
+    _sumLng = 0;
+    _sumWeight = 0;
+    _pointCount = 0;
+    _window.clear();
+  }
+
   PipelineResult process(PipelineResult result) {
     if (result.filterStatus == FilterStatus.rejected) {
       return result;
@@ -34,7 +46,11 @@ class StationarySuppressor {
 
     final fix = result.raw;
     final now = fix.timestamp;
-    final speed = fix.speedMps;
+    // Device (Doppler) speed when reported; otherwise the Kalman filter's own
+    // speed estimate. Treating "no speed reported" as 0 m/s used to mark the
+    // runner as stopped and discard the entire run on devices/fixes that don't
+    // report speed (common with Wi-Fi / cell assisted positioning).
+    final speed = fix.speedMps >= 0 ? fix.speedMps : (result.smoothedSpeedMps ?? 0);
 
     // Manage 15-second rolling window
     _window.addLast(result);

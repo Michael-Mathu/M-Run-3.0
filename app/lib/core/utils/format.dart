@@ -10,7 +10,9 @@ String formatDuration(int ms) {
 }
 
 String formatPace(double minPerKm) {
-  if (minPerKm <= 0) return '--:--';
+  // Anything slower than an hour per km is "not moving" (e.g. a GPS jitter
+  // speed of a few cm/s), not a pace worth showing as "2179:28".
+  if (minPerKm <= 0 || minPerKm.isNaN || minPerKm >= 60) return '--:--';
   final m = minPerKm.floor();
   final s = ((minPerKm - m) * 60).round();
   return '$m:${s.toString().padLeft(2, '0')}';

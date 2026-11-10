@@ -88,12 +88,9 @@ void main() {
   );
 
   test(
-    'KNOWN ISSUE: filtered/smoothed cumulative distance overshoots ground-truth '
-    'distance by a large margin on this fixture -- see DISCOVERED_ISSUES.md #7. '
-    'Positional accuracy (see the test above) is good; this is specifically '
-    'about summed point-to-point path length. Asserted as a loose upper bound '
-    '(not a target) so this test still catches the pipeline getting *worse*, '
-    'without pretending the current ~46% baseline is validated as correct.',
+    'distance (DistanceAccumulator: Doppler speed first, noise-gated hops as '
+    'fallback) matches ground truth -- formerly DISCOVERED_ISSUES.md #7, where '
+    'summing point-to-point hops overshot by ~30-46%',
     () {
       double totalTruthDist = 0;
       for (int i = 0; i < truth.length - 1; i++) {
@@ -101,28 +98,12 @@ void main() {
             CoordinateUtil.haversineMetres(truth[i].lat, truth[i].lng, truth[i + 1].lat, truth[i + 1].lng);
       }
 
-      final pipeline = GpsPipeline(profile: ActivityProfile.run);
-      final results = <PipelineResult>[];
-      for (final fix in rawFixes) {
-        final res = pipeline.process(fix);
-        if (res != null && res.isAccepted) results.add(res);
-      }
-      for (final res in pipeline.flush()) {
-        if (res.isAccepted) results.add(res);
-      }
-
-      double filteredDist = 0;
-      for (int i = 0; i < results.length - 1; i++) {
-        filteredDist += CoordinateUtil.haversineMetres(
-          results[i].smoothedLat ?? results[i].raw.lat,
-          results[i].smoothedLng ?? results[i].raw.lng,
-          results[i + 1].smoothedLat ?? results[i + 1].raw.lat,
-          results[i + 1].smoothedLng ?? results[i + 1].raw.lng,
-        );
-      }
+      final results = GpsPipeline(profile: ActivityProfile.run).reprocess(rawFixes);
+      final filteredDist = TrackSegments.distanceM(results,
+          maxSpeedMps: ActivityProfile.run.maxSpeedMps);
 
       final distErrPct = (filteredDist - totalTruthDist).abs() / totalTruthDist * 100.0;
-      expect(distErrPct, lessThan(60.0)); // baseline observed: ~45.6%
+      expect(distErrPct, lessThan(8.0));
     },
   );
 }

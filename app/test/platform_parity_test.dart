@@ -86,7 +86,8 @@ void main() {
       expect(fix.lng, 36.8219);
       expect(fix.elevation, 0.0);
       expect(fix.timestamp.millisecondsSinceEpoch, 1690000000000);
-      expect(fix.speedMps, 0.0);
+      // No speed in the payload = "unknown" (-1), never 0 ("stopped").
+      expect(fix.speedMps, -1.0);
       expect(fix.accuracyM, 10.0);
       expect(fix.verticalAccuracyM, isNull);
       expect(fix.hdop, isNull);
@@ -97,7 +98,10 @@ void main() {
       expect(fix.bearingAccuracyDeg, isNull);
     });
     
-    test('Clamps negative speeds to 0', () {
+    // Contract changed: a negative (invalid) platform speed now means
+    // "unknown" (-1). Clamping it to 0 told the pipeline the runner had
+    // stopped, which discarded whole runs on fixes without speed.
+    test('Normalizes negative (invalid) speeds to -1 = unknown', () {
       final payload = {
         'lat': -1.2921,
         'lng': 36.8219,
@@ -106,7 +110,7 @@ void main() {
       };
 
       final fix = NormalizedFix.fromMap(payload);
-      expect(fix.speedMps, 0.0);
+      expect(fix.speedMps, -1.0);
     });
   });
 }

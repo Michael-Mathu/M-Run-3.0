@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mwendo_app/core/theme/app_theme.dart';
+import 'package:mwendo_app/widgets/pressable.dart';
 
 /// Canonical card component used across the app.
 /// Replaces 15+ ad-hoc Container/Material card patterns.
@@ -47,21 +48,9 @@ class AppCard extends StatelessWidget {
 
     if (onTap == null) return decoratedChild;
 
-    if (useInkWell) {
-      return Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: radius,
-          onTap: onTap,
-          child: decoratedChild,
-        ),
-      );
-    }
-
-    return GestureDetector(
-      onTap: onTap,
-      child: decoratedChild,
-    );
+    // Same press feedback everywhere (dim + slight shrink), whether or not
+    // the caller asked for the old ink well.
+    return Pressable(onTap: onTap, child: decoratedChild);
   }
 }
 
@@ -103,14 +92,7 @@ class AppGradientCard extends StatelessWidget {
 
     if (onTap == null) return decoratedChild;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: radius,
-        onTap: onTap,
-        child: decoratedChild,
-      ),
-    );
+    return Pressable(onTap: onTap, child: decoratedChild);
   }
 }
 
@@ -136,16 +118,12 @@ class TierCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final progressColor = isCompleted ? context.tokens.flagGreen : tierColor;
 
-    return AppGradientCard(
-      gradient: LinearGradient(
-        colors: [cs.surface, tierColor.withValues(alpha: 0.08)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
+    // Flat card; the tier shows as a quiet tint, completion as a crisp
+    // coloured edge (the old glowing shadow competed with the content).
+    return AppCard(
+      color: Color.alphaBlend(tierColor.withValues(alpha: 0.07), cs.surface),
       padding: padding ?? const EdgeInsets.all(AppTheme.s16),
-      shadows: isCompleted
-          ? [BoxShadow(color: progressColor.withValues(alpha: 0.45), blurRadius: 16, spreadRadius: 1)]
-          : AppTheme.elevation1,
+      border: isCompleted ? Border.all(color: progressColor, width: 1.5) : null,
       onTap: onTap,
       child: child,
     );

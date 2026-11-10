@@ -150,4 +150,50 @@ void main() {
     await repository.deleteDraft('draft-2');
     expect(await repository.getRecoverable(), isNull);
   });
+
+  test('journalDraft() appends fixes incrementally and recovers them all, in order', () async {
+    final t0 = DateTime.parse('2026-07-12T09:00:00Z');
+    final fixes = [
+      for (var i = 0; i < 25; i++)
+        RawFix(
+          lat: -1.29 + i * 0.0001,
+          lng: 36.82,
+          elevation: 1700,
+          timestamp: t0.add(Duration(seconds: i)),
+          speedMps: 3.0,
+          accuracy: 5,
+          heartRate: 150 + i,
+        ),
+    ];
+    Future<void> journal(int from, int upTo, {double distance = 0}) => repository.journalDraft(
+          id: 'draft-j',
+          newFixes: fixes.sublist(from, upTo),
+          startSeq: from,
+          filterVersion: TrackVersion.deviceLive,
+          distanceM: distance,
+          durationMs: upTo * 1000,
+          movingTimeMs: upTo * 1000,
+          elevationGainM: 0,
+          calories: 0,
+          activityType: ActivityProfile.run,
+          createdAt: t0,
+        );
+
+    await journal(0, 10);
+    await journal(10, 20, distance: 60);
+    // A retried write of an already-journaled range must not duplicate rows.
+    await journal(10, 20, distance: 60);
+    await journal(20, 25, distance: 75);
+
+    final recovered = await repository.getRecoverable();
+    expect(recovered, isNotNull);
+    expect(recovered!.id, 'draft-j');
+    expect(recovered.rawFixes.length, 25);
+    for (var i = 0; i < 25; i++) {
+      expect(recovered.rawFixes[i].timestamp.isAtSameMomentAs(fixes[i].timestamp), isTrue);
+      expect(recovered.rawFixes[i].heartRate, 150 + i);
+    }
+    expect(recovered.distanceM, 75);
+    expect(recovered.durationMs, 25000);
+  });
 }

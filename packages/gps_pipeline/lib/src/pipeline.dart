@@ -32,6 +32,16 @@ class GpsPipeline {
   RawFix? _bufferCurr;
 
   int _pointsProcessed = 0;
+
+  // Start-of-track warm-up. Right after GPS starts (or resumes) the first fixes
+  // usually come from cell towers / Wi-Fi via mobile data and can be 20-50 m
+  // off, which draws a "hook" from a phantom start point. Until the first point
+  // is accepted, demand a tighter accuracy — but only for a short window so a
+  // run in poor sky conditions still starts recording.
+  static const double _warmupAccuracyM = 12.0;
+  static const Duration _warmupWindow = Duration(seconds: 20);
+  DateTime? _firstSeenAt;
+
   final TrackVersion trackVersion = TrackVersion.kalmanEkf;
 
   final _eventController = StreamController<SessionEvent>.broadcast();
@@ -87,6 +97,22 @@ class GpsPipeline {
   }
 
   PipelineResult _processInner(RawFix curr, RawFix? next) {
+    // Stage 1b: warm-up gate (see _warmupAccuracyM)
+    _firstSeenAt ??= curr.timestamp;
+    if (_previousProcessed == null &&
+        curr.accuracy > _warmupAccuracyM &&
+        curr.timestamp.difference(_firstSeenAt!) < _warmupWindow) {
+      final res = PipelineResult(
+        raw: curr,
+        pointIndex: _pointsProcessed++,
+        trackVersion: trackVersion,
+        filterStatus: FilterStatus.rejected,
+        rejectReason: RejectReason.poorAccuracy,
+      );
+      _emitEvent(res, RejectReason.poorAccuracy.name);
+      return res;
+    }
+
     // Stage 2: Quality Gate
     final gateResult = _qualityGate.accept(curr);
     if (!gateResult.passes) {
@@ -139,10 +165,7 @@ class GpsPipeline {
 
 
     if (result.filterStatus != FilterStatus.rejected) {
-      // Keep outlier detection anchored to the last *trusted* fix: a
-      // dead-reckoned bridge point carries an untrusted raw measurement, so
-      // advancing _previousProcessed to it would corrupt the next speed/spike check.
-      if (!result.isDeadReckoned) _previousProcessed = curr;
+      _previousProcessed = curr;
       _previousResult = result;
     }
 
@@ -182,6 +205,8 @@ class GpsPipeline {
     _bufferPrev = null;
     _bufferCurr = null;
     _pointsProcessed = 0;
+    _firstSeenAt = null;
+    _stationarySuppressor.reset();
   }
 
   /// Reprocess an entire session.

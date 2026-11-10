@@ -211,6 +211,9 @@ class L10n {
     'no_route_recorded': {'en': 'No route recorded', 'sw': 'Hakuna njia iliorekodiwa'},
     'no_legends_match_title': {'en': 'No legends match your filters.', 'sw': 'Hakuna mashujaa wanaolingana.'},
     'settings': {'en': 'Settings', 'sw': 'Mipangilio'},
+    'safety': {'en': 'Safety', 'sw': 'Usalama'},
+    'hold_to_stop': {'en': 'Press and hold to stop', 'sw': 'Bonyeza na ushikilie kusimamisha'},
+    'run_paused_hint': {'en': 'Paused. Tap Resume to keep recording.', 'sw': 'Imesimamishwa. Gusa Endelea kuendelea kurekodi.'},
     'avg_pace': {'en': 'Avg Pace', 'sw': 'Kasi ya Wastani'},
     'start_running_to_compare': {'en': 'Start running to compare!', 'sw': 'Anza kukimbia kulinganisha!'},
     'log_distance_to_compare': {'en': 'Log a 5K, 10K, half or marathon and see how you stack up.', 'sw': 'Rekodi 5K, 10K, nusu au marathon uone jinsi unavyojilinganisha.'},
@@ -317,12 +320,40 @@ class L10n {
     'onboarding_run_hint': {'en': 'Track every stride', 'sw': 'Fuatilia kila hatua'},
     'onboarding_challenges_hint': {'en': 'Build your streak', 'sw': 'Jenge msururu wako'},
     'onboarding_safe_hint': {'en': 'One tap to stay safe', 'sw': 'Gusa mara moja kuwa salama'},
-    'onboarding_explore_title': {'en': 'Explore routes near you', 'sw': 'Gundua njia karibu nawe'},
+    'onboarding_explore_title': {'en': 'Race the legends', 'sw': 'Shindana na magwiji'},
     'onboarding_explore_body': {
-      'en': 'Discover curated routes, segments and local leaderboards built by the community.',
-      'sw': 'Gundua njia, sehemu na chati za wachezaji zilizotengenezwa na jamii.'
+      'en': 'Run against Kipchoge, Kipyegon and more — and learn the stories behind their records.',
+      'sw': 'Kimbia dhidi ya Kipchoge, Kipyegon na wengine — na ujifunze hadithi za rekodi zao.'
     },
-    'onboarding_explore_hint': {'en': 'Find your next run', 'sw': 'Pata mbio yako inayofuata'},
+    'onboarding_explore_hint': {'en': 'Meet the legends', 'sw': 'Kutana na magwiji'},
+
+    // Legends tab (Nov 2026)
+    'transparency_effects': {'en': 'Transparency effects', 'sw': 'Madoido ya uwazi'},
+    'auto_label': {'en': 'Auto', 'sw': 'Otomatiki'},
+    'auto_reduced': {'en': 'Auto (reduced)', 'sw': 'Otomatiki (imepunguzwa)'},
+    'on_label': {'en': 'On', 'sw': 'Imewashwa'},
+    'off_label': {'en': 'Off', 'sw': 'Imezimwa'},
+    'photo_credits': {'en': 'Photo credits', 'sw': 'Shukrani za picha'},
+    'photo_label': {'en': 'Photo', 'sw': 'Picha'},
+    'photo_credits_note': {
+      'en': 'Legend photos come from Wikimedia Commons under free licences and are cropped from the originals. Tap a name to see the original photo and its licence. Legends without a free photo show an emoji.',
+      'sw': 'Picha za magwiji zinatoka Wikimedia Commons chini ya leseni huru na zimekatwa kutoka picha asili. Gusa jina kuona picha asili na leseni yake. Magwiji wasio na picha huru wanaonyeshwa kwa emoji.'
+    },
+    'legend_of_the_day': {'en': 'Legend of the day', 'sw': 'Gwiji wa siku'},
+    'race_a_legend': {'en': 'Race a legend', 'sw': 'Shindana na gwiji'},
+    'all_legends': {'en': 'All legends', 'sw': 'Magwiji wote'},
+    'read_story': {'en': 'Read story', 'sw': 'Soma hadithi'},
+    'race': {'en': 'Race', 'sw': 'Shindana'},
+    'race_name': {'en': 'Race {name}', 'sw': 'Shindana na {name}'},
+    'about': {'en': 'About', 'sw': 'Kuhusu'},
+    'show_less': {'en': 'Show less', 'sw': 'Onyesha kidogo'},
+    'did_you_know_title': {'en': 'Did you know?', 'sw': 'Je, wajua?'},
+    'faster': {'en': 'Faster', 'sw': 'Kasi zaidi'},
+    'difficulty': {'en': 'Difficulty', 'sw': 'Ugumu'},
+    'tier_explainer': {
+      'en': 'G.O.A.T. is the real record pace. Gold, Silver and Bronze give you 2%, 10% and 25% more time.',
+      'sw': 'G.O.A.T. ni kasi halisi ya rekodi. Dhahabu, Fedha na Shaba zinakupa muda zaidi wa 2%, 10% na 25%.'
+    },
 
     // Live HUD / widgets
     'km': {'en': 'km', 'sw': 'km'},

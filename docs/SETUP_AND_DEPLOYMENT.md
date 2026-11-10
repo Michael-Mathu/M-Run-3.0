@@ -6,15 +6,15 @@
 
 | Dependency | Minimum Version | Verified Version | Purpose |
 | :--- | :--- | :--- | :--- |
-| **Flutter SDK** | `3.22.0` | `3.24.0` (Stable) | Mobile application runtime |
-| **Dart SDK** | `3.12.2` | `3.12.2` | Core language framework |
+| **Flutter SDK** | `3.22.0` | `3.47.9` (Stable, Nov 2026) | Mobile application runtime |
+| **Dart SDK** | `3.12.2` | `3.13.7` | Core language framework |
 | **Go SDK** | `1.26.0` | `1.26.4` | Backend microservice runtime |
 | **Rust / Cargo** | `1.75.0` | `1.80.0` | Native binary FIT parser FFI |
 | **Docker Engine** | `24.0.0` | `27.0.0` | Container orchestration |
 | **Docker Compose** | `2.20.0` | `2.28.0` | Multi-container setup |
 | **PostgreSQL / PostGIS**| `16-3.4` | `postgis/postgis:16-3.4`| Spatial geospatial database |
 | **Redis** | `7.0` | `redis:7-alpine` | In-memory leaderboard caching |
-| **Android NDK** | `26.1.10909125`| `26.x` | Rust Android ABI compiling |
+| **Android NDK** | `26.1.10909125`| `28.2.13676358` (required by Flutter 3.47) | App build + Rust Android ABI compiling |
 
 ---
 
@@ -75,6 +75,21 @@ flutter run
 # Custom backend API endpoint override:
 flutter run --dart-define=API_BASE_URL=http://localhost:8080
 ```
+
+#### Android emulator on Windows (verified 2026-11-09)
+Verified with Flutter 3.47.9 (installed at `C:\Users\Michael\flutter`), Android Studio's SDK in `%LOCALAPPDATA%\Android\Sdk`, JDK 21 (Eclipse Adoptium), and the `Medium_Phone_API_37.0` virtual device.
+
+1. **NDK:** Flutter 3.47 builds with **NDK 28.2.13676358**. If Gradle fails with "sdkmanager did not install NDK 28.2…", install it from PowerShell (the semicolon must be quoted, so run it from PowerShell, not Git Bash):
+   ```powershell
+   & "$env:LOCALAPPDATA\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat" --install '"ndk;28.2.13676358"'
+   ```
+   Or use Android Studio → SDK Manager → SDK Tools → NDK (Side by side).
+2. **Start the emulator:** in Android Studio → Device Manager → ▶ on the phone, or:
+   ```powershell
+   & "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -avd Medium_Phone_API_37.0
+   ```
+3. **Run the app:** `cd app` then `flutter run` (picks the running emulator). Use `r` to hot-reload and `R` to hot-restart after editing code. The first Gradle build downloads its dependencies and can take a long time; later builds are much faster.
+4. **GPS on the emulator:** open the emulator's `⋯` (Extended controls) → **Location**. Set a point, or load a GPX/KML route and press Play to simulate a run. Emulator fixes are idealised (good accuracy, always with speed), so they don't exercise the noise filtering; use a real phone to judge tracking accuracy.
 
 ### 3.2 Run the Go Backend Standalone
 ```bash

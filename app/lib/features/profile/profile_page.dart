@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -18,18 +19,20 @@ import 'package:mwendo_app/data/gpx_export.dart';
 import 'package:mwendo_app/data/models/run_record.dart';
 import 'package:mwendo_app/data/repositories/activity_repository.dart';
 import 'package:mwendo_app/features/learn/data/beat_legends.dart';
-import 'package:mwendo_app/features/learn/data/legends.dart';
 import 'package:mwendo_app/features/safety/safety_service.dart';
 import 'package:mwendo_app/core/theme/app_theme.dart';
 import 'package:mwendo_app/core/utils/haptics.dart';
 import 'package:mwendo_app/widgets/celebration_overlay.dart';
-import 'package:mwendo_app/widgets/metric_tile.dart';
-import 'package:mwendo_app/widgets/trailing_chevron.dart';
+import 'package:mwendo_app/widgets/grouped_section.dart';
 import 'package:mwendo_app/widgets/section_title.dart';
 import 'package:mwendo_app/core/theme/theme_mode_provider.dart';
 import 'package:mwendo_app/core/theme/palette_provider.dart';
 import 'package:mwendo_app/core/utils/format.dart';
 import 'package:mwendo_app/widgets/level_ring.dart';
+import 'package:mwendo_app/widgets/ios.dart';
+import 'package:mwendo_app/core/perf/glass_quality.dart';
+import 'package:mwendo_app/features/legends/photo_credits_page.dart';
+import 'package:mwendo_app/features/legends/legend_widgets.dart';
 
 
 class YouPage extends ConsumerStatefulWidget {
@@ -71,192 +74,168 @@ class _YouPageState extends ConsumerState<YouPage> {
     } else {
       _prevLevel = g.level;
     }
-    final mode = ref.watch(themeModeProvider);
     final profile = ref.watch(userProfileProvider);
     final units = ref.watch(unitsProvider);
     final contacts = ref.watch(safetyContactsProvider);
+    final session = ref.watch(sessionProvider);
     final text = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
     final runs = ref.watch(activitiesProvider).value ?? const <RunRecord>[];
+    final rank = _rankFor(ref, g.xp);
 
-    final board = ref.watch(remoteLeaderboardProvider(g.xp)).when(
-      data: (b) => b,
-      loading: () => leaderboardWithUser(g.xp),
-      error: (_, _) => leaderboardWithUser(g.xp),
-    ).take(5).toList();
-    final rank = board.indexWhere((e) => e.you) + 1;
+    void open(Widget page) {
+      Haptics.selection();
+      Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => page));
+    }
 
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Scaffold(
-          body: SafeArea(
-            child: CustomScrollView(
+        LargeTitlePage(
+              title: L10n.tr('you', locale),
               slivers: [
                 SliverPadding(
-                  padding: const EdgeInsets.all(AppTheme.s24),
+                  padding: const EdgeInsets.fromLTRB(AppTheme.s16, AppTheme.s8, AppTheme.s16, 0),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                       Row(
-                         children: [
-                           Semantics(
-                             label: L10n.tr('edit', locale),
-                             button: true,
-                             child: GestureDetector(
-                               onTap: () => _EditPhotoSheet.show(context, ref),
-                               child: profile.photoPath != null
-                                   ? CircleAvatar(
-                                       radius: 34,
-                                       backgroundImage: FileImage(File(profile.photoPath!)),
-                                     )
-                                   : const CircleAvatar(
-                                       radius: 34,
-                                       backgroundColor: AppTheme.brand,
-                                       child: Icon(Icons.person_rounded, color: Colors.white, size: 36),
-                                     ),
-                             ),
-                           ),
-                           const SizedBox(width: AppTheme.s16),
-                           Expanded(
-                             child: Semantics(
-                               label: L10n.tr('edit', locale),
-                               button: true,
-                               child: GestureDetector(
-                                 onTap: () => _EditNameSheet.show(context, ref, profile.username),
-                                 child: Column(
-                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                   children: [
-                                     Text(profile.username, style: text.headlineLarge),
-                                     Text('${L10n.tr('level', locale)} ${g.level} · ${g.title}',
-                                         style: text.bodyMedium!.copyWith(color: cs.onSurface.withValues(alpha: 0.6))),
-                                   ],
-                                 ),
-                               ),
-                             ),
-                           ),
-                           LevelRing(level: g.level, progress: g.levelProgress, size: 56),
-                         ],
-                       ),
-                       // Red Earth: XpBar sits plain on the page (no filled
-                       // surface card) -- consistent with the rest of the
-                       // page's decluttered, hairline-only chrome.
-                       const SizedBox(height: AppTheme.s16),
-                       XpBar(
-                         xpIntoLevel: g.xpIntoLevel,
-                         xpForNextLevel: g.xpForNextLevel,
-                         progress: g.levelProgress,
-                       ),
-                       const SizedBox(height: AppTheme.s20),
-                       _StatsToggle(range: _range, onChanged: _setRange, locale: locale),
-                       const SizedBox(height: AppTheme.s16),
-                       _StatRow(g: g, range: _range, runs: runs, units: units, locale: locale),
-                       const SizedBox(height: AppTheme.s12),
-                       _StatRow(g: g, range: _range, runs: runs, units: units, locale: locale),
-                       const SizedBox(height: AppTheme.s12),
-                     ]),
-                   ),
-                 ),
-                if (g.racedLegends.isNotEmpty)
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(AppTheme.s24, AppTheme.s28, AppTheme.s24, 0),
-                    sliver: SliverToBoxAdapter(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      // ---- Profile header -----------------------------------
+                      Row(
                         children: [
-                          SectionTitle(L10n.tr('your_legends', locale)),
-                          const SizedBox(height: AppTheme.s12),
-                          SizedBox(
-                            height: 150,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: g.racedLegends.length,
-                              separatorBuilder: (_, _) => const SizedBox(width: AppTheme.s12),
-                              itemBuilder: (_, i) {
-                                final ghost = ghostPaceForId(g.racedLegends.elementAt(i));
-                                final beaten = g.beatenLegends.contains(ghost.id);
-                                return _LegendMiniCard(ghost: ghost, beaten: beaten);
-                              },
+                          Semantics(
+                            label: L10n.tr('edit', locale),
+                            button: true,
+                            child: GestureDetector(
+                              onTap: () => _EditPhotoSheet.show(context, ref),
+                              child: profile.photoPath != null
+                                  ? CircleAvatar(
+                                      radius: 34,
+                                      backgroundImage: FileImage(File(profile.photoPath!)),
+                                    )
+                                  : CircleAvatar(
+                                      radius: 34,
+                                      backgroundColor: cs.primary,
+                                      child: const Icon(Icons.person_rounded,
+                                          color: Colors.white, size: 36),
+                                    ),
                             ),
+                          ),
+                          const SizedBox(width: AppTheme.s16),
+                          Expanded(
+                            child: Semantics(
+                              label: L10n.tr('edit', locale),
+                              button: true,
+                              child: GestureDetector(
+                                onTap: () => _EditNameSheet.show(context, ref, profile.username),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(profile.username,
+                                        style: text.headlineMedium,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis),
+                                    Text('${L10n.tr('level', locale)} ${g.level} · ${g.title}',
+                                        style: text.bodyMedium!.copyWith(color: cs.onSurfaceVariant)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          LevelRing(level: g.level, progress: g.levelProgress, size: 56),
+                        ],
+                      ),
+                      const SizedBox(height: AppTheme.s16),
+                      XpBar(
+                        xpIntoLevel: g.xpIntoLevel,
+                        xpForNextLevel: g.xpForNextLevel,
+                        progress: g.levelProgress,
+                      ),
+                      const SizedBox(height: AppTheme.s20),
+                      // ---- Stats --------------------------------------------
+                      IosSegmented<_StatRange>(
+                        value: _range,
+                        segments: {
+                          _StatRange.week: L10n.tr('stats_week', locale),
+                          _StatRange.month: L10n.tr('stats_month', locale),
+                          _StatRange.all: L10n.tr('all', locale),
+                        },
+                        onChanged: _setRange,
+                      ),
+                      const SizedBox(height: AppTheme.s12),
+                      _StatRow(g: g, range: _range, runs: runs, units: units, locale: locale),
+                      const SizedBox(height: AppTheme.s28),
+                      // ---- Navigation rows (each opens its own page) --------
+                      GroupedSection(
+                        children: [
+                          GroupedRow(
+                            icon: CupertinoIcons.star_fill,
+                            iconColor: AppTheme.tierGold,
+                            title: L10n.tr('achievements', locale),
+                            value: '${g.racedLegends.length + g.titles.length}',
+                            onTap: () => open(const _AchievementsPage()),
+                          ),
+                          GroupedRow(
+                            icon: CupertinoIcons.chart_bar_fill,
+                            iconColor: const Color(0xFF5856D6),
+                            title: L10n.tr('leaderboard', locale),
+                            value: rank > 0 ? '#$rank' : null,
+                            onTap: () => open(const _LeaderboardPage()),
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                SliverPadding(
-                  padding: const EdgeInsets.all(AppTheme.s24),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      if (g.titles.isNotEmpty) ...[
-                         SectionTitle(L10n.tr('titles', locale)),
-                        const SizedBox(height: AppTheme.s12),
-                        Wrap(
-                          spacing: AppTheme.s8,
-                          runSpacing: AppTheme.s8,
-                          children: g.titles
-                              .map((t) => Chip(
-                                    label: Text(t,
-                                        style: text.labelMedium!.copyWith(color: AppTheme.brand)),
-                                    backgroundColor: AppTheme.brand.withValues(alpha: 0.14),
-                                    side: BorderSide.none,
-                                  ))
-                              .toList(),
-                        ),
-                        const SizedBox(height: AppTheme.s28),
-                      ],
-                      SectionTitle('${L10n.tr('leaderboard', locale)} · Rank #$rank'),
-                      const SizedBox(height: AppTheme.s12),
-                      ...board.asMap().entries.map((entry) => _LeaderRow(
-                            e: entry.value,
-                            text: text,
-                            cs: cs,
-                            locale: locale,
-                            showDivider: entry.key != board.length - 1,
-                          )),
-                      const SizedBox(height: AppTheme.s28),
-                      SectionTitle(L10n.tr('account', locale)),
-                      const SizedBox(height: AppTheme.s12),
-                      _AccountTile(),
-                      const SizedBox(height: AppTheme.s28),
-                      SectionTitle(L10n.tr('settings', locale)),
-                      const SizedBox(height: AppTheme.s12),
-                      _LangTile(cs: cs, text: text, ref: ref, locale: locale),
-                      const SizedBox(height: AppTheme.s8),
-                      _SettingTile(
-                        title: L10n.tr('units', locale),
-                        subtitle: units == Units.metric
-                            ? L10n.tr('metric', locale)
-                            : L10n.tr('imperial', locale),
-                        onTap: () => ref.read(unitsProvider.notifier).toggle(),
+                      GroupedSection(
+                        header: L10n.tr('safety', locale),
+                        children: [
+                          GroupedRow(
+                            icon: Icons.sos_rounded,
+                            iconColor: context.tokens.sos,
+                            title: L10n.tr('emergency_contacts', locale),
+                            value: contacts.isEmpty
+                                ? L10n.tr('not_set', locale)
+                                : '${contacts.length}',
+                            onTap: () => _EmergencyContactsSheet.show(context, ref),
+                          ),
+                        ],
                       ),
-                      _SettingTile(
-                        title: L10n.tr('appearance', locale),
-                        subtitle: mode == ThemeMode.dark
-                            ? L10n.tr('dark', locale)
-                            : (mode == ThemeMode.light
-                                ? L10n.tr('light', locale)
-                                : L10n.tr('system', locale)),
-                        onTap: () => ref.read(themeModeProvider.notifier).cycle(),
+                      GroupedSection(
+                        children: [
+                          GroupedRow(
+                            icon: CupertinoIcons.gear_alt_fill,
+                            iconColor: AppTheme.idle,
+                            title: L10n.tr('settings', locale),
+                            onTap: () => open(const _SettingsPage()),
+                          ),
+                        ],
                       ),
-                      _ThemePickerTile(locale: locale),
-                      _SettingTile(
-                        title: L10n.tr('emergency_contacts', locale),
-                        subtitle: contacts.isEmpty
-                            ? L10n.tr('not_set', locale)
-                            : '${contacts.length} ${contacts.length == 1 ? L10n.tr('emergency_contact_singular', locale) : L10n.tr('emergency_contacts', locale)}',
-                        onTap: () => _EmergencyContactsSheet.show(context, ref),
+                      GroupedSection(
+                        header: L10n.tr('account', locale),
+                        children: [
+                          GroupedRow(
+                            icon: CupertinoIcons.person_crop_circle_fill,
+                            iconColor: const Color(0xFF007AFF),
+                            title: session.isAnonymous
+                                ? L10n.tr('continue_anonymous', locale)
+                                : (session.email ?? L10n.tr('account', locale)),
+                          ),
+                          GroupedRow(
+                            title: session.isAnonymous
+                                ? L10n.tr('sign_in', locale)
+                                : L10n.tr('sign_out', locale),
+                            destructive: !session.isAnonymous,
+                            showChevron: session.isAnonymous,
+                            onTap: () {
+                              if (session.isAnonymous) {
+                                context.push('/auth');
+                              } else {
+                                ref.read(sessionProvider.notifier).logout();
+                              }
+                            },
+                          ),
+                        ],
                       ),
-                      _SettingTile(
-                        title: L10n.tr('export_data', locale),
-                        onTap: () => _exportData(context, ref, locale),
-                        showDivider: false,
-                      ),
-                      const SizedBox(height: 100),
                     ]),
                   ),
                 ),
               ],
-            ),
-          ),
         ),
         if (_showLevelUp)
           CelebrationOverlay(
@@ -269,23 +248,213 @@ class _YouPageState extends ConsumerState<YouPage> {
   }
 }
 
-class _StatsToggle extends StatelessWidget {
-  final _StatRange range;
-  final ValueChanged<_StatRange> onChanged;
-  final AppLocale locale;
-  const _StatsToggle({required this.range, required this.onChanged, required this.locale});
+int _rankFor(WidgetRef ref, int xp) {
+  final board = _boardFor(ref, xp);
+  return board.indexWhere((e) => e.you) + 1;
+}
+
+List<LeaderboardEntry> _boardFor(WidgetRef ref, int xp) =>
+    ref.watch(remoteLeaderboardProvider(xp)).when(
+          data: (b) => b,
+          loading: () => leaderboardWithUser(xp),
+          error: (_, _) => leaderboardWithUser(xp),
+        );
+
+/// Shared scaffold for the You sub-pages: native nav bar with back chevron.
+class _SubPage extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+  const _SubPage({required this.title, required this.children});
 
   @override
-  Widget build(BuildContext context) => SegmentedButton<_StatRange>(
-        selected: {range},
-        showSelectedIcon: false,
-        onSelectionChanged: (s) => onChanged(s.first),
-        segments: [
-          ButtonSegment(value: _StatRange.week, label: Text(L10n.tr('stats_week', locale))),
-          ButtonSegment(value: _StatRange.month, label: Text(L10n.tr('stats_month', locale))),
-          ButtonSegment(value: _StatRange.all, label: Text(L10n.tr('all', locale))),
+  Widget build(BuildContext context) => LargeTitlePage(
+        title: title,
+        showBack: true,
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(AppTheme.s16, AppTheme.s8, AppTheme.s16, 0),
+            sliver: SliverList(delegate: SliverChildListDelegate(children)),
+          ),
         ],
       );
+}
+
+class _AchievementsPage extends ConsumerWidget {
+  const _AchievementsPage();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final g = ref.watch(gamificationProvider);
+    final locale = ref.watch(localeProvider);
+    final cs = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    return _SubPage(
+      title: L10n.tr('achievements', locale),
+      children: [
+        SectionTitle(L10n.tr('your_legends', locale)),
+        if (g.racedLegends.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppTheme.s24),
+            child: Text(L10n.tr('legend_raced', locale),
+                style: text.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+          )
+        else ...[
+          SizedBox(
+            height: 150,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: g.racedLegends.length,
+              separatorBuilder: (_, _) => const SizedBox(width: AppTheme.s12),
+              itemBuilder: (_, i) {
+                final ghost = ghostPaceForId(g.racedLegends.elementAt(i));
+                final beaten = g.beatenLegends.contains(ghost.id);
+                return _LegendMiniCard(ghost: ghost, beaten: beaten);
+              },
+            ),
+          ),
+          const SizedBox(height: AppTheme.s24),
+        ],
+        if (g.titles.isNotEmpty) ...[
+          SectionTitle(L10n.tr('titles', locale)),
+          Wrap(
+            spacing: AppTheme.s8,
+            runSpacing: AppTheme.s8,
+            children: g.titles
+                .map((t) => Chip(
+                      label: Text(t, style: text.labelLarge!.copyWith(color: cs.primary)),
+                      backgroundColor: cs.primaryContainer,
+                    ))
+                .toList(),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _LeaderboardPage extends ConsumerWidget {
+  const _LeaderboardPage();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final g = ref.watch(gamificationProvider);
+    final locale = ref.watch(localeProvider);
+    final board = _boardFor(ref, g.xp).take(10).toList();
+    final rank = board.indexWhere((e) => e.you) + 1;
+    return _SubPage(
+      title: L10n.tr('leaderboard', locale),
+      children: [
+        GroupedSection(
+          header: rank > 0 ? '${L10n.tr('rank', locale)} #$rank' : null,
+          children: [
+            for (final (i, e) in board.indexed) _LeaderRow(e: e, position: i + 1, locale: locale),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _SettingsPage extends ConsumerWidget {
+  const _SettingsPage();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final locale = ref.watch(localeProvider);
+    final mode = ref.watch(themeModeProvider);
+    final units = ref.watch(unitsProvider);
+    return _SubPage(
+      title: L10n.tr('settings', locale),
+      children: [
+        GroupedSection(
+          children: [
+            GroupedRow(
+              icon: Icons.translate_rounded,
+              iconColor: const Color(0xFF007AFF),
+              title: L10n.tr('language', locale),
+              trailing: SegmentedButton<AppLocale>(
+                selected: {locale},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) => ref.read(localeProvider.notifier).set(s.first),
+                segments: const [
+                  ButtonSegment(value: AppLocale.english, label: Text('EN')),
+                  ButtonSegment(value: AppLocale.swahili, label: Text('SW')),
+                ],
+              ),
+            ),
+            GroupedRow(
+              icon: Icons.straighten_rounded,
+              iconColor: const Color(0xFF34C759),
+              title: L10n.tr('units', locale),
+              value: units == Units.metric
+                  ? L10n.tr('metric', locale)
+                  : L10n.tr('imperial', locale),
+              onTap: () => ref.read(unitsProvider.notifier).toggle(),
+            ),
+          ],
+        ),
+        GroupedSection(
+          children: [
+            GroupedRow(
+              icon: Icons.dark_mode_rounded,
+              iconColor: const Color(0xFF5856D6),
+              title: L10n.tr('appearance', locale),
+              value: mode == ThemeMode.dark
+                  ? L10n.tr('dark', locale)
+                  : (mode == ThemeMode.light
+                      ? L10n.tr('light', locale)
+                      : L10n.tr('system', locale)),
+              onTap: () => ref.read(themeModeProvider.notifier).cycle(),
+            ),
+            _ThemePickerTile(locale: locale),
+            if (GlassQuality.instance != null)
+              ListenableBuilder(
+                listenable: GlassQuality.instance!,
+                builder: (context, _) {
+                  final glass = GlassQuality.instance!;
+                  final mode = glass.mode;
+                  return GroupedRow(
+                    icon: CupertinoIcons.circle_lefthalf_fill,
+                    iconColor: const Color(0xFF32ADE6),
+                    title: L10n.tr('transparency_effects', locale),
+                    value: switch (mode) {
+                      GlassMode.auto => glass.blurEnabled
+                          ? L10n.tr('auto_label', locale)
+                          : L10n.tr('auto_reduced', locale),
+                      GlassMode.on => L10n.tr('on_label', locale),
+                      GlassMode.off => L10n.tr('off_label', locale),
+                    },
+                    onTap: glass.cycle,
+                  );
+                },
+              ),
+          ],
+        ),
+        GroupedSection(
+          children: [
+            GroupedRow(
+              icon: Icons.ios_share_rounded,
+              iconColor: const Color(0xFFFF9500),
+              title: L10n.tr('export_data', locale),
+              onTap: () => _exportData(context, ref, locale),
+            ),
+          ],
+        ),
+        GroupedSection(
+          children: [
+            GroupedRow(
+              icon: CupertinoIcons.photo_fill,
+              iconColor: const Color(0xFF8E8E93),
+              title: L10n.tr('photo_credits', locale),
+              onTap: () => Navigator.of(context).push(
+                CupertinoPageRoute<void>(builder: (_) => const PhotoCreditsPage()),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
 class _StatRow extends StatelessWidget {
@@ -319,16 +488,37 @@ class _StatRow extends StatelessWidget {
         (label: L10n.tr('avg_pace', locale), value: avgPace > 0 ? formatPace(avgPace) : '--'),
       ];
     }
-    return Row(
-      children: tiles
-          .map((t) => Expanded(
-                child: MetricTile(
-                  variant: MetricVariant.card,
-                  label: t.label,
-                  value: t.value,
+    // 2 × 2 grid of Fitness-style stat cells (four in one row overflowed:
+    // "0.00 km" ran into the runs count).
+    final cs = Theme.of(context).colorScheme;
+    Widget cell(({String label, String value}) t) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.s14, vertical: AppTheme.s12),
+            decoration: BoxDecoration(
+              color: cs.surface,
+              borderRadius: BorderRadius.circular(AppTheme.r12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(t.label, style: AppTheme.bodyFont(size: 15, weight: FontWeight.w500, color: cs.onSurfaceVariant)),
+                const SizedBox(height: 2),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(t.value,
+                      style: AppTheme.displayFont(size: 30, weight: FontWeight.w700, color: cs.onSurface)),
                 ),
-              ))
-          .toList(),
+              ],
+            ),
+          ),
+        );
+    return Column(
+      children: [
+        Row(children: [cell(tiles[0]), const SizedBox(width: AppTheme.s10), cell(tiles[1])]),
+        const SizedBox(height: AppTheme.s10),
+        Row(children: [cell(tiles[2]), const SizedBox(width: AppTheme.s10), cell(tiles[3])]),
+      ],
     );
   }
 }
@@ -343,29 +533,29 @@ class _LegendMiniCard extends ConsumerWidget {
     final locale = ref.watch(localeProvider);
     final l = ghost.legend;
     final cs = Theme.of(context).colorScheme;
-    final accent = legendAccent(l);
+    final tokens = context.tokens;
+    final status = beaten ? tokens.flagGreen : tokens.idle;
     return Container(
       width: 130,
       padding: const EdgeInsets.all(AppTheme.s12),
       decoration: BoxDecoration(
         color: cs.surface,
         borderRadius: BorderRadius.circular(AppTheme.r16),
-        border: beaten ? Border.all(color: accent.withValues(alpha: 0.6)) : null,
       ),
       child: Column(
         children: [
-          CircleAvatar(radius: 22, backgroundColor: accent.withValues(alpha: 0.18), child: Text(l.emoji, style: const TextStyle(fontSize: 20))),
+          LegendAvatar(legend: l, size: 44),
           const SizedBox(height: AppTheme.s8),
           Text(l.name, style: Theme.of(context).textTheme.labelMedium, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
           const SizedBox(height: AppTheme.s4),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: AppTheme.s8, vertical: AppTheme.s2),
             decoration: BoxDecoration(
-              color: (beaten ? AppTheme.recording : AppTheme.idle).withValues(alpha: 0.16),
+              color: status.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(AppTheme.rFull),
             ),
             child: Text(beaten ? L10n.tr('legend_beaten', locale) : L10n.tr('legend_raced', locale),
-                style: Theme.of(context).textTheme.labelSmall!.copyWith(color: beaten ? AppTheme.recording : AppTheme.idle)),
+                style: Theme.of(context).textTheme.labelSmall!.copyWith(color: status)),
           ),
         ],
       ),
@@ -373,164 +563,47 @@ class _LegendMiniCard extends ConsumerWidget {
   }
 }
 
-// Red Earth: a flat hairline-divided row, matching the Settings/Home
-// declutter -- "you" is called out with accent-colored text instead of a
-// filled highlight block, so the whole leaderboard reads as one clean list
-// rather than a stack of separate tinted cards.
+/// One leaderboard row inside a [GroupedSection]; "you" is highlighted with
+/// the tint colour.
 class _LeaderRow extends StatelessWidget {
   final LeaderboardEntry e;
-  final TextTheme text;
-  final ColorScheme cs;
+  final int position;
   final AppLocale locale;
-  final bool showDivider;
-  const _LeaderRow(
-      {required this.e, required this.text, required this.cs, required this.locale, this.showDivider = true});
+  const _LeaderRow({required this.e, required this.position, required this.locale});
 
   @override
   Widget build(BuildContext context) {
-    final nameColor = e.you ? AppTheme.brand : cs.onSurface;
-    final row = Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppTheme.s10),
-      child: Row(
-        children: [
-          Text(e.flag, style: const TextStyle(fontSize: 18)),
-          const SizedBox(width: AppTheme.s12),
-          Expanded(
-            child: Text(e.you ? L10n.tr('you', locale) : e.name,
-                style: text.bodyLarge!.copyWith(color: nameColor, fontWeight: e.you ? FontWeight.w700 : FontWeight.w400)),
-          ),
-          Text('${e.xp} XP', style: text.labelMedium!.copyWith(color: cs.onSurface.withValues(alpha: 0.6))),
-        ],
-      ),
-    );
-    if (!showDivider) return row;
-    return Column(
-      children: [row, Divider(height: 1, thickness: 1, color: cs.outlineVariant.withValues(alpha: 0.35))],
-    );
-  }
-}
-
-class _AccountTile extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
-    final locale = ref.watch(localeProvider);
-    final session = ref.watch(sessionProvider);
-    // Declutter (Red Earth): a hairline-bordered row instead of a filled
-    // surface card with a boxed icon -- one visual weight lighter, same tap
-    // targets and behavior.
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.s16, vertical: AppTheme.s14),
-      decoration: BoxDecoration(
-        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
-        borderRadius: BorderRadius.circular(AppTheme.r12),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: session.isAnonymous
-                ? Text(L10n.tr('continue_anonymous', locale), style: text.bodyLarge)
-                : Text(session.email ?? L10n.tr('account', locale), style: text.bodyLarge),
-          ),
-          TextButton(
-            onPressed: () {
-              if (session.isAnonymous) {
-                context.push('/auth');
-              } else {
-                ref.read(sessionProvider.notifier).logout();
-              }
-            },
-            child: Text(session.isAnonymous
-                ? L10n.tr('sign_in', locale)
-                : L10n.tr('sign_out', locale)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LangTile extends StatelessWidget {
-  final ColorScheme cs;
-  final TextTheme text;
-  final WidgetRef ref;
-  final AppLocale locale;
-  const _LangTile({required this.cs, required this.text, required this.ref, required this.locale});
-
-  @override
-  Widget build(BuildContext context) {
-    // Declutter (Red Earth): hairline border instead of a filled surface
-    // card with a boxed icon.
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.s16, vertical: AppTheme.s10),
-      decoration: BoxDecoration(
-        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
-        borderRadius: BorderRadius.circular(AppTheme.r12),
-      ),
-      child: Row(
-        children: [
-          Expanded(child: Text(L10n.tr('language', locale), style: text.bodyLarge)),
-          SegmentedButton<AppLocale>(
-            selected: {locale},
-            showSelectedIcon: false,
-            onSelectionChanged: (s) => ref.read(localeProvider.notifier).set(s.first),
-            // U-7: the M3 default selected-segment fill (colorScheme.secondaryContainer)
-            // reads as an unrelated muted olive against the app's orange accent used
-            // everywhere else (FAB, primary buttons, streak/level chips). Pin it to
-            // the same brand accent so the toggle reads as part of the same system.
-            style: SegmentedButton.styleFrom(
-              selectedBackgroundColor: AppTheme.brand,
-              selectedForegroundColor: Colors.white,
-            ),
-            segments: const [
-              ButtonSegment(value: AppLocale.english, label: Text('EN')),
-              ButtonSegment(value: AppLocale.swahili, label: Text('SW')),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Declutter (Red Earth): settings used to each sit in their own bordered,
-// icon-boxed card -- five near-identical cards stacked in a column reads as
-// noise, not information. A plain row with a hairline divider underneath
-// (like an airport departures board) carries the exact same title/value/tap
-// target with far less chrome. Purpose and behavior are unchanged.
-class _SettingTile extends StatelessWidget {
-  final String title;
-  final String? subtitle;
-  final VoidCallback? onTap;
-  final bool showDivider;
-  const _SettingTile({required this.title, this.subtitle, this.onTap, this.showDivider = true});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final cs = Theme.of(context).colorScheme;
-    final row = InkWell(
-      onTap: onTap,
+    return Semantics(
+      label: '$position, ${e.you ? L10n.tr('you', locale) : e.name}, ${e.xp} XP',
+      excludeSemantics: true,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppTheme.s14),
+        padding: const EdgeInsets.symmetric(horizontal: AppTheme.s16, vertical: AppTheme.s12),
         child: Row(
           children: [
-            Expanded(child: Text(title, style: text.bodyLarge)),
-            if (subtitle != null)
-              Padding(
-                padding: const EdgeInsets.only(right: AppTheme.s8),
-                child: Text(subtitle!,
-                    style: text.bodyMedium!.copyWith(color: cs.onSurface.withValues(alpha: 0.55))),
-              ),
-            if (onTap != null) const TrailingChevron(),
+            SizedBox(
+              width: 28,
+              child: Text('$position',
+                  style: text.bodyLarge?.copyWith(
+                      color: cs.onSurfaceVariant,
+                      fontFeatures: const [FontFeature.tabularFigures()])),
+            ),
+            Text(e.flag, style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: AppTheme.s12),
+            Expanded(
+              child: Text(e.you ? L10n.tr('you', locale) : e.name,
+                  style: text.bodyLarge!.copyWith(
+                      color: e.you ? cs.primary : cs.onSurface,
+                      fontWeight: e.you ? FontWeight.w700 : FontWeight.w400)),
+            ),
+            Text('${e.xp} XP',
+                style: text.bodyMedium!.copyWith(
+                    color: cs.onSurfaceVariant,
+                    fontFeatures: const [FontFeature.tabularFigures()])),
           ],
         ),
       ),
-    );
-    if (!showDivider) return row;
-    return Column(
-      children: [row, Divider(height: 1, thickness: 1, color: cs.outlineVariant.withValues(alpha: 0.35))],
     );
   }
 }
@@ -543,9 +616,11 @@ class _ThemePickerTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = ref.watch(paletteProvider);
 
-    return _SettingTile(
+    return GroupedRow(
+      icon: Icons.palette_rounded,
+      iconColor: palette.primary,
       title: L10n.tr('color_theme', locale),
-      subtitle: _themeName(palette, locale),
+      value: _themeName(palette, locale),
       onTap: () => _showThemePicker(context, ref, locale),
     );
   }

@@ -26,7 +26,7 @@ Most running apps are a black box: a green squiggle on a map and a pace number, 
 
 On top of that honest core, Mwendo adds the two things that make it more than a tracker:
 
-- **🏃 Beat the Legends** — race in real time against pacing models of real world-record holders (Kipchoge, Kiptum, Kipyegon, Bekele, and more), scaled to Bronze / Silver / Gold / G.O.A.T. difficulty tiers.
+- **🏃 Legends tab + Beat the Legends** — a dedicated tab with every legend's photo, story and records (portraits from Wikimedia Commons, credited in-app), and race in real time against pacing models of real world-record holders (Kipchoge, Kiptum, Kipyegon, Bekele, and more), scaled to Bronze / Silver / Gold / G.O.A.T. difficulty tiers.
 - **🎓 The Mwendo Academy** — bite-sized lessons on running science, technique, and East African distance-running heritage, so the app teaches you something between runs, not just after them.
 
 ---
@@ -35,28 +35,35 @@ On top of that honest core, Mwendo adds the two things that make it more than a 
 
 <table>
 <tr>
-<td align="center" width="25%"><img src="docs/screenshots/onboarding.png" width="220" alt="Onboarding welcome screen"/><br/><sub><b>Welcome</b></sub></td>
-<td align="center" width="25%"><img src="docs/screenshots/home.png" width="220" alt="Home dashboard with weekly stats and active challenges"/><br/><sub><b>Home dashboard</b></sub></td>
-<td align="center" width="25%"><img src="docs/screenshots/explore-routes.png" width="220" alt="Explore tab showing curated Kenyan marathon and 10K routes"/><br/><sub><b>Explore routes</b></sub></td>
-<td align="center" width="25%"><img src="docs/screenshots/beat-legends.png" width="220" alt="Beat the Legends pacing screen with Kipchoge's Berlin 2022 split chart"/><br/><sub><b>Beat the Legends</b></sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/onboarding.png" width="240" alt="Onboarding welcome screen"/><br/><sub><b>Welcome</b></sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/home.png" width="240" alt="Home with this week's distance, a Go for a run button, recent activity and challenges"/><br/><sub><b>Home</b></sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/run.png" width="240" alt="Run tab with the OpenStreetMap map and an iOS-style activity picker"/><br/><sub><b>Run</b> · OpenStreetMap</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="docs/screenshots/legends.png" width="220" alt="Legends roster with filters by country, distance, and era"/><br/><sub><b>Legends roster</b></sub></td>
-<td align="center"><img src="docs/screenshots/learn.png" width="220" alt="Mwendo Academy learn tab with running science and technique lessons"/><br/><sub><b>Mwendo Academy</b></sub></td>
-<td align="center"><img src="docs/screenshots/challenges.png" width="220" alt="Challenges tab with XP, levels, and streak-based goals"/><br/><sub><b>Challenges & XP</b></sub></td>
-<td align="center"><img src="docs/screenshots/profile.png" width="220" alt="Profile tab with lifetime stats, titles, and the club leaderboard"/><br/><sub><b>Your profile</b></sub></td>
+<td align="center"><img src="docs/screenshots/legends.png" width="240" alt="Legends tab with legend of the day, race-a-legend cards and the roster with photos"/><br/><sub><b>Legends</b></sub></td>
+<td align="center"><img src="docs/screenshots/legend-detail.png" width="240" alt="A legend's profile page with portrait, personal bests and story"/><br/><sub><b>Legend profile</b></sub></td>
+<td align="center"><img src="docs/screenshots/beat-legends.png" width="240" alt="Beat the Legends with legend picker, target time, difficulty and pace chart"/><br/><sub><b>Beat the Legends</b></sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/learn.png" width="240" alt="Learn tab with course shelves"/><br/><sub><b>Mwendo Academy</b></sub></td>
+<td align="center"><img src="docs/screenshots/challenges.png" width="240" alt="Challenges with XP level and goals"/><br/><sub><b>Challenges & XP</b></sub></td>
+<td align="center"><img src="docs/screenshots/profile.png" width="240" alt="You tab with stats grid and settings"/><br/><sub><b>You</b></sub></td>
 </tr>
 </table>
+
+<sub>Screenshots: Android emulator, dark mode, November 2026 build. Legend photos: Wikimedia Commons (credited in-app).</sub>
 
 ---
 
 ## Key capabilities
 
-* 🛰️ **Deterministic multi-stage GPS pipeline** — outlier lookahead, 2D ENU Extended Kalman filtering, dead-reckoned gap bridging, and density-weighted stationary clustering, so a route looks like the road you ran, not a jagged approximation of it.
+* 🛰️ **Deterministic multi-stage GPS pipeline** — a cold-start warm-up gate, accuracy-aware outlier rejection, 2D ENU Kalman filtering that never invents points (it re-anchors on real fixes after a jump), and stationary-drift suppression. Signal gaps are left as gaps instead of being bridged with straight "phantom" lines, so a route looks like the road you ran.
+* 📏 **Doppler-speed distance** — distance is integrated from the phone's measured speed (like Apple Watch and Garmin) rather than summing jittery position hops, with an accuracy-aware fallback when a phone reports no speed. Typical error on simulated runs: ~2% (was ~50%).
 * 🏃 **"Beat the Legends" pacing engine** — race in real time against mathematical models of world-record holders, scaled across Bronze, Silver, Gold, and G.O.A.T. tiers.
 * 🛡️ **Zero-loss crash recovery** — local SQLite storage via Drift, backed by native C SQLite binaries, plus a durable session-draft journal so a killed app or dead battery never costs you a run.
-* 🗺️ **High-performance vector maps** — a local MapLibre GL dark Carto basemap with ghost overlays, auto-follow camera, and live pace polylines.
+* 🗺️ **OpenStreetMap vector maps** — MapLibre GL with OpenFreeMap's OSM "Liberty" style (the familiar OpenStreetMap look: parks, water, coloured roads, street names), small vector downloads on mobile data, segmented route lines, ghost overlays and an auto-follow camera.
 * ☁️ **High-throughput geospatial cloud API** — a Go 1.22 backend with PostGIS linestrings, Douglas-Peucker route simplification (`ST_Simplify`), and Redis sorted-set leaderboards with a graceful in-memory fallback.
+* 🍏 **Apple-style interface** — San Francisco on iPhone and the bundled Inter font on Android; iOS behaviour on every platform (bouncing scroll, collapsing large titles, Cupertino controls, SF Symbols-style icons), Apple semantic colours, inset grouped lists and a floating "Liquid Glass" tab bar; respects Reduce Motion and Increase Contrast. See the [Design System](docs/DESIGN_SYSTEM.md).
 * 🌐 **Bilingual English & Swahili UI** — full localization across the curriculum, legends history, and real-time audio/haptic cues.
 
 ---
@@ -70,7 +77,7 @@ M-Run-2.0/
 │   │   ├── core/               # Gamification, l10n, theme, permissions, safety
 │   │   ├── data/               # Drift SQLite database, models, repositories, GPX
 │   │   ├── design_system/      # Atomic UI components, cards, banners, HUDs
-│   │   ├── features/           # Feature slices: tracking, beat, learn, explore, etc.
+│   │   ├── features/           # Feature slices: tracking, legends, beat, learn, etc.
 │   │   └── widgets/            # MapLibre map wrappers, metrics tiles, overlays
 │   └── test/                   # Widget and repository integration tests
 ├── packages/
@@ -130,8 +137,9 @@ Exhaustive technical documentation is organized in the [`docs/`](docs/) director
 | 🔌 **[API & Module Reference](docs/API_REFERENCE.md)** | Granular interface reference for Dart packages, Drift schema, and REST API |
 | 🛠️ **[Installation & Deployment](docs/SETUP_AND_DEPLOYMENT.md)** | Step-by-step setup, Docker provisioning, and CI/CD pipelines |
 | 🧭 **[Usage Guides & Tutorials](docs/USAGE_GUIDES.md)** | Practical walkthroughs for tracking, ghost racing, and quality diagnostics |
-| 🎨 **[Design System](docs/DESIGN_SYSTEM.md)** | Color palettes, typography, glassmorphism tokens, and UI components |
+| 🎨 **[Design System](docs/DESIGN_SYSTEM.md)** | Apple HIG colours, system typography, glass navigation layer, and UI components |
 | 🤝 **[Contribution Guidelines](docs/CONTRIBUTING.md)** | Coding standards, linting rules, testing protocol, and Git lifecycle |
+| 🔄 **[Revamp Plan (Nov 2026)](docs/REVAMP_PLAN.md)** | GPS accuracy, distance and map fixes plus the Apple-style redesign: audit, changes, test results |
 
 ---
 

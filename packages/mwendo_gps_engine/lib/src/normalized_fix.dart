@@ -3,6 +3,7 @@ class NormalizedFix {
   final double lng;
   final double elevation;
   final DateTime timestamp;
+  /// Device-reported (Doppler) speed in m/s; negative means "not reported".
   final double speedMps;
   final double accuracyM;
   final double? verticalAccuracyM;
@@ -31,13 +32,20 @@ class NormalizedFix {
     this.bearingAccuracyDeg,
   });
 
+  /// Missing or negative speed (Android `!hasSpeed()`, iOS invalid speed)
+  /// becomes -1 = "unknown". It must not become 0, which means "stopped".
+  static double _speed(Object? v) {
+    final s = (v as num?)?.toDouble();
+    return (s == null || s < 0) ? -1.0 : s;
+  }
+
   factory NormalizedFix.fromMap(Map<dynamic, dynamic> map) {
     return NormalizedFix(
       lat: map['lat'] as double,
       lng: map['lng'] as double,
       elevation: map['elevation'] as double? ?? 0.0,
       timestamp: DateTime.fromMillisecondsSinceEpoch(map['timestamp'] as int, isUtc: true),
-      speedMps: (map['speed'] as double? ?? 0.0).clamp(0.0, double.infinity),
+      speedMps: _speed(map['speed']),
       accuracyM: map['accuracy'] as double? ?? 10.0,
       verticalAccuracyM: map['verticalAccuracy'] as double?,
       hdop: map['hdop'] as double?,

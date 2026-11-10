@@ -1,26 +1,29 @@
 import 'dart:math' as math;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:mwendo_app/core/l10n/app_strings.dart';
 import 'package:mwendo_app/core/theme/app_theme.dart';
 import 'package:mwendo_app/core/utils/format.dart';
-import 'package:mwendo_app/core/navigation/navigation.dart';
+import 'package:mwendo_app/core/utils/haptics.dart';
 import 'package:mwendo_app/features/beat/pre_race_sheet.dart';
 import 'package:mwendo_app/features/learn/data/beat_legends.dart';
 import 'package:mwendo_app/features/learn/data/legends.dart';
+import 'package:mwendo_app/features/legends/legend_widgets.dart';
 import 'package:mwendo_app/data/models/run_record.dart';
 import 'package:mwendo_app/data/repositories/activity_repository.dart';
+import 'package:mwendo_app/widgets/ios.dart';
+import 'package:mwendo_app/widgets/pressable.dart';
 
 /// Recommends the hardest tier of [ghost] the user could realistically beat,
 /// based on their personal best for that distance (or null if no PB / the
-/// user could already beat the GOAT tier).
+/// user could already beat the GOAT tier). PBs are in seconds.
 DifficultyTier? _recommendedTierFor(GhostPace ghost, Map<String, int> pbMap) {
   final userPb = pbMap[ghost.distanceLabel];
   if (userPb == null) return null;
 
-  // Find the hardest tier the user could realistically beat.
   for (final tier in DifficultyTier.values.reversed) {
     final scaled = (ghost.totalSeconds * tier.factor).round();
     if (userPb <= scaled) {
@@ -30,6 +33,8 @@ DifficultyTier? _recommendedTierFor(GhostPace ghost, Map<String, int> pbMap) {
   return DifficultyTier.bronze;
 }
 
+/// "Beat the Legends": pick a legendary performance, pick a difficulty, see
+/// the pacing, and start the race.
 class BeatLegendsPage extends ConsumerStatefulWidget {
   final String? id;
   const BeatLegendsPage({super.key, this.id});
@@ -76,148 +81,200 @@ class _BeatLegendsPageState extends ConsumerState<BeatLegendsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
     final locale = ref.watch(localeProvider);
     final activities = ref.watch(activitiesProvider);
 
-    // Compute user's PB for each distance
+    // User's PB (seconds) per distance.
     final pbMap = activities.maybeWhen(
       data: (list) => _computePBs(list),
       orElse: () => <String, int>{},
     );
+    final recommended = _recommendedTierFor(_selected, pbMap);
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: AppBackButton(),
-        title: Text(L10n.tr('beat_the_legends', locale)),
-        centerTitle: false,
-      ),
-      body: CustomScrollView(
-        slivers: [
-          // Distance filter tabs
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(AppTheme.s24, AppTheme.s16, AppTheme.s24, 0),
-              child: _DistanceFilterTabs(
-                labels: ['all', ..._distanceLabels],
-                selected: _filter,
-                onChanged: (v) => setState(() {
+    return LargeTitlePage(
+      title: L10n.tr('beat_the_legends', locale),
+      showBack: true,
+      inTabBar: false,
+      slivers: [
+        // Distance filter
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(top: AppTheme.s8),
+            child: IosFilterPills(
+              options: ['all', ..._distanceLabels],
+              selected: _filter,
+              labelOf: (v) => v == 'all' ? L10n.tr('all_distances', locale) : v,
+              onSelected: (v) {
+                Haptics.selection();
+                setState(() {
                   _filter = v;
                   if (!_filteredGhosts.any((g) => g.id == _selected.id)) {
                     _selected = _filteredGhosts.first;
                   }
-                }),
-                locale: locale,
-                pbMap: pbMap,
-                selectedGhost: _selected,
+                });
+              },
+            ),
+          ),
+        ),
+
+        // Legend picker
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: 112,
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(kIosGutter, AppTheme.s16, kIosGutter, 0),
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: _filteredGhosts.length,
+              separatorBuilder: (_, _) => const SizedBox(width: AppTheme.s14),
+              itemBuilder: (_, i) {
+                final g = _filteredGhosts[i];
+                final active = g.id == _selected.id;
+                return Semantics(
+                  button: true,
+                  selected: active,
+                  label: '${g.legend.name}, ${g.distanceLabel}',
+                  excludeSemantics: true,
+                  child: Pressable(
+                    onTap: () {
+                      Haptics.selection();
+                      setState(() => _selected = g);
+                    },
+                    child: SizedBox(
+                      width: 68,
+                      child: Column(
+                        children: [
+                          AnimatedContainer(
+                            duration: AppTheme.motion(context, AppTheme.dFast),
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: active ? cs.primary : Colors.transparent,
+                                width: 2.5,
+                              ),
+                            ),
+                            child: LegendAvatar(legend: g.legend, size: 56),
+                          ),
+                          const SizedBox(height: AppTheme.s6),
+                          Text(
+                            g.legend.name.split(' ').last,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTheme.bodyFont(
+                              size: 12,
+                              weight: active ? FontWeight.w700 : FontWeight.w500,
+                              color: active ? cs.onSurface : cs.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+
+        // Hero card
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(kIosGutter, AppTheme.s16, kIosGutter, 0),
+            child: _GhostHero(g: _active, locale: locale, userPb: pbMap[_selected.distanceLabel]),
+          ),
+        ),
+
+        // Difficulty
+        SliverToBoxAdapter(
+          child: IosSectionHeader(title: L10n.tr('difficulty', locale)),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: kIosGutter),
+            child: IosSegmented<DifficultyTier>(
+              value: _tier,
+              segments: {for (final t in DifficultyTier.values) t: '${t.badge} ${t.label}'},
+              onChanged: (t) {
+                Haptics.selection();
+                setState(() => _tier = t);
+              },
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(kIosGutter + AppTheme.s4, AppTheme.s8, kIosGutter, 0),
+            child: Text(
+              recommended != null
+                  ? '${L10n.tr('tier_recommendation', locale)} ${recommended.badge} ${recommended.label} — ${L10n.tr('based_on_your_pb', locale)}'
+                  : L10n.tr('tier_explainer', locale),
+              style: AppTheme.bodyFont(size: 13, color: cs.onSurfaceVariant),
+            ),
+          ),
+        ),
+
+        // Pace chart
+        SliverToBoxAdapter(
+          child: IosSectionHeader(title: L10n.tr('pace_per_segment', locale)),
+        ),
+        SliverToBoxAdapter(
+          child: IosInsetGroup(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppTheme.s12, AppTheme.s16, AppTheme.s16, AppTheme.s8),
+                child: SizedBox(height: 160, child: _SplitsChart(g: _active)),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppTheme.s16, AppTheme.s10, AppTheme.s16, AppTheme.s12),
+                child: Text(
+                  _active.description,
+                  style: AppTheme.bodyFont(size: 15, height: 1.45, color: cs.onSurface),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(kIosGutter + AppTheme.s4, AppTheme.s6, kIosGutter, 0),
+            child: Text(
+              L10n.tr('seconds_per_km', locale),
+              style: AppTheme.bodyFont(size: 13, color: cs.onSurfaceVariant),
+            ),
+          ),
+        ),
+
+        // Start
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(kIosGutter, AppTheme.s28, kIosGutter, 0),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  Haptics.medium();
+                  showPreRaceSheet(context, ref, _selected, _tier);
+                },
+                icon: const Icon(CupertinoIcons.play_fill, size: 18),
+                label: Text(L10n.tr('race_this_ghost', locale)),
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
               ),
             ),
           ),
-          // Ghost selector
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(AppTheme.s24, AppTheme.s16, AppTheme.s24, 0),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                SizedBox(
-                  height: 96,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _filteredGhosts.length,
-                    separatorBuilder: (_, index) => const SizedBox(width: AppTheme.s12),
-                    itemBuilder: (_, i) {
-                      final g = _filteredGhosts[i];
-                      final active = g.id == _selected.id;
-                      final accent = legendAccent(g.legend);
-                      final userPb = pbMap[g.distanceLabel];
-                      final pbText = userPb != null
-                          ? '${L10n.tr('your_pb', locale)}: ${formatDuration(userPb)}'
-                          : null;
-                      return GestureDetector(
-                        onTap: () => setState(() => _selected = g),
-                        child: Container(
-                          width: 100,
-                          decoration: BoxDecoration(
-                            color: active ? accent.withValues(alpha: 0.2) : cs.surface,
-                            borderRadius: BorderRadius.circular(AppTheme.r16),
-                            border: active ? Border.all(color: accent, width: 2) : null,
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(g.legend.emoji, style: const TextStyle(fontSize: 28)),
-                              const SizedBox(height: AppTheme.s4),
-                              Text(g.legend.name.split(' ').first,
-                                  style: text.labelSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
-                              if (pbText != null) ...[
-                                const SizedBox(height: AppTheme.s2),
-                                Text(pbText, style: text.labelSmall!.copyWith(color: cs.onSurfaceVariant, fontSize: 9)),
-                              ],
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: AppTheme.s16),
-                _TierSelector(
-                  tier: _tier,
-                  onChanged: (t) => setState(() => _tier = t),
-                  activeGhost: _selected,
-                  recommendedTier: _recommendedTierFor(_selected, pbMap),
-                ),
-                const SizedBox(height: AppTheme.s20),
-              ]),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(kIosGutter * 2, AppTheme.s12, kIosGutter * 2, 0),
+            child: Text(
+              '${L10n.tr('during_a_run', locale)}${formatDuration(_active.totalSeconds * 1000)}.',
+              style: AppTheme.bodyFont(size: 13, color: cs.onSurfaceVariant),
+              textAlign: TextAlign.center,
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: AppTheme.s24),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                _GhostHeader(g: _active, locale: locale, pbMap: pbMap),
-                const SizedBox(height: AppTheme.s16),
-                Container(
-                  padding: const EdgeInsets.all(AppTheme.s16),
-                  decoration: BoxDecoration(
-                    color: cs.surface,
-                    borderRadius: BorderRadius.circular(AppTheme.r16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(L10n.tr('pace_per_segment', locale), style: text.titleMedium),
-Text(L10n.tr('seconds_per_km', locale),
-                           style: text.bodySmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.65))),
-                      const SizedBox(height: AppTheme.s12),
-                      SizedBox(height: 160, child: _SplitsChart(g: _active)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppTheme.s16),
-                Text(_active.description, style: text.bodyLarge!.copyWith(height: 1.6)),
-                const SizedBox(height: AppTheme.s20),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () => showPreRaceSheet(context, ref, _selected, _tier),
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: Text(L10n.tr('race_this_ghost', locale)),
-                    style: FilledButton.styleFrom(backgroundColor: AppTheme.brand, padding: const EdgeInsets.symmetric(vertical: AppTheme.s16)),
-                  ),
-                ),
-                const SizedBox(height: AppTheme.s12),
-                Text(
-                  '${L10n.tr('during_a_run', locale)}${formatDuration(_active.totalSeconds)}.',
-                  style: text.bodySmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.65)),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppTheme.s32),
-              ]),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -242,241 +299,93 @@ Text(L10n.tr('seconds_per_km', locale),
   }
 }
 
-class _DistanceFilterTabs extends StatelessWidget {
-  final List<String> labels;
-  final String selected;
-  final ValueChanged<String> onChanged;
-  final AppLocale locale;
-  final Map<String, int> pbMap;
-  final GhostPace selectedGhost;
-
-  const _DistanceFilterTabs({
-    required this.labels,
-    required this.selected,
-    required this.onChanged,
-    required this.locale,
-    required this.pbMap,
-    required this.selectedGhost,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final cs = Theme.of(context).colorScheme;
-    final recommendedTier = _recommendedTierFor(selectedGhost, pbMap);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (recommendedTier != null) ...[
-          Container(
-            padding: const EdgeInsets.all(AppTheme.s12),
-            decoration: BoxDecoration(
-              color: recommendedTier.color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(AppTheme.r12),
-              border: Border.all(color: recommendedTier.color.withValues(alpha: 0.5)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.lightbulb_outline_rounded, color: recommendedTier.color, size: 20),
-                const SizedBox(width: AppTheme.s8),
-                Expanded(
-                  child: Text(
-                    '${L10n.tr('tier_recommendation', locale)} ${recommendedTier.badge} ${recommendedTier.label} — ${L10n.tr('based_on_your_pb', locale)}',
-                    style: text.bodySmall!.copyWith(color: recommendedTier.color, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppTheme.s12),
-        ],
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: AppTheme.s4, vertical: AppTheme.s4),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(AppTheme.r12),
-          ),
-          child: Row(
-            children: [
-              for (final label in labels) ...[
-                if (label != labels.first) const SizedBox(width: AppTheme.s4),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => onChanged(label),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: AppTheme.s10),
-                      decoration: BoxDecoration(
-                        color: label == selected ? AppTheme.brand.withValues(alpha: 0.22) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(AppTheme.r8),
-                        border: label == selected ? Border.all(color: AppTheme.brand) : null,
-                      ),
-                      child: Text(
-                        label == 'all' ? L10n.tr('all_distances', locale) : label,
-                        textAlign: TextAlign.center,
-                        style: text.labelSmall!.copyWith(
-                          color: label == selected ? AppTheme.brand : cs.onSurface.withValues(alpha: 0.6),
-                          fontWeight: label == selected ? FontWeight.w700 : FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TierSelector extends StatelessWidget {
-  final DifficultyTier tier;
-  final ValueChanged<DifficultyTier> onChanged;
-  final GhostPace activeGhost;
-  final DifficultyTier? recommendedTier;
-
-  const _TierSelector({
-    required this.tier,
-    required this.onChanged,
-    required this.activeGhost,
-    this.recommendedTier,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.s4, vertical: AppTheme.s4),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppTheme.r12),
-      ),
-      child: Row(
-        children: [
-          for (final t in DifficultyTier.values) ...[
-            if (t != DifficultyTier.values.first)
-              const SizedBox(width: AppTheme.s4),
-            Expanded(
-              child: GestureDetector(
-                onTap: () => onChanged(t),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: AppTheme.s10),
-                  decoration: BoxDecoration(
-                    color: t == tier ? t.color.withValues(alpha: 0.22) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(AppTheme.r8),
-                    border: t == tier ? Border.all(color: t.color) : null,
-                  ),
-                  child: Column(
-                    children: [
-                      Text(t.badge, style: const TextStyle(fontSize: 18)),
-                      const SizedBox(height: AppTheme.s2),
-                      Text(t.label,
-                          style: text.labelSmall!.copyWith(
-                            color: t == tier ? t.color : cs.onSurface.withValues(alpha: 0.6),
-                            fontWeight: t == tier ? FontWeight.w700 : FontWeight.w600,
-                          )),
-                      if (t == recommendedTier)
-                        Text('★', style: TextStyle(fontSize: 10, color: t.color)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _GhostHeader extends StatelessWidget {
+/// Gradient artwork card for the selected performance at the chosen tier.
+class _GhostHero extends StatelessWidget {
   final GhostPace g;
   final AppLocale locale;
-  final Map<String, int> pbMap;
+  final int? userPb; // seconds
 
-  const _GhostHeader({required this.g, required this.locale, required this.pbMap});
+  const _GhostHero({required this.g, required this.locale, required this.userPb});
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final accent = legendAccent(g.legend);
-    final userPb = pbMap[g.distanceLabel];
-    final pbComparison = userPb != null
-        ? ((g.totalSeconds - userPb) / userPb * 100).round()
-        : null;
+    final l = g.legend;
+    final pbComparison = userPb != null ? ((g.totalSeconds - userPb!) / userPb! * 100).round() : null;
+    final white70 = Colors.white.withValues(alpha: 0.8);
 
     return Container(
-      padding: const EdgeInsets.all(AppTheme.s20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.9), accent.withValues(alpha: 0.5)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: legendGradient(l),
         borderRadius: BorderRadius.circular(AppTheme.r24),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
         children: [
-          Row(
-            children: [
-              CircleAvatar(radius: 30, backgroundColor: Colors.white.withValues(alpha: 0.2), child: Text(g.legend.emoji, style: const TextStyle(fontSize: 30))),
-              const SizedBox(width: AppTheme.s16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(g.name, style: text.titleLarge!.copyWith(color: Colors.white)),
-                    const SizedBox(height: AppTheme.s4),
-                    Text('${g.distanceLabel} · ${L10n.tr('target', locale)} ${formatDuration(g.totalSeconds)}',
-                        style: text.bodyMedium!.copyWith(color: Colors.white.withValues(alpha: 0.92))),
-                    const SizedBox(height: AppTheme.s2),
-                    Text('${L10n.tr('avg', locale)} ${formatPace(g.avgPaceMinPerKm)} /km',
-                        style: text.labelMedium!.copyWith(color: Colors.white.withValues(alpha: 0.92))),
-                  ],
-                ),
-              ),
-            ],
+          Positioned(
+            right: AppTheme.s20,
+            top: AppTheme.s20,
+            child: LegendAvatar(legend: l, size: 84, ring: true),
           ),
-          if (userPb != null) ...[
-            const SizedBox(height: AppTheme.s16),
-            Container(
-              padding: const EdgeInsets.all(AppTheme.s12),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(AppTheme.r12),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 20),
-                  const SizedBox(width: AppTheme.s8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          Padding(
+            padding: const EdgeInsets.all(AppTheme.s20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${l.flag}  ${g.distanceLabel}'.toUpperCase(),
+                  style: AppTheme.bodyFont(size: 12, weight: FontWeight.w700, color: white70)
+                      .copyWith(letterSpacing: 0.6),
+                ),
+                const SizedBox(height: AppTheme.s4),
+                Padding(
+                  // Keep the title clear of the portrait in the corner.
+                  padding: const EdgeInsets.only(right: 96),
+                  child: Text(
+                    g.name,
+                    style: AppTheme.bodyFont(size: 22, weight: FontWeight.w700, color: Colors.white)
+                        .copyWith(letterSpacing: -0.4),
+                  ),
+                ),
+                const SizedBox(height: AppTheme.s20),
+                Text(
+                  L10n.tr('target', locale),
+                  style: AppTheme.bodyFont(size: 13, weight: FontWeight.w600, color: white70),
+                ),
+                Text(
+                  formatDuration(g.totalSeconds * 1000),
+                  style: AppTheme.displayFont(size: 54, weight: FontWeight.w800, color: Colors.white),
+                ),
+                const SizedBox(height: AppTheme.s4),
+                Text(
+                  '${L10n.tr('avg', locale)} ${formatPace(g.avgPaceMinPerKm)} /km',
+                  style: AppTheme.bodyFont(size: 15, weight: FontWeight.w500, color: white70),
+                ),
+                if (userPb != null) ...[
+                  const SizedBox(height: AppTheme.s16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: AppTheme.s12, vertical: AppTheme.s10),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.22),
+                      borderRadius: BorderRadius.circular(AppTheme.r12),
+                    ),
+                    child: Row(
                       children: [
-                        Text(
-                          '${L10n.tr('your_pb', locale)}: ${formatDuration(userPb)}',
-                          style: text.bodyMedium!.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
-                        ),
-                        Text(
-                          pbComparison != null
-                              ? (pbComparison > 0
-                                  ? '+$pbComparison% ${L10n.tr('slower_than_ghost', locale)}'
-                                  : '${pbComparison.abs()}% ${L10n.tr('faster_than_ghost', locale)}')
-                              : L10n.tr('no_pb_yet', locale),
-                          style: text.labelSmall!.copyWith(color: Colors.white.withValues(alpha: 0.8)),
+                        const Icon(CupertinoIcons.rosette, color: Colors.white, size: 18),
+                        const SizedBox(width: AppTheme.s8),
+                        Expanded(
+                          child: Text(
+                            '${L10n.tr('your_pb', locale)} ${formatDuration(userPb! * 1000)} · '
+                            '${pbComparison! > 0 ? '+$pbComparison% ${L10n.tr('slower_than_ghost', locale)}' : '${pbComparison.abs()}% ${L10n.tr('faster_than_ghost', locale)}'}',
+                            style: AppTheme.bodyFont(size: 14, weight: FontWeight.w600, color: Colors.white),
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
-          ],
+          ),
         ],
       ),
     );
@@ -490,8 +399,10 @@ class _SplitsChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final accent = legendAccent(g.legend);
-    final axisText = TextStyle(color: cs.onSurfaceVariant.withValues(alpha: 0.6), fontSize: 10);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final base = legendAccent(g.legend);
+    final accent = dark ? Color.lerp(base, Colors.white, 0.25)! : base;
+    final axisText = AppTheme.monoFont(size: 11, color: cs.onSurfaceVariant);
     final (min, max) = g.splits.fold<(double, double)>(
       (double.infinity, double.negativeInfinity),
       ((double, double) acc, double v) => (math.min(acc.$1, v), math.max(acc.$2, v)),
@@ -502,10 +413,18 @@ class _SplitsChart extends StatelessWidget {
           LineChartBarData(
             spots: [for (int i = 0; i < g.splits.length; i++) FlSpot(i.toDouble(), g.splits[i])],
             color: accent,
-            dotData: FlDotData(show: false),
+            barWidth: 3,
+            dotData: const FlDotData(show: false),
             isCurved: true,
             curveSmoothness: 0.3,
-            belowBarData: BarAreaData(show: true, color: accent.withValues(alpha: 0.14)),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [accent.withValues(alpha: 0.3), accent.withValues(alpha: 0)],
+              ),
+            ),
           ),
         ],
         titlesData: FlTitlesData(
@@ -519,13 +438,18 @@ class _SplitsChart extends StatelessWidget {
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
+              reservedSize: 40,
               getTitlesWidget: (v, _) => Text('${v.toInt()}s', style: axisText),
             ),
           ),
           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
-        gridData: FlGridData(show: true, drawVerticalLine: false, getDrawingHorizontalLine: (_) => FlLine(color: cs.onSurfaceVariant.withValues(alpha: 0.12))),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (_) => FlLine(color: cs.onSurface.withValues(alpha: 0.08), strokeWidth: 0.5),
+        ),
         borderData: FlBorderData(show: false),
         minY: min * 0.95,
         maxY: max * 1.05,

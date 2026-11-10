@@ -186,7 +186,9 @@ public class MwendoGpsEnginePlugin: NSObject, FlutterPlugin, CLLocationManagerDe
     }
 
     private func processLocation(_ location: CLLocation) {
-        let speed = max(0.0, location.speed)
+        // CoreLocation reports a negative speed when it's invalid; pass -1
+        // ("unknown") through instead of clamping to 0 (= "standing still").
+        let speed = location.speed >= 0 ? location.speed : -1.0
 
         var isMocked = false
         if #available(iOS 15.0, *) {

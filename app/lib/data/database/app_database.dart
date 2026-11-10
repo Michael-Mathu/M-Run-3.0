@@ -53,11 +53,17 @@ class AppDatabase extends _$AppDatabase {
 
   Future<List<RunRecord>> getAllRuns() async {
     final activityMaps = await select(activities).get();
-    final runs = <RunRecord>[];
-    for (final a in activityMaps) {
-      final points = await (select(activityPoints)..where((pt) => pt.activityId.equals(a.id))).get();
-      runs.add(_runRecordFromActivity(a, points));
+    // One query for every run's points (was one query per run), grouped here.
+    final allPoints = await (select(activityPoints)
+          ..orderBy([(pt) => OrderingTerm.asc(pt.activityId), (pt) => OrderingTerm.asc(pt.pointIndex)]))
+        .get();
+    final byRun = <String, List<ActivityPoint>>{};
+    for (final pt in allPoints) {
+      (byRun[pt.activityId] ??= <ActivityPoint>[]).add(pt);
     }
+    final runs = <RunRecord>[
+      for (final a in activityMaps) _runRecordFromActivity(a, byRun[a.id] ?? const <ActivityPoint>[]),
+    ];
     runs.sort((a, b) => b.startedAt.compareTo(a.startedAt));
     return runs;
   }
@@ -65,7 +71,10 @@ class AppDatabase extends _$AppDatabase {
   Future<RunRecord?> getRun(String id) async {
     final a = await (select(activities)..where((t) => t.id.equals(id))).get().then((l) => l.firstOrNull);
     if (a == null) return null;
-    final points = await (select(activityPoints)..where((pt) => pt.activityId.equals(id))).get();
+    final points = await (select(activityPoints)
+          ..where((pt) => pt.activityId.equals(id))
+          ..orderBy([(pt) => OrderingTerm.asc(pt.pointIndex)]))
+        .get();
     return _runRecordFromActivity(a, points);
   }
 

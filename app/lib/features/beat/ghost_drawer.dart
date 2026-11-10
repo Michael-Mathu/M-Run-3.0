@@ -5,6 +5,7 @@ import 'package:mwendo_app/core/theme/app_theme.dart';
 import 'package:mwendo_app/features/beat/ghost_race_controller.dart';
 import 'package:mwendo_app/features/beat/ghost_race_utils.dart';
 import 'package:mwendo_app/features/learn/data/beat_legends.dart';
+import 'package:mwendo_app/features/legends/legend_widgets.dart';
 
 /// Swipe-up drawer showing live split-by-split comparison during a ghost race.
 class GhostDrawer extends ConsumerWidget {
@@ -112,11 +113,7 @@ class _DrawerHeader extends StatelessWidget {
       padding: const EdgeInsets.all(AppTheme.s16),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: ghost.accent.withValues(alpha: 0.2),
-            child: Text(ghost.legend.emoji, style: const TextStyle(fontSize: 22)),
-          ),
+          LegendAvatar(legend: ghost.legend, size: 44),
           const SizedBox(width: AppTheme.s12),
           Expanded(
             child: Column(

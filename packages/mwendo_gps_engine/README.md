@@ -13,7 +13,7 @@ project; no GPL code is copied.
   `allowsBackgroundLocationUpdates = true`, `pausesLocationUpdatesAutomatically = false`,
   and `activityType = .fitness`; the host app declares the `location` background mode.
 - Battery profiles: `standard` / `powerSaver` / `ultraSaver` (5s / 20s / 30s interval).
-- Stream of `TrackPoint` (lat/lng/elevation/speed/accuracy/state) via an `EventChannel`.
+- Stream of `TrackPoint` (lat/lng/elevation/speed/accuracy/state) via an `EventChannel`. Speed is the device's Doppler speed in m/s, or `-1` when the device didn't report one (never `0` for "unknown").
 
 ## Dart API
 

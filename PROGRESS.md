@@ -36,7 +36,7 @@ All items done. Two categories worth flagging clearly:
 - `TS-8`'s new `rust-fit-parser` CI job: reasoned against the crate's actual Cargo.toml/deps; GH Actions' Linux runners have a working linker unlike this Windows dev environment, so it should build, but unconfirmed.
 - `TS-7`: rewrote the stale Kotlin test to check a real code path; no Gradle available to run it.
 
-Three real bugs were found as a byproduct of writing tests (not sought out deliberately) and are fully documented, not fixed (out of scope for test-coverage tasks, all are user-facing behavior changes that deserve their own reviewed diff): `DISCOVERED_ISSUES.md` #5 (ghost-race pace math), #6 (map-match quality gate), #7 (cumulative distance overshoot, needs more investigation before it's even confirmed as a real bug vs. a short-course artifact).
+Three real bugs were found as a byproduct of writing tests (not sought out deliberately) and are fully documented, not fixed (out of scope for test-coverage tasks, all are user-facing behavior changes that deserve their own reviewed diff): `DISCOVERED_ISSUES.md` #5 (ghost-race pace math), #6 (map-match quality gate), #7 (cumulative distance overshoot, needs more investigation before it's even confirmed as a real bug vs. a short-course artifact). **Update 2026-11-09:** #7 was confirmed and fixed (Doppler-speed distance), and #6 is moot because the app no longer calls map matching — see the "November 2026 revamp" section at the end of this file.
 
 Full-suite phase-boundary check: backend (`go build`/`vet`/`gofmt`/`test`), `app` (`flutter analyze`/`flutter test`, 48 tests), and `gps_pipeline` (`dart analyze`/`dart test`, 38 tests) all green.
 
@@ -91,3 +91,38 @@ Full-suite phase-boundary check: backend (build/vet/gofmt/test), `app` (analyze 
 Full-suite phase-boundary check: `app` (`flutter analyze` clean, `flutter test` — 65 tests, all green). Backend/gps_pipeline untouched this phase, no re-check needed.
 
 ## Phase 6 — Ongoing
+
+## November 2026 revamp — GPS accuracy, distance, OpenStreetMap, Apple-style UI — DONE
+
+Requested directly (not part of `BUILD_PLAN.md`). Full write-up with measurements: `docs/REVAMP_PLAN.md`.
+
+**Tracking ("phantom lines" / ghosting):**
+- Kalman filter no longer dead-reckons: gated fixes are dropped, and after 3 in a row it re-anchors on the measurement. Accuracy floor 3 m, no 5 m cap on trust.
+- Outlier detector subtracts GPS uncertainty before computing implied speed; run speed ceiling 10 m/s.
+- 20-second warm-up gate rejects coarse (>12 m) cold-start fixes until the first point is accepted.
+- New `TrackSegments`: lines break at long gaps/pauses instead of drawing a straight jump; one rule for the live map, saved route, distance and GPX (one `<trkseg>` per segment).
+- Crash-recovery snapshots reprocess on a fresh pipeline instead of resetting the live one; the stop detector resets between runs.
+- Elevation gain uses a 3 m hysteresis so GPS altitude noise doesn't inflate it.
+- Post-run OSRM map matching is no longer triggered (it was called from two places).
+
+**Distance (`DISCOVERED_ISSUES.md` #7 — fixed):** `DistanceAccumulator` integrates Doppler speed with an accuracy-aware fallback. Typical error on 54 synthetic runs went from 51% to 2.3%. Unknown device speed is now −1 end to end (Android, iOS, `NormalizedFix`, pipeline); previously it was 0, which made the stop detector throw away whole runs on phones that report no speed.
+
+**Map:** OpenStreetMap vector tiles from OpenFreeMap (light/dark), GeoJSON route with casing and round joins, blue head dot on the filtered track, start/end dots, fit-to-route camera.
+
+**Design (visual refresh only, no features removed):** system font, Apple semantic colours, grouped surfaces, capsule buttons, no ripples, Cupertino transitions, adaptive dialogs; floating glass tab bar; redesigned Run screen with hold-to-stop; Home/Activity/You/other screens restyled; Reduce Motion, Increase Contrast and 44 pt targets. `google_fonts` removed. See `docs/DESIGN_SYSTEM.md`.
+
+**Verification:** Flutter 3.47.9 installed at `C:\Users\Michael\flutter`. `gps_pipeline`: analyze clean, 55 tests pass. `mwendo_gps_engine`: analyze clean. `app`: analyze clean, 67 tests pass. Contract change: `platform_parity_test.dart` now expects −1 for missing speed. `back_navigation_test.dart` waits 600 ms for the native push transition.
+
+**Still open:** real-phone walk test; phones with no Doppler speed are still ~+23% (`DISCOVERED_ISSUES.md` #12, #13); iOS change not compiled.
+
+## November 2026 revamp, round 2 — native iOS look, Legends tab, OSM Liberty map — DONE
+
+Requested after reviewing on the emulator. Routes tab replaced by a Legends tab; legend profile and Beat the Legends screens redesigned (Apple Music / Fitness style); whole app switched to iOS behaviour (`platform: iOS`, collapsing large titles, Cupertino controls and icons); OSM "Liberty" basemap. Bugs fixed on the way: ghost target times shown ~1000× too short (seconds vs ms), duplicate "Technique & Health" heading, overlapping stats row, recent-runs key typo, Learn/You content hidden under the tab bar. `flutter analyze` clean, 67/67 tests pass, checked on the emulator. Inter font bundled for Android afterwards (iOS keeps San Francisco). Details: `docs/REVAMP_PLAN.md` → "Round 2".
+
+## November 2026 revamp, round 3 — legend portraits — DONE
+
+Real photos for 28 of 30 legends from Wikimedia Commons (CC BY / CC BY-SA / CC0 / OGL), each checked by eye (mostly by race bib), cropped to 512 px portraits in `app/assets/legends/`, with author/licence credits on every legend page and in Settings → Photo credits. Moses Tanui and Ibrahim Hussein have no free photo and keep their emoji. `flutter analyze` clean, 67/67 tests pass, checked on the emulator. Details: `docs/REVAMP_PLAN.md` → "Round 3".
+
+## November 2026 revamp, round 4 — performance — DONE
+
+Frame-timing probe added; on the emulator dropped frames while scrolling Legends fell from 32–71 to 13–17 per 120 and an idle Home now renders nothing. Recovery journaling is incremental (no more O(n²) work on long runs), the live map no longer copies the route every second, SQLite runs off the UI isolate, two infinite animations were removed, glass blur is shared and adapts to the device (Settings → Transparency effects). Tracking, backgrounding, kill-and-recover and save were re-tested end to end with simulated GPS. 68/68 app tests, 55/55 pipeline tests. Details: `docs/REVAMP_PLAN.md` → "Round 4".

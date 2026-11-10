@@ -7,6 +7,7 @@ import 'package:mwendo_app/core/router/app_router.dart';
 import 'package:mwendo_app/features/beat/ghost_race_controller.dart';
 import 'package:mwendo_app/features/beat/ghost_race_utils.dart';
 import 'package:mwendo_app/features/learn/data/beat_legends.dart';
+import 'package:mwendo_app/features/legends/legend_widgets.dart';
 
 /// Bottom sheet shown before starting a ghost race.
 class PreRaceBottomSheet extends ConsumerWidget {
@@ -61,11 +62,7 @@ class PreRaceBottomSheet extends ConsumerWidget {
                     ),
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          radius: 30,
-                          backgroundColor: Colors.white.withValues(alpha: 0.2),
-                          child: Text(activeGhost.legend.emoji, style: const TextStyle(fontSize: 30)),
-                        ),
+                        LegendAvatar(legend: activeGhost.legend, size: 60, ring: true),
                         const SizedBox(width: AppTheme.s16),
                         Expanded(
                           child: Column(
@@ -74,7 +71,7 @@ class PreRaceBottomSheet extends ConsumerWidget {
                               Text(activeGhost.name, style: text.titleLarge!.copyWith(color: Colors.white)),
                               const SizedBox(height: AppTheme.s4),
                               Text(
-                                '${activeGhost.distanceLabel} · ${L10n.tr('target', locale)} ${formatDuration(activeGhost.totalSeconds)}',
+                                '${activeGhost.distanceLabel} · ${L10n.tr('target', locale)} ${formatDuration(activeGhost.totalSeconds * 1000)}',
                                 style: text.bodyMedium!.copyWith(color: Colors.white.withValues(alpha: 0.92)),
                               ),
                               const SizedBox(height: AppTheme.s2),
@@ -132,7 +129,6 @@ class PreRaceBottomSheet extends ConsumerWidget {
                       icon: const Icon(Icons.play_arrow_rounded),
                       label: Text(L10n.tr('race_this_ghost', locale)),
                       style: FilledButton.styleFrom(
-                        backgroundColor: AppTheme.brand,
                         padding: const EdgeInsets.symmetric(vertical: AppTheme.s16),
                       ),
                     ),

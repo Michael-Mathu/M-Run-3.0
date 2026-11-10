@@ -10,11 +10,12 @@ import 'package:mwendo_app/core/theme/shared_preferences_provider.dart';
 GoRouter _router(WidgetTester tester) =>
     GoRouter.of(tester.element(find.byType(Navigator).last));
 
-/// The run tab shows a perpetual pulse animation, so `pumpAndSettle` never
-/// settles. Advance past the 200ms route transition instead.
+/// Advance past the route transition with fixed pumps rather than
+/// `pumpAndSettle`. Drill-down pages use the native Cupertino push, which
+/// runs ~500ms (the old custom slide was 200ms), so wait 600ms.
 Future<void> _settle(WidgetTester tester) async {
   await tester.pump();
-  await tester.pump(const Duration(milliseconds: 250));
+  await tester.pump(const Duration(milliseconds: 600));
 }
 
 void main() {
@@ -76,7 +77,7 @@ void main() {
     expect(branchRootFor('/challenges/foo'), '/challenges');
     expect(branchRootFor('/learn/course/foo'), '/learn');
     expect(branchRootFor('/learn/course/foo/lesson/0'), '/learn/course/foo');
-    expect(branchRootFor('/learn/legends/foo'), '/learn');
+    expect(branchRootFor('/legends/foo'), '/legends');
     expect(branchRootFor('/activity/123'), '/activity');
     expect(branchRootFor('/beat/123'), '/beat');
     expect(branchRootFor('/'), '/');

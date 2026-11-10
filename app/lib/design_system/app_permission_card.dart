@@ -33,10 +33,10 @@ class AppPermissionCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppTheme.brand.withValues(alpha: 0.14),
+              color: cs.primaryContainer,
               borderRadius: BorderRadius.circular(AppTheme.r12),
             ),
-            child: Icon(icon, color: AppTheme.brand, size: 24),
+            child: Icon(icon, color: cs.primary, size: 24),
           ),
           const SizedBox(width: AppTheme.s12),
           Expanded(
@@ -44,13 +44,12 @@ class AppPermissionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: text.titleMedium),
-                Text(description, style: text.bodySmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.6))),
+                Text(description, style: text.bodySmall!.copyWith(color: cs.onSurfaceVariant)),
               ],
             ),
           ),
           FilledButton(
             onPressed: onAction,
-            style: FilledButton.styleFrom(backgroundColor: AppTheme.brand),
             child: Text(actionLabel),
           ),
         ],

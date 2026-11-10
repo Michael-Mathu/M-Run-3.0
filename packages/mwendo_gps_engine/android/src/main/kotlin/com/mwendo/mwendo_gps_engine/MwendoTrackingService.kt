@@ -167,7 +167,9 @@ class MwendoTrackingService : Service() {
     }
 
     private fun processLocation(location: Location) {
-        val speedMps = maxOf(0.0, location.speed.toDouble())
+        // -1 = "no speed reported". Reporting 0 made the pipeline think the
+        // runner was standing still (common on Wi-Fi / cell assisted fixes).
+        val speedMps = if (location.hasSpeed()) maxOf(0.0, location.speed.toDouble()) else -1.0
         
         try {
             listener?.onLocation(

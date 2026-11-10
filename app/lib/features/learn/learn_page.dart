@@ -3,242 +3,141 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mwendo_app/core/l10n/app_strings.dart';
 import 'package:mwendo_app/core/theme/app_theme.dart';
+import 'package:mwendo_app/core/utils/haptics.dart';
 import 'package:mwendo_app/features/learn/data/courses.dart';
+import 'package:mwendo_app/widgets/ios.dart';
+import 'package:mwendo_app/widgets/pressable.dart';
 
-
+/// The Mwendo Academy, laid out like Apple Books / Podcasts: a large title,
+/// then one shelf of course tiles per category.
 class LearnPage extends ConsumerWidget {
   const LearnPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
-    final text = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
 
-    final categories = CourseCategory.values;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(L10n.tr('learn', locale)),
-        centerTitle: false,
-      ),
-      body: CustomScrollView(
-        slivers: [
-          SliverPadding(
-            // U-4: a touch more breathing room between the app bar and the
-            // hero title -- s8 read as flush/cramped against the bar.
-            padding: const EdgeInsets.fromLTRB(AppTheme.s24, AppTheme.s16, AppTheme.s24, AppTheme.s24),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                Text(L10n.tr('academy', locale), style: text.headlineMedium),
-                const SizedBox(height: AppTheme.s4),
-                Text(L10n.tr('academy_tag', locale),
-                    style: text.bodyMedium!.copyWith(color: cs.onSurface.withValues(alpha: 0.7))),
-                const SizedBox(height: AppTheme.s24),
-              ]),
+    return LargeTitlePage(
+      title: L10n.tr('learn', locale),
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(kIosGutter, 0, kIosGutter, 0),
+            child: Text(
+              L10n.tr('academy_tag', locale),
+              style: AppTheme.bodyFont(size: 15, color: cs.onSurfaceVariant),
             ),
           ),
-          SliverList(
-            delegate: SliverChildListDelegate([
-              ...categories.map((cat) {
-                final catCourses = courses.where((c) => c.category == cat).toList();
-                if (catCourses.isEmpty) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: AppTheme.s24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: AppTheme.s24),
-                        child: Row(
-                          children: [
-                            Icon(cat.icon, color: cat.accent, size: 15),
-                            const SizedBox(width: AppTheme.s8),
-                            Text(
-                              lt(cat.label, locale).toUpperCase(),
-                              style: AppTheme.monoFont(
-                                  size: 12, weight: FontWeight.w600, spacing: 1.1, color: cat.accent),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppTheme.s12),
-                      SizedBox(
-                        height: 200,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: AppTheme.s24),
-                          itemCount: catCourses.length,
-                          separatorBuilder: (_, _) => const SizedBox(width: AppTheme.s12),
-                          itemBuilder: (_, i) {
-                            final c = catCourses[i];
-                            return _CourseCardHorizontal(course: c, locale: locale);
-                          },
-                        ),
-                      ),
-                    ],
+        ),
+        for (final cat in CourseCategory.values)
+          if (courses.any((c) => c.category == cat)) ...[
+            SliverToBoxAdapter(child: IosSectionHeader(title: lt(cat.label, locale))),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 248,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: kIosGutter),
+                  itemCount: courses.where((c) => c.category == cat).length,
+                  separatorBuilder: (_, _) => const SizedBox(width: AppTheme.s12),
+                  itemBuilder: (_, i) => _CourseTile(
+                    course: courses.where((c) => c.category == cat).elementAt(i),
+                    locale: locale,
                   ),
-                );
-              }),
-            ]),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: AppTheme.s24),
-            sliver: SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: AppTheme.s8),
-                  Row(
-                    children: [
-                      Icon(Icons.auto_stories_rounded, size: 15, color: AppTheme.dawn),
-                      const SizedBox(width: AppTheme.s8),
-                      Text(
-                        L10n.tr('legends_title', locale).toUpperCase(),
-                        style: AppTheme.monoFont(
-                            size: 12, weight: FontWeight.w600, spacing: 1.1, color: AppTheme.dawn),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppTheme.s12),
-                  Text(L10n.tr('legends_teaser_sub', locale),
-                      style: text.bodySmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.7)),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: AppTheme.s16),
-                  // Red Earth: the "race a ghost" teaser becomes a solid
-                  // highland-gradient card (matching the redesign's ghost-race
-                  // hero treatment) instead of plain body text + a button,
-                  // giving the app's headline feature real visual presence.
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(AppTheme.s20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [AppTheme.highland, Color.lerp(AppTheme.highland, Colors.black, 0.28)!],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(AppTheme.r24),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(L10n.tr('race_ghost_legend', locale),
-                            style: text.titleMedium!.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-                        const SizedBox(height: AppTheme.s4),
-                        Text(L10n.tr('race_ghost_sub', locale),
-                            style: text.bodySmall!.copyWith(color: Colors.white.withValues(alpha: 0.85))),
-                        const SizedBox(height: AppTheme.s16),
-                        FilledButton.icon(
-                          onPressed: () => context.push('/learn/legends'),
-                          icon: const Icon(Icons.person_rounded),
-                          label: Text(L10n.tr('your_legends', locale)),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: AppTheme.highland,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 100),
-                ],
+                ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+      ],
     );
   }
 }
 
-class _CourseCardHorizontal extends StatelessWidget {
+/// Course "cover": gradient artwork with the category glyph, then title,
+/// subtitle and lesson count underneath.
+class _CourseTile extends StatelessWidget {
   final Course course;
   final AppLocale locale;
-  const _CourseCardHorizontal({required this.course, required this.locale});
+  const _CourseTile({required this.course, required this.locale});
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
-    final width = MediaQuery.of(context).size.width * 0.72;
     final accent = course.category.accent;
+    const width = 220.0;
 
-    return GestureDetector(
-      onTap: () => context.push('/learn/course/${course.slug}'),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        width: width,
-        // Red Earth: a tint of the category's own accent instead of a
-        // neutral bordered white card, so category color carries through
-        // from the section header into the cards themselves.
-        decoration: BoxDecoration(
-          color: accent.withValues(alpha: 0.09),
-          borderRadius: BorderRadius.circular(AppTheme.r16),
-          border: Border.all(color: accent.withValues(alpha: 0.22)),
-        ),
-        padding: const EdgeInsets.all(AppTheme.s16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(course.category.icon, color: course.category.accent, size: 24),
-            const SizedBox(height: AppTheme.s8),
-            Text(lt(course.title, locale),
-                style: text.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: AppTheme.s2),
-            Text(lt(course.subtitle, locale),
-                style: text.bodySmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.65)),
+    return Semantics(
+      button: true,
+      label: lt(course.title, locale),
+      excludeSemantics: true,
+      child: Pressable(
+        onTap: () {
+          Haptics.light();
+          context.push('/learn/course/${course.slug}');
+        },
+        child: SizedBox(
+          width: width,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: 124,
+                width: width,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color.lerp(accent, Colors.white, 0.12)!,
+                      Color.lerp(accent, Colors.black, 0.5)!,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(AppTheme.r16),
+                ),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      right: -14,
+                      bottom: -18,
+                      child: Icon(course.category.icon, size: 112, color: Colors.white.withValues(alpha: 0.2)),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(AppTheme.s12),
+                      child: Icon(course.category.icon, size: 26, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppTheme.s8),
+              Text(
+                lt(course.title, locale),
                 maxLines: 2,
-                overflow: TextOverflow.ellipsis),
-            const Spacer(),
-            Text('${L10n.tr('by', locale)} ${lt(course.author, locale)}',
-                style: text.labelSmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.55))),
-          ],
+                overflow: TextOverflow.ellipsis,
+                style: AppTheme.bodyFont(size: 17, weight: FontWeight.w600, height: 1.25, color: cs.onSurface)
+                    .copyWith(letterSpacing: -0.3),
+              ),
+              const SizedBox(height: 2),
+              // Flexible so large Dynamic Type sizes clip the subtitle
+              // instead of overflowing the fixed-height shelf.
+              Flexible(
+                child: Text(
+                  lt(course.subtitle, locale),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.bodyFont(size: 14, height: 1.3, color: cs.onSurfaceVariant),
+                ),
+              ),
+              const SizedBox(height: AppTheme.s6),
+              Text(
+                '${course.lessons.length} ${L10n.tr('lessons', locale)} · ${course.minutes} min',
+                style: AppTheme.bodyFont(size: 13, weight: FontWeight.w500, color: cs.onSurfaceVariant),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
-
-/*
-class _LegendCardTeaser extends StatelessWidget {
-  final Legend legend;
-  final AppLocale locale;
-  const _LegendCardTeaser({required this.legend, required this.locale});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final accent = legendAccent(legend);
-
-    return GestureDetector(
-      onTap: () => context.push('/learn/legends/${legend.slug}'),
-      child: Container(
-        width: 160,
-        padding: const EdgeInsets.all(AppTheme.s12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(AppTheme.r16),
-          border: Border.all(color: Theme.of(context).colorScheme.surfaceContainerHighest),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: accent.withValues(alpha: 0.18),
-              child: Text(legend.emoji, style: const TextStyle(fontSize: 24)),
-            ),
-            const SizedBox(height: AppTheme.s8),
-            Text(legend.name, style: text.titleSmall),
-            const SizedBox(height: AppTheme.s2),
-            Text(lt(legend.discipline, locale),
-                style: text.labelSmall!.copyWith(color: accent, fontWeight: FontWeight.w700)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-*/

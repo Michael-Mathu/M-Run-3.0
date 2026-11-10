@@ -98,7 +98,7 @@ class _LessonPageState extends ConsumerState<LessonPage> {
                 icon: Icon(done ? Icons.check_circle_rounded : Icons.check_rounded),
                 label: Text(done ? L10n.tr('completed', locale) : L10n.tr('mark_complete', locale)),
                 style: FilledButton.styleFrom(
-                  backgroundColor: done ? cs.surfaceContainerHighest : AppTheme.brand,
+                  backgroundColor: done ? cs.surfaceContainerHighest : cs.primary,
                   foregroundColor: done ? cs.onSurface.withValues(alpha: 0.6) : Colors.white,
                 ),
               ),

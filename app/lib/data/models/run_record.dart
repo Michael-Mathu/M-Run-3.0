@@ -31,10 +31,32 @@ class RunRecord {
   final bool? ghostWon;
   final int? ghostRaceVersion;
 
-  final List<LatLng> route;
-  final List<double> elevation;
-  final List<double> pace;
-  final List<DateTime> times;
+  // Derived series are computed lazily, on first use. The run history list
+  // loads every saved run; most screens only need summary numbers, so
+  // building five per-point lists for every run up front was wasted work.
+  late final List<LatLng> route = [
+    for (final r in filteredResults)
+      if (r.isAccepted) LatLng(r.smoothedLat ?? r.raw.lat, r.smoothedLng ?? r.raw.lng),
+  ];
+
+  /// [route] split at pauses / long signal gaps (see [TrackSegments]). Draw
+  /// this, not [route], so a pause is never rendered as a straight line.
+  late final List<List<LatLng>> routeSegments = [
+    for (final seg in TrackSegments.split(filteredResults))
+      [for (final r in seg) LatLng(r.smoothedLat ?? r.raw.lat, r.smoothedLng ?? r.raw.lng)],
+  ];
+  late final List<double> elevation = [
+    for (final r in filteredResults)
+      if (r.isAccepted) r.raw.elevation,
+  ];
+  late final List<double> pace = [
+    for (final r in filteredResults)
+      if (r.isAccepted) r.raw.speedMps > 0.3 ? 1000 / (r.raw.speedMps * 60) : 0.0,
+  ];
+  late final List<DateTime> times = [
+    for (final r in filteredResults)
+      if (r.isAccepted) r.raw.timestamp,
+  ];
 
   RunRecord._({
     required this.id,
@@ -54,10 +76,7 @@ class RunRecord {
     this.ghostId,
     this.ghostWon,
     this.ghostRaceVersion,
-  }) : route = filteredResults.where((r) => r.isAccepted).map((r) => LatLng(r.smoothedLat ?? r.raw.lat, r.smoothedLng ?? r.raw.lng)).toList(),
-       elevation = filteredResults.where((r) => r.isAccepted).map((r) => r.raw.elevation).toList(),
-       pace = filteredResults.where((r) => r.isAccepted).map((r) => r.raw.speedMps > 0.3 ? 1000 / (r.raw.speedMps * 60) : 0.0).toList(),
-       times = filteredResults.where((r) => r.isAccepted).map((r) => r.raw.timestamp).toList();
+  });
 
   factory RunRecord.fromFiltered({
     required String id,
@@ -185,6 +204,7 @@ class RunRecord {
         avgHeartRate: avgHeartRate,
         avgCadence: avgCadence,
         route: route,
+        routeSegments: routeSegments,
         elevation: elevation,
         pace: pace,
         times: times,

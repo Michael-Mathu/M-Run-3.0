@@ -15,7 +15,7 @@ class GpsPipeline {
 
   GpsPipeline({
     required this.profile,
-    bool enableMapMatching = false,
+    double? kalmanMotionSigma,
   });
 
   PipelineResult? process(RawFix fix);
@@ -40,7 +40,7 @@ class GpsPipeline {
 * **Returns:** `List<PipelineResult>` - Processed and smoothed results matching the length of the input.
 
 ##### `reprocessAsync(List<RawFix> fixes) -> Future<List<PipelineResult>>`
-* **Purpose:** Asynchronously reprocesses an activity, executing OSRM network map-matching across accepted coordinates.
+* **Purpose:** Async wrapper around `reprocess` (same result). Map matching is no longer performed; `MapMatcher` remains in the package but the app does not call it (see ARCHITECTURE.md).
 
 ##### `flush() -> PipelineResult?`
 * **Purpose:** Flushes any remaining lookahead buffered point when tracking finishes or pauses.
@@ -52,9 +52,11 @@ class GpsPipeline {
 #### `enum ActivityProfile`
 ```dart
 enum ActivityProfile {
-  run(maxAccuracyM: 30.0, maxSpeedMps: 8.0),
-  cycle(maxAccuracyM: 75.0, maxSpeedMps: 22.0),
-  drive(maxAccuracyM: 100.0, maxSpeedMps: 55.0);
+  run(maxAccuracyM: 20, maxSpeedMps: 10),   // 36 km/h ceiling
+  walk(maxAccuracyM: 25, maxSpeedMps: 4),
+  cycle(maxAccuracyM: 20, maxSpeedMps: 20),
+  drive(maxAccuracyM: 30, maxSpeedMps: 60),
+  hike(maxAccuracyM: 30, maxSpeedMps: 6);
 
   final double maxAccuracyM;
   final double maxSpeedMps;
@@ -123,7 +125,7 @@ class RawFix {
   final double lng;
   final double elevation;
   final DateTime timestamp;
-  final double speedMps;
+  final double speedMps;   // Doppler speed; -1 = not reported (never 0 for "unknown")
   final int? heartRate;
   final int? cadence;
   final int accuracy;
@@ -151,6 +153,54 @@ class RawFix {
 }
 ```
 
+
+#### `class TrackSegments` (added 2026-11-09)
+**Namespace:** `package:gps_pipeline/gps_pipeline.dart` (`src/track_segments.dart`)
+
+The single rule for where a track line breaks, shared by the live map, the saved route, distance and GPX export.
+
+```dart
+class TrackSegments {
+  static const double maxBridgeM = 50;
+
+  /// True at a gapLong, or a gapShort whose chord to the previous point > 50 m.
+  static bool startsNewSegment(PipelineResult prev, PipelineResult curr);
+
+  /// True for results that may add distance (filtered or gapShort).
+  static bool countsDistance(PipelineResult r);
+
+  /// Accepted results split into drawable line segments.
+  static List<List<PipelineResult>> split(List<PipelineResult> results);
+
+  /// Total distance using DistanceAccumulator over every segment.
+  static double distanceM(List<PipelineResult> results, {required double maxSpeedMps});
+}
+```
+
+#### `class DistanceAccumulator` (added 2026-11-09)
+Incremental distance estimator used live and for saved runs.
+
+```dart
+class DistanceAccumulator {
+  DistanceAccumulator({
+    double maxSpeedMps,            // speeds above this are ignored
+    double fallbackThresholdM = 8, // hop threshold floor
+    double fallbackMaxM = 15,      // hop threshold ceiling
+    double speedHoldS = 3,         // reuse last speed this long when missing
+    double maxSpeedStepS = 5,      // longer steps use the hop fallback
+  });
+
+  double get totalM;
+  /// Adds one result; returns the metres it contributed.
+  double add(PipelineResult r, {required bool newSegment});
+  void reset();
+}
+```
+
+1. With device speed: trapezoid integration of Doppler speed over time.
+2. Speed missing: last speed held for up to 3 s.
+3. Otherwise: distance from an anchor point once displacement exceeds `accuracy.clamp(8, 15)` m.
+
 ---
 
 ## 2. Package: `mwendo_app` Domain Models
@@ -174,6 +224,9 @@ class RunRecord {
   final List<PipelineResult> filteredResults;
   final List<PipelineResult>? matchedResults;
   final TrackVersion trackVersion;
+  /// Accepted points split into line segments (TrackSegments.split); maps and
+  /// GPX draw one line per segment so gaps are never bridged.
+  final List<List<LatLng>> routeSegments;
   final String? ghostId;
   final bool? ghostWon;
   final int? ghostRaceVersion;

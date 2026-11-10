@@ -93,7 +93,6 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                   FilledButton(
                     onPressed: _busy ? null : _submit,
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppTheme.brand,
                       padding: const EdgeInsets.symmetric(vertical: AppTheme.s16),
                     ),
                     child: _busy

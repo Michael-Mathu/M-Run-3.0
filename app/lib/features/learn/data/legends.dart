@@ -1365,10 +1365,24 @@ Legend legendForSlug(String slug) {
   return _legendBySlug![slug] ?? legends.first;
 }
 
-// Red Earth accents: earth for Kenya, dawn gold for Ethiopia/Netherlands,
-// highland green for Uganda (see the _kCountry constants above).
-Color legendAccent(Legend l) => {
-      'orange': AppTheme.earth,
-      'gold': AppTheme.dawn,
-      'green': AppTheme.highland,
-    }[l.accent] ?? AppTheme.earth;
+// Each legend gets their own "artwork" colour (like Apple Music artist art),
+// picked deterministically from a curated set of rich, earthy tones so the
+// roster doesn't read as one wall of the same brown. Stable across launches.
+const List<Color> _kLegendArt = [
+  AppTheme.earth, // terracotta
+  Color(0xFF2C6B54), // highland green
+  Color(0xFFB7832A), // dawn gold
+  Color(0xFF3D5A80), // dusk blue
+  Color(0xFF7A3E6B), // plum
+  Color(0xFF1F7A8C), // lake teal
+  Color(0xFF9C2F3F), // crimson
+  Color(0xFF5B4B8A), // indigo
+];
+
+Color legendAccent(Legend l) {
+  var h = 0;
+  for (final c in l.slug.codeUnits) {
+    h = (h * 31 + c) & 0x7fffffff;
+  }
+  return _kLegendArt[h % _kLegendArt.length];
+}

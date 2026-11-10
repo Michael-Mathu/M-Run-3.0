@@ -170,7 +170,6 @@ void reprocessTelemetrySession(List<RawFix> rawTelemetry) {
   // 1. Instantiate pure Dart GpsPipeline with Running profile
   final pipeline = GpsPipeline(
     profile: ActivityProfile.run,
-    enableMapMatching: false,
   );
 
   // 2. Reprocess raw fixes synchronously

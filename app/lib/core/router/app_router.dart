@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:ui';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,10 +16,8 @@ import 'package:mwendo_app/features/challenges/challenge_library_page.dart';
 import 'package:mwendo_app/features/home/dashboard_page.dart';
 import 'package:mwendo_app/features/learn/course_detail_page.dart';
 import 'package:mwendo_app/features/learn/learn_page.dart';
-import 'package:mwendo_app/features/learn/legend_detail_page.dart';
-import 'package:mwendo_app/features/learn/legends_page.dart';
-import 'package:mwendo_app/features/explore/explore_page.dart';
-import 'package:mwendo_app/features/explore/route_detail_page.dart';
+import 'package:mwendo_app/features/legends/legend_detail_page.dart';
+import 'package:mwendo_app/features/legends/legends_home_page.dart';
 import 'package:mwendo_app/features/learn/lesson_page.dart';
 import 'package:mwendo_app/features/onboarding/onboarding_page.dart';
 import 'package:mwendo_app/features/onboarding/onboarding_provider.dart';
@@ -27,29 +25,15 @@ import 'package:mwendo_app/features/profile/profile_page.dart' show YouPage;
 import 'package:mwendo_app/features/tracking/live_dashboard.dart';
 import 'package:mwendo_app/features/tracking/tracking_controller.dart';
 import 'package:mwendo_app/core/utils/haptics.dart';
+import 'package:mwendo_app/widgets/glass.dart';
+import 'package:mwendo_app/widgets/pressable.dart';
 import 'package:mwendo_app/features/tracking/route_analysis_screen.dart';
 
-/// Slide-up + fade transition for pushed/drilled-down routes (detail pages,
-/// full-screen flows): 6% upward slide, 200ms, easeOutCubic.
-CustomTransitionPage<void> _slidePage(GoRouterState state, Widget child) {
-  return CustomTransitionPage<void>(
-    key: state.pageKey,
-    child: child,
-    transitionDuration: const Duration(milliseconds: 200),
-    reverseTransitionDuration: const Duration(milliseconds: 200),
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      final slide = Tween<Offset>(
-        begin: const Offset(0, 0.06),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
-      final fade = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
-      return SlideTransition(
-        position: slide,
-        child: FadeTransition(opacity: fade, child: child),
-      );
-    },
-  );
-}
+/// Drill-down / full-screen routes use the native push: horizontal slide
+/// with parallax and an interactive edge swipe-back on every platform. (The
+/// old 6% slide-up + fade made every push look like a modal.)
+Page<void> _slidePage(GoRouterState state, Widget child) =>
+    CupertinoPage<void>(key: state.pageKey, child: child);
 
 /// Cross-fade transition for tab switches within the [StatefulShellRoute].
 /// Tab changes should NOT feel like a push — they dissolve between branches.
@@ -105,12 +89,12 @@ GoRouter makeRouter(Ref ref) {
               ),
             ],
           ),
-          // Tab 1: Explore
+          // Tab 1: Legends (replaced the placeholder Routes/Explore tab)
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/explore',
-                pageBuilder: (context, state) => _fadePage(state, const ExplorePage()),
+                path: '/legends',
+                pageBuilder: (context, state) => _fadePage(state, const LegendsHomePage()),
               ),
             ],
           ),
@@ -145,12 +129,14 @@ GoRouter makeRouter(Ref ref) {
       ),
       // Standalone routes (outside tabs)
       GoRoute(
-        path: '/explore/:slug',
+        path: '/legends/:slug',
         pageBuilder: (context, state) => _slidePage(
           state,
-          RouteDetailPage(slug: state.pathParameters['slug']!),
+          LegendDetailPage(slug: state.pathParameters['slug']!),
         ),
       ),
+      // Old Explore / Learn → Legends links keep working.
+      GoRoute(path: '/explore', redirect: (context, state) => '/legends'),
       GoRoute(
         path: '/learn/course/:slug',
         pageBuilder: (context, state) => _slidePage(
@@ -168,16 +154,10 @@ GoRouter makeRouter(Ref ref) {
           ),
         ),
       ),
-      GoRoute(
-        path: '/learn/legends',
-        pageBuilder: (context, state) => _slidePage(state, const LegendsPage()),
-      ),
+      GoRoute(path: '/learn/legends', redirect: (context, state) => '/legends'),
       GoRoute(
         path: '/learn/legends/:slug',
-        pageBuilder: (context, state) => _slidePage(
-          state,
-          LegendDetailPage(slug: state.pathParameters['slug']!),
-        ),
+        redirect: (context, state) => '/legends/${state.pathParameters['slug']}',
       ),
       GoRoute(
         path: '/beat',
@@ -285,10 +265,10 @@ class _ScaffoldWithNavBarState extends ConsumerState<ScaffoldWithNavBar> {
 
   // Tabs that contain horizontal scrollable content should opt out of
   // shell-level swipe navigation to avoid gesture conflicts.
-  // Index 1: Explore (horizontal segment chips + list)
+  // Index 1: Legends (horizontal carousels and filter pills)
   // Index 2: Track/Run (live map pans horizontally)
   // Index 3: Learn (horizontal course/lesson cards)
-  static const _swipeDisabledIndices = {1, 2, 3}; // Explore, Track/Run, Learn
+  static const _swipeDisabledIndices = {1, 2, 3}; // Legends, Track/Run, Learn
 
   void _onHorizontalDragEnd(DragEndDetails details) {
     if (_swipeDisabledIndices.contains(widget.shell.currentIndex)) return;
@@ -299,21 +279,15 @@ class _ScaffoldWithNavBarState extends ConsumerState<ScaffoldWithNavBar> {
     if (next >= 0 && next < _branchCount) widget.shell.goBranch(next);
   }
 
-  Widget _destination({
-    required Widget icon,
-    required Widget selectedIcon,
-    required String label,
-  }) =>
-      NavigationDestination(
-        icon: Opacity(opacity: 0.6, child: icon),
-        selectedIcon: Transform.scale(scale: 1.15, child: selectedIcon),
-        label: label,
-      );
-
   @override
   Widget build(BuildContext context) {
     final locale = ref.watch(localeProvider);
-    final runTabVisible = widget.shell.currentIndex == 2;
+    final index = widget.shell.currentIndex;
+    void go(int i) {
+      if (i != index) Haptics.selection();
+      widget.shell.goBranch(i, initialLocation: i == index);
+    }
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -326,125 +300,190 @@ class _ScaffoldWithNavBarState extends ConsumerState<ScaffoldWithNavBar> {
           behavior: HitTestBehavior.translucent,
           child: widget.shell,
         ),
-        bottomNavigationBar: ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
-            child: NavigationBar(
-              backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.7),
-              indicatorColor: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.8),
-              elevation: 0,
-              selectedIndex: widget.shell.currentIndex,
-              onDestinationSelected: (i) {
-                if (i != widget.shell.currentIndex) Haptics.selection();
-                widget.shell.goBranch(i);
-              },
-              height: 72,
-              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-              destinations: [
-            _destination(
-              icon: const Icon(Icons.home_outlined),
-              selectedIcon: const Icon(Icons.home_rounded),
-              label: L10n.tr('home', locale),
-            ),
-            _destination(
-              icon: const Icon(Icons.map_outlined),
-              selectedIcon: const Icon(Icons.map_rounded),
-              label: L10n.tr('explore_routes', locale),
-            ),
-            NavigationDestination(
-              icon: _RunNavIcon(runTabVisible: runTabVisible),
-              selectedIcon: _RunNavIcon(runTabVisible: runTabVisible),
-              label: L10n.tr('run', locale),
-            ),
-            _destination(
-              icon: const Icon(Icons.school_outlined),
-              selectedIcon: const Icon(Icons.school_rounded),
-              label: L10n.tr('learn', locale),
-            ),
-            _destination(
-              icon: const Icon(Icons.person_outline_rounded),
-              selectedIcon: const Icon(Icons.person_rounded),
-              label: L10n.tr('you', locale),
-            ),
+        bottomNavigationBar: _GlassTabBar(
+          currentIndex: index,
+          onSelect: go,
+          items: [
+            _TabItem(CupertinoIcons.house, CupertinoIcons.house_fill, L10n.tr('home', locale)),
+            _TabItem(CupertinoIcons.star, CupertinoIcons.star_fill, L10n.tr('legends_title', locale)),
+            _TabItem(Icons.directions_run_rounded, Icons.directions_run_rounded,
+                L10n.tr('run', locale), isRun: true),
+            _TabItem(CupertinoIcons.book, CupertinoIcons.book_fill, L10n.tr('learn', locale)),
+            _TabItem(CupertinoIcons.person_crop_circle, CupertinoIcons.person_crop_circle_fill,
+                L10n.tr('you', locale)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TabItem {
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  final bool isRun;
+  const _TabItem(this.icon, this.selectedIcon, this.label, {this.isRun = false});
+}
+
+/// Floating "Liquid Glass" tab bar: a translucent capsule inset from the
+/// screen edges, filled icon + tint colour for the selected tab (no Material
+/// pill indicator), and a solid tint button for Run in the centre.
+class _GlassTabBar extends StatelessWidget {
+  final int currentIndex;
+  final ValueChanged<int> onSelect;
+  final List<_TabItem> items;
+
+  const _GlassTabBar({
+    required this.currentIndex,
+    required this.onSelect,
+    required this.items,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppTheme.s16,
+        0,
+        AppTheme.s16,
+        bottomInset > 0 ? bottomInset : AppTheme.s12,
+      ),
+      child: GlassSurface(
+        borderRadius: BorderRadius.circular(AppTheme.rFull),
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            children: [
+              for (var i = 0; i < items.length; i++)
+                Expanded(
+                  child: items[i].isRun
+                      ? _RunTabButton(
+                          label: items[i].label,
+                          selected: currentIndex == i,
+                          onTap: () => onSelect(i),
+                        )
+                      : _TabButton(
+                          item: items[i],
+                          selected: currentIndex == i,
+                          onTap: () => onSelect(i),
+                        ),
+                ),
             ],
           ),
         ),
       ),
-    ),
-  );
-}
-}
-
-/// Run tab icon. When not recording it emits a soft pulsing glow (attract
-/// mode); once recording the glow steadies into a solid red pulse.
-/// Pauses animation when the run tab is not visible to save CPU.
-class _RunNavIcon extends ConsumerStatefulWidget {
-  final bool runTabVisible;
-  const _RunNavIcon({this.runTabVisible = true});
-
-  @override
-  ConsumerState<_RunNavIcon> createState() => _RunNavIconState();
+    );
+  }
 }
 
-class _RunNavIconState extends ConsumerState<_RunNavIcon>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _pulse = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.runTabVisible) _pulse.repeat(reverse: true);
-  }
-
-  @override
-  void didUpdateWidget(covariant _RunNavIcon old) {
-    super.didUpdateWidget(old);
-    if (widget.runTabVisible && !_pulse.isAnimating) {
-      _pulse.repeat(reverse: true);
-    } else if (!widget.runTabVisible && _pulse.isAnimating) {
-      _pulse.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    _pulse.dispose();
-    super.dispose();
-  }
+class _TabButton extends StatelessWidget {
+  final _TabItem item;
+  final bool selected;
+  final VoidCallback onTap;
+  const _TabButton({required this.item, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final recording =
-        ref.watch(trackingModelProvider).state == AppEngineState.recording;
-    const base = AppTheme.brand;
-    return AnimatedBuilder(
-      animation: _pulse,
-      builder: (context, _) {
-        final glow = recording ? 0.0 : (_pulse.value * 8 + 6);
-        return Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            gradient: AppTheme.brandGradient,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: base.withValues(alpha: recording ? 1.0 : 0.5),
-                blurRadius: recording ? 14 : glow,
-                spreadRadius: recording ? 3 : glow * 0.4,
+    final cs = Theme.of(context).colorScheme;
+    final color = selected ? cs.primary : cs.onSurfaceVariant;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: item.label,
+      excludeSemantics: true,
+      child: Pressable(
+        onTap: onTap,
+        pressedScale: 0.92,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedSwitcher(
+              duration: AppTheme.motion(context, AppTheme.dFast),
+              child: Icon(
+                selected ? item.selectedIcon : item.icon,
+                key: ValueKey(selected),
+                size: 25,
+                color: color,
               ),
-            ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              item.label,
+              maxLines: 1,
+              overflow: TextOverflow.fade,
+              softWrap: false,
+              style: AppTheme.bodyFont(
+                size: 11,
+                weight: selected ? FontWeight.w600 : FontWeight.w500,
+                height: 1.1,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Run tab: solid tint capsule so the primary action is always findable.
+/// Red with a record dot while recording, orange while paused — static, like
+/// iOS's recording indicators. (It used to "breathe" with a repeating
+/// animation for the whole run, which forced a new frame — and a re-render of
+/// the tab bar's glass blur — 60 times a second, costing smoothness and
+/// battery during workouts.)
+class _RunTabButton extends ConsumerWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _RunTabButton({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch only the engine state, not the whole TrackingState (which changes
+    // every second while recording).
+    final state = ref.watch(trackingModelProvider.select((m) => m.state));
+    final recording = state == AppEngineState.recording;
+    final paused = state == AppEngineState.paused;
+    final cs = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
+    final fill = recording
+        ? tokens.recording
+        : paused
+            ? tokens.paused
+            : cs.primary;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      excludeSemantics: true,
+      child: Pressable(
+        onTap: onTap,
+        pressedScale: 0.92,
+        child: Center(
+          child: AnimatedContainer(
+            duration: AppTheme.motion(context, AppTheme.dMed),
+            curve: AppTheme.curveSnappy,
+            width: 56,
+            height: 48,
+            decoration: BoxDecoration(
+              color: fill,
+              borderRadius: BorderRadius.circular(AppTheme.rFull),
+            ),
+            child: Icon(
+              recording
+                  ? Icons.fiber_manual_record_rounded
+                  : paused
+                      ? Icons.pause_rounded
+                      : Icons.directions_run_rounded,
+              color: Colors.white,
+              size: recording ? 20 : 26,
+            ),
           ),
-          child: Icon(
-            recording ? Icons.stop_rounded : Icons.play_arrow_rounded,
-            color: Colors.white,
-            size: 26,
-          ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

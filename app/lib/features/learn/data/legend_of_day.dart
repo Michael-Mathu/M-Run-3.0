@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mwendo_app/core/l10n/app_strings.dart';
 import 'package:mwendo_app/core/theme/app_theme.dart';
 import 'package:mwendo_app/features/learn/data/legends.dart';
+import 'package:mwendo_app/features/legends/legend_widgets.dart';
 
 /// Deterministic "Legend of the Day" — same legend for everyone on a given day,
 /// rotating through the list by day-of-year.
@@ -45,7 +46,7 @@ class LegendOfDayCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(AppTheme.r16),
         child: InkWell(
           borderRadius: BorderRadius.circular(AppTheme.r16),
-          onTap: () => context.go('/learn/legends/${legend.slug}'),
+          onTap: () => context.push('/legends/${legend.slug}'),
           child: Container(
             padding: const EdgeInsets.all(AppTheme.s12),
             decoration: BoxDecoration(
@@ -55,11 +56,7 @@ class LegendOfDayCard extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: accent.withValues(alpha: 0.22),
-                  child: Text(legend.emoji, style: const TextStyle(fontSize: 20)),
-                ),
+                LegendAvatar(legend: legend, size: 40),
                 const SizedBox(width: AppTheme.s12),
                 Expanded(
                   child: Column(
@@ -121,11 +118,7 @@ class LegendOfDayCard extends ConsumerWidget {
           const SizedBox(height: AppTheme.s12),
           Row(
             children: [
-              CircleAvatar(
-                radius: 26,
-                backgroundColor: fg.withValues(alpha: 0.18),
-                child: Text(legend.emoji, style: const TextStyle(fontSize: 26)),
-              ),
+              LegendAvatar(legend: legend, size: 52),
               const SizedBox(width: AppTheme.s12),
               Expanded(
                 child: Column(
@@ -150,7 +143,7 @@ class LegendOfDayCard extends ConsumerWidget {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
-              onPressed: () => context.go('/learn/legends/${legend.slug}'),
+              onPressed: () => context.push('/legends/${legend.slug}'),
               icon: Icon(Icons.arrow_forward_rounded, color: fg),
               label: Text(L10n.tr('read_more', locale), style: TextStyle(color: fg)),
               style: TextButton.styleFrom(foregroundColor: fg),

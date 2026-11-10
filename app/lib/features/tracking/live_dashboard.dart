@@ -1,8 +1,8 @@
+import 'package:flutter/cupertino.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:latlong2/latlong.dart' as latlong;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:mwendo_app/core/permissions/location_permission.dart';
 import 'package:mwendo_app/core/theme/app_theme.dart';
@@ -19,11 +19,11 @@ import 'package:mwendo_app/features/beat/ghost_drawer.dart';
 import 'package:mwendo_app/features/challenges/challenge_evaluator.dart';
 import 'package:mwendo_app/features/learn/data/beat_legends.dart';
 import 'package:mwendo_app/features/safety/safety_service.dart';
-import 'map_match_job.dart';
 import 'package:mwendo_app/features/tracking/tracking_controller.dart';
 import 'package:mwendo_app/features/tracking/activity_type_selector.dart';
 import 'package:mwendo_app/features/tracking/recovery_card.dart';
 import 'package:mwendo_app/widgets/celebration_overlay.dart';
+import 'package:mwendo_app/widgets/glass.dart';
 import 'package:mwendo_app/widgets/metric_tile.dart';
 import 'package:mwendo_app/widgets/mwendo_map.dart';
 import 'package:mwendo_app/design_system/app_permission_card.dart';
@@ -98,14 +98,11 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
         if ((next.distanceM - prevDist).abs() < 1 && (next.elapsedMs - prevElapsed) < 500) {
           return; // Skip update - too frequent
         }
-        final notifier = ref.read(trackingModelProvider.notifier);
-        final routePoints = [
-          for (final p in notifier.points) latlong.LatLng(p.lat, p.lng),
-        ];
         ref.read(ghostRaceControllerProvider.notifier).update(
           userDistanceM: next.distanceM,
           userElapsedMs: next.elapsedMs.toDouble(),
-          routePoints: routePoints,
+          // Shared, incrementally built list (was a full copy per update).
+          routePoints: ref.read(trackingModelProvider.notifier).flatRoute,
         );
 
         GhostComparisonReliability reliability = GhostComparisonReliability.reliable;
@@ -130,17 +127,13 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
                   children: [
                     RepaintBoundary(
                       child: MwendoMap(
-                        // Snapshot the points as LatLng on every rebuild so the
-                        // map never holds a mutable reference that _onPoint
-                        // mutates concurrently (fixes Bug #6).
-                        points: [
-                          for (final seg
-                              in ref
-                                  .read(trackingModelProvider.notifier)
-                                  .displaySegments)
-                            for (final p in seg.points)
-                              latlong.LatLng(p.lat, p.lng),
-                        ],
+                        // Live lists maintained incrementally by the tracking
+                        // controller; the map re-pushes the route only when
+                        // routeRevision changes (no per-rebuild O(n) copies).
+                        // Segments keep pauses as breaks, not straight jumps.
+                        points: ref.read(trackingModelProvider.notifier).flatRoute,
+                        segments: ref.read(trackingModelProvider.notifier).mapSegments,
+                        routeRevision: ref.read(trackingModelProvider.notifier).routeRevision,
                         mode: MapMode.live,
                         locationEnabled: _hasLocationPermission,
                         isRecording: isRecording,
@@ -193,24 +186,18 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
                         top: MediaQuery.of(context).padding.top + AppTheme.s12 + (ghostRace is GhostRaceRacingData ? 72 : 36),
                         left: AppTheme.s16,
                         right: AppTheme.s16,
-                        child: Container(
+                        child: GlassSurface(
+                          blur: 0, // over the live map: skip the backdrop blur (perf)
+                          borderRadius: BorderRadius.circular(AppTheme.r16),
                           padding: const EdgeInsets.all(AppTheme.s12),
-                          decoration: BoxDecoration(
-                            color: cs.surfaceContainerHigh,
-                            borderRadius: BorderRadius.circular(AppTheme.r12),
-                            border: Border.all(color: AppTheme.paused),
-                            boxShadow: [
-                              BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4)),
-                            ],
-                          ),
                           child: Row(
                             children: [
-                              const Icon(Icons.pause_circle_outline, color: AppTheme.paused),
+                              Icon(Icons.pause_circle_filled_rounded, color: context.tokens.paused),
                               const SizedBox(width: AppTheme.s12),
                               Expanded(
                                 child: Text(
-                                  'Auto-paused. Move faster to resume tracking or tap Resume below.',
-                                  style: Theme.of(context).textTheme.bodySmall,
+                                  L10n.tr('run_paused_hint', locale),
+                                  style: Theme.of(context).textTheme.bodyMedium,
                                 ),
                               ),
                             ],
@@ -238,12 +225,12 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
                 ),
                 Container(
                   width: double.infinity,
-                  color: cs.surface,
+                  color: Theme.of(context).scaffoldBackgroundColor,
                   padding: EdgeInsets.fromLTRB(
                     AppTheme.s24,
-                    0,
+                    AppTheme.s8,
                     AppTheme.s24,
-                    MediaQuery.of(context).padding.bottom + AppTheme.s20,
+                    MediaQuery.of(context).padding.bottom + AppTheme.s16,
                   ),
                   child: Center(
                     child: _StartButton(
@@ -262,13 +249,6 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(AppTheme.r24),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 16,
-                          offset: const Offset(0, -4),
-                        ),
-                      ],
                     ),
                     padding: const EdgeInsets.fromLTRB(
                       AppTheme.s24,
@@ -276,102 +256,88 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
                       AppTheme.s24,
                       AppTheme.s16,
                     ),
-                    child: Column(
-children: [
-                         // Drag handle
-                         Container(
-                           width: 36,
-                           height: 4,
-                           decoration: BoxDecoration(
-                             color: cs.onSurface.withValues(alpha: 0.2),
-                             borderRadius: BorderRadius.circular(2),
-                           ),
-                         ),
-                         const SizedBox(height: AppTheme.s16),
-                         // Primary metrics using canonical MetricTile
-                         Row(
-                           children: [
-                             Expanded(
-                               child: MetricTile(
-                                 variant: MetricVariant.hero,
-                                 value: (m.distanceM / 1000).toStringAsFixed(2),
-                                 label: L10n.tr('distance_label', locale),
-                                 valueColor: AppTheme.brand,
-                               ),
-                             ),
-                             const SizedBox(width: AppTheme.s24),
-                             Expanded(
-                               child: MetricTile(
-                                 variant: MetricVariant.hero,
-                                 value: formatPace(m.paceMinPerKm),
-                                 label: L10n.tr('pace', locale),
-                                 valueColor: cs.onSurface,
-                               ),
-                             ),
-                             const SizedBox(width: AppTheme.s24),
-                             Expanded(
-                               child: MetricTile(
-                                 variant: MetricVariant.hero,
-                                 value: formatDuration(m.elapsedMs),
-                                 label: L10n.tr('time_label', locale),
-                                 valueColor: cs.onSurface,
-                               ),
-                             ),
-                           ],
-                         ),
-                         const SizedBox(height: AppTheme.s16),
-// Secondary metrics row
-                         Container(
-                           padding: const EdgeInsets.all(AppTheme.s12),
-                           decoration: BoxDecoration(
-                             color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-                             borderRadius: BorderRadius.circular(AppTheme.r12),
-                           ),
-                           child: Row(
-                             children: [
-                               Expanded(
-                                 child: Row(
-                                   children: [
-                                     Icon(Icons.terrain_rounded, size: 16, color: cs.onSurface.withValues(alpha: 0.7)),
-                                     const SizedBox(width: AppTheme.s8),
-                                     Expanded(
-                                       child: MetricTile(
-                                         variant: MetricVariant.inline,
-                                         value: m.elevationGainM.toStringAsFixed(0),
-                                         label: L10n.tr('elev_label', locale),
-                                         valueColor: cs.onSurface,
-                                         align: TextAlign.end,
-                                       ),
-                                     ),
-                                   ],
-                                 ),
-),
-                                Container(
-                                  width: 1,
-                                  height: 40,
-                                  color: cs.onSurface.withValues(alpha: 0.1),
+                    // One hero number (distance) and three secondary metrics,
+                    // all tabular, readable at arm's length (Apple Workout
+                    // style). Scrolls instead of overflowing at large text.
+                    child: SingleChildScrollView(
+                      physics: const ClampingScrollPhysics(),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: cs.outlineVariant,
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                          const SizedBox(height: AppTheme.s12),
+                          Semantics(
+                            label:
+                                '${L10n.tr('distance_label', locale)} ${(m.distanceM / 1000).toStringAsFixed(2)}',
+                            excludeSemantics: true,
+                            child: Column(
+                              children: [
+                                Text(
+                                  (m.distanceM / 1000).toStringAsFixed(2),
+                                  style: context.tokens.displayMetric
+                                      .copyWith(color: cs.onSurface, height: 1.0),
                                 ),
-                                Expanded(
-                                 child: Row(
-                                   children: [
-                                     Icon(Icons.local_fire_department_rounded, size: 16, color: cs.onSurface.withValues(alpha: 0.7)),
-                                     const SizedBox(width: AppTheme.s8),
-                                     Expanded(
-                                       child: MetricTile(
-                                         variant: MetricVariant.inline,
-                                         value: m.calories.toString(),
-                                         label: L10n.tr('calories_label', locale),
-                                         valueColor: cs.onSurface,
-                                         align: TextAlign.end,
-                                       ),
-                                     ),
-                                   ],
-                                 ),
-                               ),
-                             ],
-                           ),
-                         ),
-                      ],
+                                Text(
+                                  L10n.tr('distance_label', locale),
+                                  style: context.tokens.metricLabel
+                                      .copyWith(color: cs.onSurfaceVariant),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: AppTheme.s16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: MetricTile(
+                                  value: formatDuration(m.elapsedMs),
+                                  label: L10n.tr('time_label', locale),
+                                  align: TextAlign.center,
+                                ),
+                              ),
+                              Expanded(
+                                child: MetricTile(
+                                  value: formatPace(m.paceMinPerKm),
+                                  label: L10n.tr('pace', locale),
+                                  align: TextAlign.center,
+                                ),
+                              ),
+                              Expanded(
+                                child: MetricTile(
+                                  value: m.calories.toString(),
+                                  label: L10n.tr('calories_label', locale),
+                                  align: TextAlign.center,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppTheme.s12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.terrain_rounded,
+                                  size: 16, color: cs.onSurfaceVariant),
+                              const SizedBox(width: AppTheme.s6),
+                              Text(
+                                '${m.elevationGainM.toStringAsFixed(0)} m · ${L10n.tr('elev_label', locale)}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(color: cs.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                          // Room for the floating control bar + tab bar, so no
+                          // metric ever sits underneath them.
+                          SizedBox(height: MediaQuery.paddingOf(context).bottom + 96),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -395,7 +361,10 @@ children: [
           // handle the recording/paused control bar.
           else if (!isIdle)
             Positioned(
-              bottom: MediaQuery.of(context).padding.bottom + 72 + AppTheme.s16,
+              // paddingOf(...).bottom already includes the floating tab bar
+              // (the shell uses extendBody); adding the bar's height again
+              // pushed the controls up over the metrics.
+              bottom: MediaQuery.paddingOf(context).bottom + AppTheme.s8,
               left: 0,
               right: 0,
               child: _ControlBar(
@@ -452,6 +421,7 @@ children: [
       if (!bgStatus.isGranted) {
         final shouldGoToSettings = await showModalBottomSheet<bool>(
           context: context,
+          showDragHandle: false,
           isDismissible: false,
           enableDrag: false,
           isScrollControlled: true,
@@ -562,7 +532,7 @@ children: [
     }
 
     var record = notifier.buildRunRecord('Run');
-    final draft = await notifier.stop();
+    await notifier.stop();
     // Invalidate repository to force all dependent providers to re-read
     ref.invalidate(activityRepositoryProvider);
     ref.invalidate(activitiesProvider);
@@ -650,10 +620,8 @@ children: [
     }
 
     if (mounted) {
-      // Map Match Job
-      if (draft != null) {
-        ref.read(mapMatchJobProvider).processSession(draft);
-      }
+      // Post-run OSRM road snapping intentionally not run (see
+      // TrackingModel.stop): it uploaded the trace to a car-only demo server.
 
       // Navigate to results
       if (ghost != null && ghostRaceState is GhostRaceRacingData) {
@@ -689,7 +657,8 @@ children: [
   }
 }
 
-/// Professional start button for idle state - large, gradient, with icon
+//// Start control for the idle state: one solid tint circle with a label
+/// underneath (Apple Workout style). No gradient or glow.
 class _StartButton extends ConsumerWidget {
   final VoidCallback onStart;
   const _StartButton({required this.onStart});
@@ -697,29 +666,31 @@ class _StartButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
+    final cs = Theme.of(context).colorScheme;
     return Semantics(
       button: true,
       label: L10n.tr('start_run_control', locale),
+      excludeSemantics: true,
       child: _AnimatedBounceButton(
         onTap: onStart,
+        // Full-width capsule, like the Start button in Apple's Workout app.
         child: Container(
-          width: 80,
-          height: 80,
+          width: double.infinity,
+          height: 56,
           decoration: BoxDecoration(
-            gradient: AppTheme.brandGradient,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.brand.withValues(alpha: 0.4),
-                blurRadius: 24,
-                spreadRadius: 4,
+            color: cs.primary,
+            borderRadius: BorderRadius.circular(AppTheme.rFull),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(CupertinoIcons.play_fill, size: 20, color: Colors.white),
+              const SizedBox(width: AppTheme.s10),
+              Text(
+                L10n.tr('start_run', locale),
+                style: AppTheme.bodyFont(size: 18, weight: FontWeight.w700, color: Colors.white),
               ),
             ],
-          ),
-          child: const Icon(
-            Icons.play_arrow_rounded,
-            size: 44,
-            color: Colors.white,
           ),
         ),
       ),
@@ -727,7 +698,8 @@ class _StartButton extends ConsumerWidget {
   }
 }
 
-/// Professional control bar for recording/paused state
+/// Glass control bar for recording/paused: Stop (press and hold) · Pause/
+/// Resume (big, centre) · a balancing spacer.
 class _ControlBar extends ConsumerWidget {
   final bool isRecording;
   final VoidCallback onPause;
@@ -743,76 +715,167 @@ class _ControlBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cs = Theme.of(context).colorScheme;
     final locale = ref.watch(localeProvider);
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppTheme.s32),
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.s20, vertical: AppTheme.s12),
-      decoration: BoxDecoration(
-        color: cs.surface,
+    final tokens = context.tokens;
+    final cs = Theme.of(context).colorScheme;
+    return Center(
+      child: GlassSurface(
+        blur: 0, // over the live map: skip the backdrop blur (perf)
         borderRadius: BorderRadius.circular(AppTheme.rFull),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          // Stop button
-          Semantics(
-            button: true,
-            label: L10n.tr('stop_run', locale),
-            child: _AnimatedBounceButton(
-              onTap: onStop,
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  color: AppTheme.sos,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.stop_rounded, color: Colors.white, size: 24),
-              ),
+        padding: const EdgeInsets.symmetric(horizontal: AppTheme.s20, vertical: AppTheme.s10),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _HoldToStopButton(
+              onStop: onStop,
+              label: L10n.tr('stop_run', locale),
+              hint: L10n.tr('hold_to_stop', locale),
             ),
-          ),
-          // Main play/pause button
-          Semantics(
-            button: true,
-            label: isRecording ? L10n.tr('pause_run', locale) : L10n.tr('resume_run', locale),
-            child: _AnimatedBounceButton(
-              onTap: isRecording ? onPause : onResume,
-              child: Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  gradient: AppTheme.brandGradient,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.brand.withValues(alpha: 0.3),
-                      blurRadius: 16,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  isRecording ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  size: 36,
-                  color: Colors.white,
+            const SizedBox(width: AppTheme.s24),
+            Semantics(
+              button: true,
+              label: isRecording ? L10n.tr('pause_run', locale) : L10n.tr('resume_run', locale),
+              excludeSemantics: true,
+              child: _AnimatedBounceButton(
+                onTap: isRecording ? onPause : onResume,
+                child: AnimatedContainer(
+                  duration: AppTheme.motion(context, AppTheme.dMed),
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: isRecording ? tokens.paused : cs.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isRecording ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    size: 40,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
-          ),
-          // Spacer for symmetry (placeholder for future lap button)
-          const SizedBox(width: 48),
-        ],
+            const SizedBox(width: AppTheme.s24),
+            // Balances the Stop button so Pause sits dead centre.
+            const SizedBox(width: 56, height: 56),
+          ],
+        ),
       ),
     );
   }
+}
+
+/// Stop requires a ~0.8 s press-and-hold with a filling ring — a bumped
+/// pocket or a sweaty tap can no longer end a run (there was no confirmation
+/// before). Screen-reader users get a normal activate action.
+class _HoldToStopButton extends StatefulWidget {
+  final VoidCallback onStop;
+  final String label;
+  final String hint;
+  const _HoldToStopButton({required this.onStop, required this.label, required this.hint});
+
+  @override
+  State<_HoldToStopButton> createState() => _HoldToStopButtonState();
+}
+
+class _HoldToStopButtonState extends State<_HoldToStopButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _hold = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 800),
+  )..addStatusListener((s) {
+      if (s == AnimationStatus.completed) {
+        _hold.reset();
+        widget.onStop();
+      }
+    });
+
+  @override
+  void dispose() {
+    _hold.dispose();
+    super.dispose();
+  }
+
+  void _begin() {
+    Haptics.light();
+    _hold.forward();
+  }
+
+  void _cancel() {
+    if (_hold.status != AnimationStatus.completed) _hold.reverse();
+  }
+
+  void _showHint() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(widget.hint),
+        duration: const Duration(seconds: 2),
+      ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final red = context.tokens.recording;
+    return Semantics(
+      button: true,
+      label: widget.label,
+      hint: widget.hint,
+      onTap: widget.onStop,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTapDown: (_) => _begin(),
+        onTapUp: (_) {
+          final early = _hold.value < 1;
+          _cancel();
+          if (early) _showHint();
+        },
+        onTapCancel: _cancel,
+        child: SizedBox(
+          width: 56,
+          height: 56,
+          child: AnimatedBuilder(
+            animation: _hold,
+            builder: (context, _) => Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox.expand(
+                  child: CircularProgressIndicator(
+                    value: _hold.value,
+                    strokeWidth: 3,
+                    color: red,
+                    backgroundColor: red.withValues(alpha: 0.18),
+                  ),
+                ),
+                Transform.scale(
+                  scale: 1 - _hold.value * 0.08,
+                  child: Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(color: red, shape: BoxShape.circle),
+                    child: const Icon(Icons.stop_rounded, color: Colors.white, size: 24),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Glass capsule used for all status chips floating over the map.
+class _MapChip extends StatelessWidget {
+  final Widget child;
+  const _MapChip({required this.child});
+
+  @override
+  Widget build(BuildContext context) => GlassSurface(
+    blur: 0, // over the live map: skip the backdrop blur (perf)
+        borderRadius: BorderRadius.circular(AppTheme.rFull),
+        padding: const EdgeInsets.symmetric(horizontal: AppTheme.s12, vertical: AppTheme.s8),
+        child: child,
+      );
 }
 
 class _StatusPill extends ConsumerWidget {
@@ -823,58 +886,55 @@ class _StatusPill extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
+    final tokens = context.tokens;
     final map = {
-      AppEngineState.idle: (L10n.tr('ready', locale), AppTheme.idle),
-      AppEngineState.recording: (L10n.tr('recording', locale), AppTheme.recording),
-      AppEngineState.paused: (L10n.tr('paused', locale), AppTheme.paused),
-      AppEngineState.recovering: (L10n.tr('gps_searching', locale), AppTheme.paused),
+      AppEngineState.idle: (L10n.tr('ready', locale), tokens.idle),
+      AppEngineState.recording: (L10n.tr('recording', locale), tokens.recording),
+      AppEngineState.paused: (L10n.tr('paused', locale), tokens.paused),
+      AppEngineState.recovering: (L10n.tr('gps_searching', locale), tokens.paused),
     };
-    
-    var (label, color) = map[state] ?? (L10n.tr('unknown', locale), AppTheme.idle);
-    
-    // Override color and label based on accuracy if recording
+
+    var (label, color) = map[state] ?? (L10n.tr('unknown', locale), tokens.idle);
+
+    // GPS quality while recording: green-ish red dot = good, orange = poor.
     if (state == AppEngineState.recording) {
       if (accuracy <= 10.0) {
-        color = AppTheme.recording;
+        color = tokens.recording;
       } else if (accuracy <= 30.0) {
-        color = AppTheme.warning; // Red Earth amber (was hardcoded Colors.orange)
+        color = tokens.warning;
         label = L10n.tr('gps_poor', locale);
       } else {
-        color = AppTheme.paused;
+        color = tokens.paused;
         label = L10n.tr('gps_searching', locale);
       }
     }
 
-    final live = state == AppEngineState.recording && accuracy <= 30.0;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.s12, vertical: AppTheme.s6),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(AppTheme.rFull),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              boxShadow: live
-                  ? [BoxShadow(color: color, blurRadius: 8, spreadRadius: 2)]
-                  : null,
+    final text = Theme.of(context).textTheme;
+    return Semantics(
+      liveRegion: true,
+      child: _MapChip(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             ),
-          ),
-          const SizedBox(width: AppTheme.s8),
-          Text(
-            accuracy > 0 && accuracy < 100 ? '$label (${accuracy.toStringAsFixed(0)}m)' : label,
-            style: Theme.of(context).textTheme.labelMedium!.copyWith(
-                  color: Colors.white,
-                  letterSpacing: 0.4,
+            const SizedBox(width: AppTheme.s8),
+            Text(label, style: text.labelMedium),
+            if (accuracy > 0 && accuracy < 100) ...[
+              const SizedBox(width: AppTheme.s6),
+              Text(
+                '±${accuracy.toStringAsFixed(0)} m',
+                style: text.labelMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
                 ),
-          ),
-        ],
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -893,27 +953,26 @@ class _GhostChip extends ConsumerWidget {
         ? (m.elapsedMs / 60000) / (m.distanceM / 1000)
         : 0.0;
     final ahead = deltaSeconds < 0 && userAvg > 0;
-    final color = ahead ? AppTheme.recording : AppTheme.idle;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.s10, vertical: AppTheme.s6),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(AppTheme.rFull),
-      ),
+    // One consistent ahead/behind pair across the app: green / orange.
+    final color = ahead ? context.tokens.flagGreen : context.tokens.warning;
+    final text = Theme.of(context).textTheme;
+    return _MapChip(
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.blur_on_rounded, color: Colors.white, size: 14),
-          const SizedBox(width: AppTheme.s6),
-           Text(
-            '${L10n.tr('ghost_label', locale)} ${formatPace(ghost.avgPaceMinPerKm)} · you ${userAvg > 0 ? formatPace(userAvg) : "--:--"}',
-            style: Theme.of(context).textTheme.labelSmall!.copyWith(color: Colors.white, fontFeatures: const [FontFeature.tabularFigures()]),
-          ),
+          Icon(Icons.blur_on_rounded, color: Theme.of(context).colorScheme.onSurface, size: 16),
           const SizedBox(width: AppTheme.s6),
           Text(
-            userAvg > 0 ? '${ahead ? "" : "+"}${formatSeconds(deltaSeconds.abs())}' : '',
-            style: Theme.of(context).textTheme.labelSmall!.copyWith(color: color, fontFeatures: const [FontFeature.tabularFigures()]),
+            '${L10n.tr('ghost_label', locale)} ${formatPace(ghost.avgPaceMinPerKm)} · you ${userAvg > 0 ? formatPace(userAvg) : "--:--"}',
+            style: text.labelMedium,
           ),
+          if (userAvg > 0) ...[
+            const SizedBox(width: AppTheme.s6),
+            Text(
+              '${ahead ? "−" : "+"}${formatSeconds(deltaSeconds.abs())}',
+              style: text.labelMedium?.copyWith(color: color, fontWeight: FontWeight.w700),
+            ),
+          ],
         ],
       ),
     );
@@ -928,20 +987,15 @@ class _GhostChipArmed extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.s10, vertical: AppTheme.s6),
-      decoration: BoxDecoration(
-        color: tier.color.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(AppTheme.rFull),
-      ),
+    return _MapChip(
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(tier.badge, style: const TextStyle(fontSize: 12)),
-          const SizedBox(width: AppTheme.s4),
+          Text(tier.badge, style: const TextStyle(fontSize: 13)),
+          const SizedBox(width: AppTheme.s6),
           Text(
             '${L10n.tr('ghost_label', locale)} ${tier.label} · ${L10n.tr('ready_to_race', locale)}',
-            style: Theme.of(context).textTheme.labelSmall!.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(color: tier.color),
           ),
         ],
       ),
@@ -955,18 +1009,29 @@ class _SosButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
+    final red = context.tokens.sos;
+    // Clearly labelled and kept at the top of the screen, far from Stop.
     return Semantics(
       button: true,
       label: L10n.tr('sos_button', locale),
-      child: Material(
-        color: Colors.black.withValues(alpha: 0.45),
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: () => _confirmSos(context, ref),
-          child: const Padding(
-            padding: EdgeInsets.all(14),
-            child: Icon(Icons.shield_outlined, color: Colors.white, size: 22),
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: () => _confirmSos(context, ref),
+        child: GlassSurface(
+          blur: 0, // over the live map: skip the backdrop blur (perf)
+          borderRadius: BorderRadius.circular(AppTheme.rFull),
+          padding: const EdgeInsets.symmetric(horizontal: AppTheme.s14, vertical: AppTheme.s10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.shield_rounded, color: red, size: 20),
+              const SizedBox(width: AppTheme.s6),
+              Text('SOS',
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelLarge
+                      ?.copyWith(color: red, fontWeight: FontWeight.w700)),
+            ],
           ),
         ),
       ),
@@ -979,9 +1044,9 @@ class _SosButton extends ConsumerWidget {
     final surface = Theme.of(context).dialogTheme.backgroundColor ?? cs.surface;
     final contacts = ref.read(safetyContactsProvider);
     if (contacts.isEmpty) {
-      showDialog(
+      showAdaptiveDialog(
         context: context,
-        builder: (dlg) => AlertDialog(
+        builder: (dlg) => AlertDialog.adaptive(
           backgroundColor: surface,
           title: Text(L10n.tr('no_emergency_contacts', locale),
               style: TextStyle(color: cs.onSurface)),
@@ -1041,9 +1106,9 @@ class _SosButton extends ConsumerWidget {
     final contacts = ref.read(safetyContactsProvider);
 
     if (result == SosResult.opened) {
-      showDialog(
+      showAdaptiveDialog(
         context: context,
-        builder: (dlg) => AlertDialog(
+        builder: (dlg) => AlertDialog.adaptive(
           backgroundColor: surface,
           title: Text(L10n.tr('message_ready_title', locale), style: TextStyle(color: cs.onSurface)),
           content: Text(L10n.tr('sos_opened_body', locale), style: TextStyle(color: cs.onSurfaceVariant)),
@@ -1059,9 +1124,9 @@ class _SosButton extends ConsumerWidget {
     }
 
     final firstContact = contacts.isNotEmpty ? contacts.first : null;
-    showDialog(
+    showAdaptiveDialog(
       context: context,
-      builder: (dlg) => AlertDialog(
+      builder: (dlg) => AlertDialog.adaptive(
         backgroundColor: surface,
         title: Text(L10n.tr('sos_failed_title', locale), style: TextStyle(color: cs.onSurface)),
         content: Text(

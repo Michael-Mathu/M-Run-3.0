@@ -106,6 +106,70 @@ class SessionDraftRepository {
     });
   }
 
+  /// Incremental crash-recovery journal: upserts the draft header and appends
+  /// [newFixes] at sequence numbers starting at [startSeq] (earlier fixes are
+  /// already on disk). Recovery re-derives everything from the raw fixes, so no filtered
+  /// results are written here — that keeps each periodic write O(new points)
+  /// instead of re-filtering and rewriting the whole run every 10 points.
+  ///
+  /// Do not mix with [saveDraft] for the same draft mid-run: [saveDraft]
+  /// stores filtered rows after the raw ones and would collide with later
+  /// appended sequence numbers. (Stop uses [saveDraft] once, after the last
+  /// journal write.)
+  Future<void> journalDraft({
+    required String id,
+    required List<RawFix> newFixes,
+    required int startSeq,
+    required TrackVersion filterVersion,
+    required double distanceM,
+    required int durationMs,
+    required int movingTimeMs,
+    required double elevationGainM,
+    required int calories,
+    required ActivityProfile activityType,
+    required DateTime createdAt,
+  }) async {
+    await _db.transaction(() async {
+      await _db.into(_db.sessionDrafts).insertOnConflictUpdate(SessionDraftsCompanion(
+        id: Value(id),
+        status: Value(PostProcessingStatus.pending.name),
+        filterVersion: Value(filterVersion.id),
+        distanceM: Value(distanceM),
+        durationMs: Value(durationMs),
+        movingTimeMs: Value(movingTimeMs),
+        elevationGainM: Value(elevationGainM),
+        calories: Value(calories),
+        createdAt: Value(createdAt),
+        activityType: Value(activityType.name),
+        schemaVersion: const Value(4),
+      ));
+      if (newFixes.isEmpty) return;
+      final rows = <SessionPointsCompanion>[
+        for (var j = 0; j < newFixes.length; j++)
+          SessionPointsCompanion(
+            draftId: Value(id),
+            seq: Value(startSeq + j),
+            kind: const Value('raw'),
+            lat: Value(newFixes[j].lat),
+            lng: Value(newFixes[j].lng),
+            elevation: Value(newFixes[j].elevation),
+            timestamp: Value(newFixes[j].timestamp),
+            accuracy: Value(newFixes[j].accuracy.toInt()),
+            hdop: Value(newFixes[j].hdop),
+            speedMps: Value(newFixes[j].speedMps),
+            heartRate: Value(newFixes[j].heartRate),
+            cadence: Value(newFixes[j].cadence),
+            satelliteCount: Value(newFixes[j].satelliteCount),
+            provider: Value(newFixes[j].provider),
+            isMocked: Value(newFixes[j].isMocked),
+            fixType: Value(newFixes[j].fixType),
+          ),
+      ];
+      // insertOrReplace makes a retried write (same seq) idempotent.
+      await _db.batch((b) => b.insertAll(_db.sessionPoints, rows, mode: InsertMode.insertOrReplace));
+    });
+  }
+
   /// The most recent draft still awaiting finalization, if any — i.e. a run
   /// interrupted by a crash/kill before `stop()` could delete it.
   Future<RecoverableDraft?> getRecoverable() async {

@@ -12,7 +12,10 @@ import 'package:mwendo_app/data/models/run_record.dart';
 import 'package:mwendo_app/data/repositories/activity_repository.dart';
 import 'package:mwendo_app/features/learn/data/courses.dart';
 import 'package:mwendo_app/features/learn/data/legend_of_day.dart';
+import 'package:mwendo_app/widgets/app_button.dart';
+import 'package:mwendo_app/widgets/app_card.dart';
 import 'package:mwendo_app/widgets/metric_tile.dart';
+import 'package:mwendo_app/widgets/route_thumbnail.dart';
 import 'package:mwendo_app/widgets/section_title.dart';
 import 'package:mwendo_app/widgets/skeleton.dart';
 import 'package:mwendo_app/widgets/trailing_chevron.dart';
@@ -66,7 +69,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
     return Scaffold(
       body: SafeArea(
-        child: RefreshIndicator(
+        child: RefreshIndicator.adaptive(
           onRefresh: () async {
             ref.invalidate(activitiesProvider);
             ref.invalidate(gamificationProvider);
@@ -80,19 +83,17 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             // Previously the ~540px Legend-of-the-Day card sat third from the
             // top and pushed every actual feature below the fold.
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(AppTheme.s24, AppTheme.s16, AppTheme.s24, 0),
+              padding: const EdgeInsets.fromLTRB(AppTheme.s20, AppTheme.s12, AppTheme.s20, 0),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   _TopBar(g: g, locale: locale),
                   const SizedBox(height: AppTheme.s20),
                   _WeeklyCard(g: g, recent: recent, locale: locale),
-                  const SizedBox(height: AppTheme.s16),
-                  _StartRunButton(),
                   // NOTE: the old _FirstRunHint sat here. It was a third
                   // "go for a run" CTA on one screen -- directly under the
                   // primary button, and above the empty-activity state which
                   // carries its own walk-run button. Removed as redundant.
-                  const SizedBox(height: AppTheme.s16),
+                  const SizedBox(height: AppTheme.s24),
                   SectionTitle(L10n.tr('recent_activity', locale),
                       actionLabel: L10n.tr('see_all', locale),
                       onAction: () => context.go('/activity')),
@@ -112,18 +113,24 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                             text: text, cs: cs, locale: locale, onCourse: () => context.go('/learn/course/how-to-start-running')),
                       ),
                       data: (runs) => KeyedSubtree(
-                        key: ValueKey('recent-data-\${runs.length}'),
+                        key: ValueKey('recent-data-${runs.length}'),
                         child: runs.isEmpty
                             ? _EmptyActivity(
                                 text: text, cs: cs, locale: locale, onCourse: () => context.go('/learn/course/how-to-start-running'))
-                            : Column(
-                                children: [
-                                  for (final r in runs.take(3))
-                                    Padding(
-                                      padding: const EdgeInsets.only(bottom: AppTheme.s8),
-                                      child: _RecentRunTile(r: r),
-                                    ),
-                                ],
+                            : ClipRRect(
+                                borderRadius: BorderRadius.circular(AppTheme.r16),
+                                child: ColoredBox(
+                                  color: cs.surface,
+                                  child: Column(
+                                    children: [
+                                      for (final (i, r) in runs.take(3).indexed) ...[
+                                        if (i > 0)
+                                          Divider(indent: 80, height: 0.5, color: cs.outlineVariant),
+                                        _RecentRunTile(r: r),
+                                      ],
+                                    ],
+                                  ),
+                                ),
                               ),
                       ),
                     ),
@@ -136,7 +143,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: AppTheme.s24),
+              padding: const EdgeInsets.symmetric(horizontal: AppTheme.s20),
               sliver: SliverList.separated(
                 separatorBuilder: (_, index) => const SizedBox(height: AppTheme.s8),
                 itemCount: active.isEmpty ? 1 : active.length,
@@ -149,7 +156,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(AppTheme.s24, AppTheme.s16, AppTheme.s24, AppTheme.s24),
+              padding: const EdgeInsets.fromLTRB(AppTheme.s20, AppTheme.s16, AppTheme.s20, AppTheme.s24),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   SectionTitle(L10n.tr('continue_learning', locale),
@@ -204,11 +211,16 @@ class _TopBar extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                formatDate(DateTime.now()).toUpperCase(),
-                style: AppTheme.monoFont(size: 11, weight: FontWeight.w600, spacing: 1.1, color: AppTheme.brand),
+                formatDate(DateTime.now()),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: AppTheme.s2),
-              Text(L10n.tr(_greetingKey(), locale), style: AppTheme.displayFont(size: 28, color: cs.onSurface)),
+              Semantics(
+                header: true,
+                child: Text(L10n.tr(_greetingKey(), locale),
+                    style: Theme.of(context).textTheme.headlineLarge),
+              ),
             ],
           ),
         ),
@@ -273,14 +285,18 @@ class _WeeklyCard extends StatelessWidget {
     // number, with the three secondary stats below it as plain metric
     // tiles instead of white-on-gradient chips.
     final cs = Theme.of(context).colorScheme;
-    return Column(
+    // The one hero on Home: this week's distance, big, with three supporting
+    // numbers and the Start button inside the same card.
+    return AppCard(
+      padding: const EdgeInsets.all(AppTheme.s20),
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(L10n.tr('this_week', locale).toUpperCase(),
-            style: AppTheme.monoFont(size: 11, weight: FontWeight.w600, spacing: 1.1, color: AppTheme.brand)),
+        Text(L10n.tr('this_week', locale),
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(color: cs.primary)),
         const SizedBox(height: AppTheme.s4),
         Text(formatDistance(wDist), style: AppTheme.displayFont(size: 52, color: cs.onSurface)),
-        const SizedBox(height: AppTheme.s20),
+        const SizedBox(height: AppTheme.s16),
         Row(
           children: [
             Expanded(
@@ -306,9 +322,10 @@ class _WeeklyCard extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: AppTheme.s8),
-        Divider(height: 1, thickness: 1, color: cs.outlineVariant.withValues(alpha: 0.4)),
+        const SizedBox(height: AppTheme.s20),
+        _StartRunButton(),
       ],
+      ),
     );
   }
 }
@@ -316,19 +333,15 @@ class _WeeklyCard extends StatelessWidget {
 class _StartRunButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final text = Theme.of(context).textTheme;
-    return FilledButton.icon(
-      onPressed: () {
-        Haptics.light();
-        context.go('/run');
-      },
-      icon: const Icon(Icons.play_arrow_rounded, size: 24),
-      label: Text(L10n.tr('start_run', ref.watch(localeProvider))),
-      style: FilledButton.styleFrom(
-        backgroundColor: AppTheme.brand,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: AppTheme.s16),
-        textStyle: text.labelLarge!.copyWith(fontSize: 16),
+    return SizedBox(
+      width: double.infinity,
+      child: AppButton.primary(
+        icon: Icons.play_arrow_rounded,
+        onPressed: () {
+          Haptics.light();
+          context.go('/run');
+        },
+        child: Text(L10n.tr('start_run', ref.watch(localeProvider))),
       ),
     );
   }
@@ -353,7 +366,6 @@ class _DashboardChallengeCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.surface,
         borderRadius: BorderRadius.circular(AppTheme.r16),
-        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppTheme.r16),
@@ -399,7 +411,7 @@ class _DashboardChallengeCard extends StatelessWidget {
                 ),
                 const SizedBox(width: AppTheme.s12),
                 Text('+${ch.xp} XP',
-                    style: AppTheme.monoFont(size: 11, weight: FontWeight.w600, color: accent)),
+                    style: AppTheme.monoFont(size: 13, weight: FontWeight.w600, color: cs.onSurfaceVariant)),
               ],
             ),
           ),
@@ -424,7 +436,6 @@ class _AllDoneCard extends ConsumerWidget {
       decoration: BoxDecoration(
         color: cs.surface,
         borderRadius: BorderRadius.circular(AppTheme.r16),
-        border: Border.all(color: AppTheme.dawn.withValues(alpha: 0.4)),
       ),
       child: Material(
         color: Colors.transparent,
@@ -538,41 +549,32 @@ class _RecentRunTile extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
     final meta = _runTypeMeta(r.type);
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(AppTheme.r16),
-        boxShadow: [BoxShadow(color: meta.color.withValues(alpha: 0.08), blurRadius: 6, offset: const Offset(0, 1))],
-      ),
-      child: Material(
+    return Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppTheme.r16),
         child: InkWell(
-          borderRadius: BorderRadius.circular(AppTheme.r16),
           onTap: () => context.go('/activity/${r.id}'),
           child: Padding(
-            padding: const EdgeInsets.all(AppTheme.s16),
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.s16, vertical: AppTheme.s12),
             child: Row(
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: meta.color.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(AppTheme.r12),
-                  ),
-                  child: Icon(meta.icon, color: meta.color),
+                RouteThumbnail(
+                  segments: r.routeSegments,
+                  color: meta.color,
+                  fallbackIcon: meta.icon,
                 ),
                 const SizedBox(width: AppTheme.s16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(r.type, style: text.titleMedium),
+                      Text(formatDistance(r.distanceM),
+                          style: text.titleMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
                       const SizedBox(height: AppTheme.s2),
                       Text(
-                        '${formatDistance(r.distanceM)} · ${formatDuration(r.durationMs)}',
-                        style: text.bodySmall!.copyWith(color: cs.onSurface.withValues(alpha: 0.6)),
+                        '${r.type} · ${formatDuration(r.durationMs)} · ${formatDate(r.startedAt)}',
+                        style: text.bodySmall!.copyWith(color: cs.onSurfaceVariant),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -582,7 +584,6 @@ class _RecentRunTile extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 }
@@ -607,9 +608,8 @@ class _EmptyActivity extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: AppTheme.s20, vertical: AppTheme.s20),
           decoration: BoxDecoration(
-            color: AppTheme.success.withValues(alpha: 0.06),
+            color: cs.surface,
             borderRadius: BorderRadius.circular(AppTheme.r16),
-            border: Border.all(color: AppTheme.success.withValues(alpha: 0.18)),
           ),
           child: Column(
             children: [
@@ -636,13 +636,13 @@ class _EmptyActivity extends StatelessWidget {
             },
             child: Container(
               decoration: BoxDecoration(
+                color: cs.surface,
                 borderRadius: BorderRadius.circular(AppTheme.r16),
-                border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
               ),
               padding: const EdgeInsets.all(AppTheme.s16),
               child: Row(
                 children: [
-                  Icon(Icons.school_rounded, color: AppTheme.brand, size: 24),
+                  Icon(Icons.school_rounded, color: cs.primary, size: 24),
                   const SizedBox(width: AppTheme.s12),
                   Expanded(
                     child: Column(
@@ -681,10 +681,23 @@ class _RunIllustration extends StatefulWidget {
 
 class _RunIllustrationState extends State<_RunIllustration>
     with SingleTickerProviderStateMixin {
+  // Plays three gentle bobs on arrival, then rests. (It used to loop forever,
+  // which kept the whole Home screen — and the tab bar's glass blur —
+  // re-rendering 60 times a second while you just looked at it.)
   late final AnimationController _ctrl = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1100),
-  )..repeat(reverse: true);
+  );
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    if (MediaQuery.maybeDisableAnimationsOf(context) == true) return;
+    _ctrl.repeat(reverse: true, count: 6);
+  }
   late final Animation<double> _bob =
       Tween<double>(begin: -4, end: 4).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   late final Animation<double> _ring =

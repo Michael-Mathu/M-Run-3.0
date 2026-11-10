@@ -1,7 +1,7 @@
 name: mwendo_app
 description: "Mwendo running tracker"
 publish_to: 'none'
-version: 1.0.1+2
+version: 1.1.0+3
 
 environment:
   sdk: ^3.12.2
@@ -24,7 +24,6 @@ dependencies:
   url_launcher: ^6.2.5
   share_plus: ^13.2.0
   xml: ^7.0.1
-  google_fonts: ^6.2.1
   shimmer: ^3.0.0
   confetti: ^0.8.0
   shared_preferences: ^2.3.2
@@ -35,6 +34,7 @@ dependencies:
   gps_pipeline:
     path: ../packages/gps_pipeline
   latlong2: ^0.10.1
+  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:
@@ -53,3 +53,29 @@ flutter:
   uses-material-design: true
   assets:
     - assets/logo.jpeg
+    # Legend portraits: Wikimedia Commons, free licences; credits in
+    # lib/features/legends/legend_photos.dart (shown in-app).
+    - assets/legends/
+  # Inter (SIL Open Font License, assets/fonts/Inter-LICENSE.txt) stands in
+  # for Apple's San Francisco on Android; iOS keeps the real system font.
+  # "InterDisplay" is the optical-size cut for large titles (like SF Display).
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+    - family: InterDisplay
+      fonts:
+        - asset: assets/fonts/InterDisplay-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/InterDisplay-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/InterDisplay-ExtraBold.ttf
+          weight: 800

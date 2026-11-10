@@ -8,7 +8,7 @@ import 'package:mwendo_app/data/models/session_draft.dart';
 import 'package:mwendo_app/data/repositories/session_draft_repository.dart';
 import 'package:mwendo_gps_engine/mwendo_gps_engine.dart';
 import 'package:gps_pipeline/gps_pipeline.dart';
-import 'package:mwendo_app/features/tracking/map_match_job.dart';
+import 'package:latlong2/latlong.dart' as ll;
 enum AppEngineState { idle, recording, paused, recovering }
 
 class DisplaySegment {
@@ -91,6 +91,25 @@ class TrackingModel extends Notifier<TrackingState> {
   late GpsPipeline _pipeline;
   
   double _elevationGain = 0;
+
+  /// Elevation hysteresis anchor. GPS altitude wobbles by several metres
+  /// fix-to-fix; summing every positive delta inflated "elevation gain" on
+  /// flat runs. Only a climb of more than [_elevThresholdM] above the anchor
+  /// counts (the same idea Strava/Garmin use).
+  double? _elevAnchor;
+  static const double _elevThresholdM = 3.0;
+
+  void _trackElevation(double e) {
+    final anchor = _elevAnchor;
+    if (anchor == null) {
+      _elevAnchor = e;
+    } else if (e > anchor + _elevThresholdM) {
+      _elevationGain += e - anchor;
+      _elevAnchor = e;
+    } else if (e < anchor - _elevThresholdM) {
+      _elevAnchor = e;
+    }
+  }
   Timer? _ticker;
   DateTime? _runStart;
   int _accumulatedMs = 0;
@@ -119,6 +138,23 @@ class TrackingModel extends Notifier<TrackingState> {
 
   /// Smoothed, gap-aware segments for the live map polyline.
   List<DisplaySegment> get displaySegments => _displaySegments;
+
+  // Map-ready copies of the display track, maintained incrementally (one
+  // LatLng per accepted point) so the Run screen doesn't rebuild the whole
+  // route as fresh lists on every 1 Hz rebuild. [routeRevision] bumps on every
+  // change; the map uses it to decide when to push the route.
+  final List<List<ll.LatLng>> _mapSegments = [];
+  final List<ll.LatLng> _flatRoute = [];
+  int _routeRevision = 0;
+  List<List<ll.LatLng>> get mapSegments => _mapSegments;
+  List<ll.LatLng> get flatRoute => _flatRoute;
+  int get routeRevision => _routeRevision;
+
+  void _clearMapRoute() {
+    _mapSegments.clear();
+    _flatRoute.clear();
+    _routeRevision++;
+  }
 
   @override
   TrackingState build() {
@@ -170,28 +206,46 @@ class TrackingModel extends Notifier<TrackingState> {
 
   String? _draftId;
 
-  Future<void> _writeRecovery() async {
+  /// Raw fixes already journaled to disk for the current draft.
+  int _journaledCount = 0;
+
+  /// Serializes journal writes so they never overlap or skip points.
+  Future<void> _journalChain = Future.value();
+
+  /// Crash-recovery snapshot. Appends only the raw fixes recorded since the
+  /// previous write (recovery re-derives everything else from them). The old
+  /// version re-filtered the entire run and rewrote every row each time —
+  /// O(n) work per write, O(n²) per run, on the UI isolate — which made long
+  /// runs progressively laggier.
+  Future<void> _writeRecovery() {
+    final next = _journalChain.then((_) => _journalNow());
+    _journalChain = next.catchError((Object _) {});
+    return next;
+  }
+
+  Future<void> _journalNow() async {
+    final id = _draftId;
+    if (id == null) return;
+    if (_journaledCount > _rawFixes.length) _journaledCount = 0; // list was reset
+    final from = _journaledCount;
+    final upTo = _rawFixes.length;
     try {
-      if (_draftId == null) return;
-      final filtered = _pipeline.reprocess(_rawFixes);
-      final draft = SessionDraft(
-        id: _draftId!,
-        rawFixes: _rawFixes.toList(growable: false),
-        filteredResults: filtered,
-        filterVersion: _pipeline.trackVersion,
-        filteredDistanceM: state.distanceM,
-        durationMs: state.elapsedMs,
-        movingTimeMs: state.movingTimeMs,
-        elevationGainM: _elevationGain,
-        calories: state.calories,
-        status: PostProcessingStatus.pending,
-        qualityReport: SessionQualityReport.compute(filtered),
-        activityType: state.profile,
-        createdAt: _rawFixes.isNotEmpty ? _rawFixes.first.timestamp : DateTime.now(),
-      );
-      await ref.read(sessionDraftRepositoryProvider).saveDraft(draft);
+      await ref.read(sessionDraftRepositoryProvider).journalDraft(
+            id: id,
+            newFixes: _rawFixes.sublist(from, upTo),
+            startSeq: from,
+            filterVersion: _pipeline.trackVersion,
+            distanceM: state.distanceM,
+            durationMs: state.elapsedMs,
+            movingTimeMs: state.movingTimeMs,
+            elevationGainM: _elevationGain,
+            calories: state.calories,
+            activityType: state.profile,
+            createdAt: _rawFixes.isNotEmpty ? _rawFixes.first.timestamp : DateTime.now(),
+          );
+      if (_draftId == id) _journaledCount = upTo;
     } catch (_) {
-      // offline-first: best-effort recovery snapshot
+      // offline-first: best-effort; the next write retries from `from`.
     }
   }
 
@@ -232,68 +286,35 @@ class TrackingModel extends Notifier<TrackingState> {
       _rawFixes
         ..clear()
         ..addAll(draft.rawFixes);
+      _journaledCount = _rawFixes.length;
 
       _pts.clear();
       _displaySegments.clear();
+      _clearMapRoute();
       _pipeline = GpsPipeline(profile: draft.activityType);
 
-      // Reconstruct filtered points silently
-      for (final p in _rawFixes) {
-        final r = _pipeline.process(p);
-        if (r != null) {
-          final acceptedPt = TrackPoint(
-            raw: NormalizedFix(
-              lat: r.smoothedLat ?? r.raw.lat,
-              lng: r.smoothedLng ?? r.raw.lng,
-              elevation: p.elevation,
-              timestamp: p.timestamp,
-              speedMps: p.speedMps,
-              accuracyM: p.accuracy.toDouble(),
-              hdop: p.hdop,
-              satelliteCount: p.satelliteCount,
-              provider: p.provider ?? 'unknown',
-              isMocked: p.isMocked,
-              fixType: p.fixType,
-            ),
-            heartRate: p.heartRate,
-            cadence: p.cadence,
-            state: r.filterStatus.name,
-          );
-          if (r.isAccepted) {
-            _pts.add(acceptedPt);
-            _addDisplayPoint(acceptedPt, r);
-          }
+      // Reconstruct accepted points silently through the exact same path a
+      // live point takes, so the restored line obeys the same segment rules.
+      _lastAccepted = null;
+      _resetDistance();
+      _restoring = true;
+      try {
+        for (final p in _rawFixes) {
+          final r = _pipeline.process(p);
+          if (r != null) _handleResult(r);
         }
-      }
-
-      for (final r in _pipeline.flush()) {
-        if (r.isAccepted) {
-          final p = r.raw;
-          final acceptedPt = TrackPoint(
-            raw: NormalizedFix(
-              lat: r.smoothedLat ?? r.raw.lat,
-              lng: r.smoothedLng ?? r.raw.lng,
-              elevation: p.elevation,
-              timestamp: p.timestamp,
-              speedMps: p.speedMps,
-              accuracyM: p.accuracy.toDouble(),
-              hdop: p.hdop,
-              satelliteCount: p.satelliteCount,
-              provider: p.provider ?? 'unknown',
-              isMocked: p.isMocked,
-              fixType: p.fixType,
-            ),
-            heartRate: p.heartRate,
-            cadence: p.cadence,
-            state: r.filterStatus.name,
-          );
-          _pts.add(acceptedPt);
-          _addDisplayPoint(acceptedPt, r);
+        for (final r in _pipeline.flush()) {
+          _handleResult(r);
         }
+      } finally {
+        _restoring = false;
       }
+      // The app was killed in between: treat the restart like a resume.
+      _resumedSinceLastPoint = true;
       _pipeline.reset();
 
       _elevationGain = draft.elevationGainM;
+      _elevAnchor = null;
       _accumulatedMs = draft.durationMs;
       _accumulatedMovingMs = draft.movingTimeMs;
       state = state.copyWith(
@@ -337,11 +358,17 @@ class TrackingModel extends Notifier<TrackingState> {
     _pts.clear();
     _rawFixes.clear();
     _displaySegments.clear();
+    _clearMapRoute();
+    _lastAccepted = null;
+    _resumedSinceLastPoint = false;
+    _resetDistance();
     _elevationGain = 0;
+    _elevAnchor = null;
     _accumulatedMs = 0;
     _accumulatedMovingMs = 0;
     _lastPtWallClock = null;
     _draftId = RunRecord.newId();
+    _journaledCount = 0;
     state = state.copyWith(
       state: AppEngineState.recording,
       distanceM: 0,
@@ -390,6 +417,63 @@ class TrackingModel extends Notifier<TrackingState> {
     _handleResult(result, p);
   }
 
+  /// Runs a full-session reprocess on a *separate* pipeline instance. The old
+  /// code called `_pipeline.reprocess` on the live instance — every 10 points
+  /// (recovery snapshot) that reset the live filter mid-run and silently
+  /// dropped the two points sitting in its look-ahead buffer.
+  List<PipelineResult> _reprocessAll() {
+    // Stop and buildRunRecord both need this; reuse the result while the raw
+    // fixes and profile are unchanged (the list only ever grows or clears).
+    final cached = _reprocessCache;
+    if (cached != null &&
+        cached.count == _rawFixes.length &&
+        cached.profile == state.profile &&
+        (_rawFixes.isEmpty || identical(cached.last, _rawFixes.last))) {
+      return cached.results;
+    }
+    final results = GpsPipeline(profile: state.profile).reprocess(_rawFixes);
+    _reprocessCache = (
+      count: _rawFixes.length,
+      profile: state.profile,
+      last: _rawFixes.isEmpty ? null : _rawFixes.last,
+      results: results,
+    );
+    return results;
+  }
+
+  ({int count, ActivityProfile profile, RawFix? last, List<PipelineResult> results})?
+      _reprocessCache;
+
+  /// Last accepted result, used to apply [TrackSegments] rules live.
+  PipelineResult? _lastAccepted;
+
+  /// Live odometer — same estimator the saved run uses (Doppler speed first,
+  /// noise-gated position hops as fallback), so live and saved distance agree.
+  DistanceAccumulator _distance = DistanceAccumulator();
+
+  void _resetDistance() =>
+      _distance = DistanceAccumulator(maxSpeedMps: state.profile.maxSpeedMps);
+
+  /// Set on resume: the first point after a pause must not be joined to the
+  /// pre-pause point if the runner moved while paused.
+  bool _resumedSinceLastPoint = false;
+
+  /// True while [restoreInterrupted] replays a saved draft (suppresses the
+  /// periodic recovery write, which would otherwise save a half-replayed run).
+  bool _restoring = false;
+
+  /// Whether [result] starts a new line relative to the previous point. Same
+  /// rule as the saved route ([TrackSegments.startsNewSegment]); additionally a
+  /// pause is always treated as a gap, because the live pipeline is reset on
+  /// pause and so cannot itself see the time gap.
+  bool _startsNewSegment(PipelineResult result) {
+    final prev = _lastAccepted;
+    if (prev == null) return true;
+    if (TrackSegments.startsNewSegment(prev, result)) return true;
+    return _resumedSinceLastPoint &&
+        TrackSegments.chordM(prev, result) > TrackSegments.maxBridgeM;
+  }
+
   void _handleResult(PipelineResult result, [TrackPoint? originalPt]) {
     if (!result.isAccepted) {
         // ponytail: diagnostics only. Do not accumulate distance or pace.
@@ -402,12 +486,12 @@ class TrackingModel extends Notifier<TrackingState> {
     final smoothedLng = result.smoothedLng ?? result.raw.lng;
     final smoothedSpeed = result.smoothedSpeedMps ?? result.raw.speedMps;
 
-    double d = 0;
+    final newSegment = _startsNewSegment(result);
+
+    // Never credits the straight-line jump across a pause / long dropout.
+    final d = _distance.add(result, newSegment: newSegment);
     if (_pts.isNotEmpty) {
       final prev = _pts.last;
-      d = _haversine(prev.lat, prev.lng, smoothedLat, smoothedLng);
-      final gained = (result.raw.elevation - prev.elevation);
-      if (gained > 0) _elevationGain += gained;
 
       if (isFiltered && prev.state == FilterStatus.filtered.name) {
         final deltaMs = result.raw.timestamp.difference(prev.timestamp).inMilliseconds;
@@ -417,12 +501,14 @@ class TrackingModel extends Notifier<TrackingState> {
       }
     }
     
+    _trackElevation(result.raw.elevation);
     _lastPtWallClock = DateTime.now();
 
     state = state.copyWith(
       state: AppEngineState.recording,
       distanceM: state.distanceM + d,
-      paceMinPerKm: (isFiltered && smoothedSpeed > 0) ? 1000 / (smoothedSpeed * 60) : state.paceMinPerKm,
+      // Below ~0.5 m/s (slow walk) the speed is GPS jitter, not pace.
+      paceMinPerKm: (isFiltered && smoothedSpeed > 0.5) ? 1000 / (smoothedSpeed * 60) : state.paceMinPerKm,
       heartRate: originalPt?.heartRate ?? result.raw.heartRate,
       cadence: originalPt?.cadence ?? result.raw.cadence,
       elevationGainM: _elevationGain,
@@ -452,14 +538,17 @@ class TrackingModel extends Notifier<TrackingState> {
       state: originalPt?.state ?? result.filterStatus.name,
     );
     _pts.add(acceptedPt);
-    _addDisplayPoint(acceptedPt, result);
+    _addDisplayPoint(acceptedPt, result, newSegment: newSegment);
+    _lastAccepted = result;
+    _resumedSinceLastPoint = false;
 
-    if (_pts.length % 10 == 0) {
+    if (!_restoring && _pts.length % 10 == 0) {
       _pendingWrite = _writeRecovery();
     }
   }
 
-  void _addDisplayPoint(TrackPoint rawPoint, PipelineResult result) {
+  void _addDisplayPoint(TrackPoint rawPoint, PipelineResult result,
+      {required bool newSegment}) {
     if (!result.isAccepted) return;
     
     final pt = TrackPoint(
@@ -481,22 +570,27 @@ class TrackingModel extends Notifier<TrackingState> {
       state: result.filterStatus.name,
     );
 
-    // Only a long gap breaks the drawn line. filtered / stationary / gapShort /
-    // dead-reckoned points stay in one continuous polyline, so a brief pause or a
-    // bridged excursion no longer splits the path into disconnected straight jumps.
-    final breakLine =
-        result.filterStatus == FilterStatus.gapLong || _displaySegments.isEmpty;
-    if (breakLine) {
+    // A pause or long dropout starts a new line (see TrackSegments) instead of
+    // drawing a straight chord through places the runner never went.
+    if (newSegment || _displaySegments.isEmpty) {
       _displaySegments.add(DisplaySegment(points: [pt], type: result.filterStatus));
     } else {
       _displaySegments.last.points.add(pt);
     }
+    final point = ll.LatLng(pt.lat, pt.lng);
+    if (newSegment || _mapSegments.isEmpty) {
+      _mapSegments.add([point]);
+    } else {
+      _mapSegments.last.add(point);
+    }
+    _flatRoute.add(point);
+    _routeRevision++;
   }
 
 
 
   RunRecord buildRunRecord(String type, {String? ghostId, bool? ghostWon, int? ghostRaceVersion}) {
-    final results = _pipeline.reprocess(_rawFixes);
+    final results = _reprocessAll();
     final rawFixes = _rawFixes.toList(growable: false);
     
     int hrSum = 0, hrCount = 0, cadenceSum = 0, cadenceCount = 0;
@@ -509,7 +603,7 @@ class TrackingModel extends Notifier<TrackingState> {
       id: RunRecord.newId(),
       type: type,
       startedAt: rawFixes.isNotEmpty ? rawFixes.first.timestamp : DateTime.now(),
-      distanceM: _recomputeFilteredDistanceM(results),
+      distanceM: TrackSegments.distanceM(results, maxSpeedMps: state.profile.maxSpeedMps),
       durationMs: state.elapsedMs,
       movingTimeMs: state.movingTimeMs > 0 ? state.movingTimeMs : state.elapsedMs,
       calories: state.calories,
@@ -546,6 +640,7 @@ class TrackingModel extends Notifier<TrackingState> {
           return;
         }
         _engine.resume();
+        _resumedSinceLastPoint = true;
         _startTicker();
         state = state.copyWith(state: AppEngineState.recording);
       });
@@ -567,14 +662,15 @@ class TrackingModel extends Notifier<TrackingState> {
         SessionDraft? finalDraft;
         
         if (_draftId != null) {
-          final filtered = _pipeline.reprocess(_rawFixes);
+          final filtered = _reprocessAll();
 
           final draft = SessionDraft(
             id: _draftId!,
             rawFixes: _rawFixes.toList(growable: false),
             filteredResults: filtered,
             filterVersion: _pipeline.trackVersion,
-            filteredDistanceM: _recomputeFilteredDistanceM(filtered),
+            filteredDistanceM: TrackSegments.distanceM(filtered,
+                maxSpeedMps: state.profile.maxSpeedMps),
             durationMs: state.elapsedMs,
             movingTimeMs: state.movingTimeMs,
             elevationGainM: _elevationGain,
@@ -586,8 +682,12 @@ class TrackingModel extends Notifier<TrackingState> {
           );
           await ref.read(sessionDraftRepositoryProvider).saveDraft(draft);
           
-          // Trigger post-session map matching job (fire and forget)
-          ref.read(mapMatchJobProvider).processSession(draft).ignore();
+          // Post-run road snapping (MapMatchJob) is intentionally NOT run.
+          // It uploaded the whole trace over mobile data to the public OSRM
+          // demo server, which only routes for cars — snapping footpaths,
+          // parks and tracks onto the nearest road — and nothing in the app
+          // read its output (see DISCOVERED_ISSUES.md #3). Strava and Apple
+          // Fitness don't snap runs to roads either.
           finalDraft = draft;
         }
         final clearedDraftId = _draftId;
@@ -598,6 +698,8 @@ class TrackingModel extends Notifier<TrackingState> {
         _pts.clear(); // Clear points before recovery clear (fixes Bug #7)
         _rawFixes.clear();
         _displaySegments.clear();
+        _clearMapRoute();
+        _lastAccepted = null;
         await _engine.stop();
         await _clearRecovery(clearedDraftId);
         state = TrackingState.initial;
@@ -610,6 +712,7 @@ class TrackingModel extends Notifier<TrackingState> {
         _pts.clear();
         _rawFixes.clear();
         _displaySegments.clear();
+        _clearMapRoute();
         state = TrackingState.initial;
       });
 
@@ -639,39 +742,3 @@ class TrackingModel extends Notifier<TrackingState> {
 }
 
 final trackingModelProvider = NotifierProvider<TrackingModel, TrackingState>(TrackingModel.new);
-
-/// Sums haversine distance between consecutive `filtered`-status results,
-/// skipping stationary/gap/rejected ones. Shared by [TrackingModel.
-/// buildRunRecord] and [TrackingModel.stop] so their final distance figure
-/// (the one saved to the completed activity / session draft) is computed
-/// identically rather than by two independently-maintained copies of the
-/// same loop.
-double _recomputeFilteredDistanceM(List<PipelineResult> results) {
-  double distanceM = 0;
-  PipelineResult? prev;
-  for (final r in results) {
-    if (r.filterStatus == FilterStatus.filtered) {
-      if (prev != null) {
-        distanceM += _haversine(
-          prev.smoothedLat ?? prev.raw.lat,
-          prev.smoothedLng ?? prev.raw.lng,
-          r.smoothedLat ?? r.raw.lat,
-          r.smoothedLng ?? r.raw.lng,
-        );
-      }
-      prev = r;
-    }
-  }
-  return distanceM;
-}
-
-double _haversine(double lat1, double lon1, double lat2, double lon2) {
-  const r = 6371000.0;
-  final dLat = _toRad(lat2 - lat1);
-  final dLon = _toRad(lon2 - lon1);
-  final a = sin(dLat / 2) * sin(dLat / 2) +
-      cos(_toRad(lat1)) * cos(_toRad(lat2)) * sin(dLon / 2) * sin(dLon / 2);
-  return r * 2 * atan2(sqrt(a), sqrt(1 - a));
-}
-
-double _toRad(double d) => d * pi / 180;

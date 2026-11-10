@@ -8,3 +8,4 @@ export 'src/match_provider.dart';
 export 'src/match_quality.dart';
 export 'src/coordinate_util.dart';
 export 'src/quality_metrics.dart';
+export 'src/track_segments.dart';

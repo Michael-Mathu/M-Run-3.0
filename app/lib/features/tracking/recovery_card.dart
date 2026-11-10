@@ -27,13 +27,7 @@ class RecoveryCard extends ConsumerWidget {
       decoration: BoxDecoration(
         color: cs.surface,
         borderRadius: BorderRadius.circular(AppTheme.r24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: AppTheme.elevation3,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -91,9 +85,9 @@ class RecoveryCard extends ConsumerWidget {
               Expanded(
                 child: OutlinedButton(
                   onPressed: () async {
-                    final confirm = await showDialog<bool>(
+                    final confirm = await showAdaptiveDialog<bool>(
                       context: context,
-                      builder: (ctx) => AlertDialog(
+                      builder: (ctx) => AlertDialog.adaptive(
                         title: Text(L10n.tr('discard_run_title', locale)),
                         content: Text(L10n.tr('discard_run_body', locale)),
                         actions: [

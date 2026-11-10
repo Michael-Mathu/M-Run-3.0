@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -17,6 +18,8 @@ import 'package:mwendo_app/widgets/metric_tile.dart';
 import 'package:mwendo_app/widgets/route_map.dart';
 import 'package:mwendo_app/widgets/skeleton.dart';
 import 'package:mwendo_app/widgets/app_card.dart';
+import 'package:mwendo_app/widgets/glass.dart';
+import 'package:mwendo_app/features/legends/legend_widgets.dart';
 
 class ActivityDetailPage extends ConsumerWidget {
   final String id;
@@ -47,24 +50,42 @@ class ActivityDetailPage extends ConsumerWidget {
 
     return Scaffold(
       extendBodyBehindAppBar: true,
+      // Controls float over the map as glass circles so they stay legible on
+      // both the light and dark basemap (white icons vanished on light maps).
       appBar: AppBar(
-        leading: const AppBackButton(color: Colors.white),
+        leading: const Padding(
+          padding: EdgeInsets.all(AppTheme.s6),
+          child: GlassSurface(
+            borderRadius: BorderRadius.all(Radius.circular(AppTheme.rFull)),
+            child: AppBackButton(),
+          ),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.analytics_outlined),
-            tooltip: L10n.tr('route_analysis', locale),
-            onPressed: () => context.push('/route-analysis/${run.id}'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.share_rounded),
-            tooltip: L10n.tr('share', ref.read(localeProvider)),
-            onPressed: () => SharePlus.instance.share(ShareParams(
-              text: 'I just completed a ${a.type} — '
-                  '${formatDistance(a.distanceM)} in ${formatDuration(a.durationMs)} '
-                  'via Mwendo!',
-            )),
+          // GPS diagnostics (raw vs filtered layers) is a developer tool.
+          if (kDebugMode)
+            Padding(
+              padding: const EdgeInsets.only(right: AppTheme.s8),
+              child: GlassIconButton(
+                icon: Icons.analytics_outlined,
+                size: 44,
+                semanticLabel: L10n.tr('route_analysis', locale),
+                onPressed: () => context.push('/route-analysis/${run.id}'),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(right: AppTheme.s12),
+            child: GlassIconButton(
+              icon: Icons.ios_share_rounded,
+              size: 44,
+              semanticLabel: L10n.tr('share', ref.read(localeProvider)),
+              onPressed: () => SharePlus.instance.share(ShareParams(
+                text: 'I just completed a ${a.type} — '
+                    '${formatDistance(a.distanceM)} in ${formatDuration(a.durationMs)} '
+                    'via Mwendo!',
+              )),
+            ),
           ),
         ],
       ),
@@ -72,20 +93,25 @@ class ActivityDetailPage extends ConsumerWidget {
         slivers: [
           SliverToBoxAdapter(
             child: SizedBox(
-              height: 260,
-              child: RouteMap(points: a.route.map((p) => latlong.LatLng(p.latitude, p.longitude)).toList()),
+              height: 320,
+              child: RouteMap(
+                points: a.route.map((p) => latlong.LatLng(p.latitude, p.longitude)).toList(),
+                segments: [
+                  for (final seg in a.routeSegments)
+                    [for (final p in seg) latlong.LatLng(p.latitude, p.longitude)],
+                ],
+              ),
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.all(AppTheme.s24),
+            padding: const EdgeInsets.fromLTRB(AppTheme.s20, AppTheme.s20, AppTheme.s20, 120),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 Text(a.type, style: text.headlineLarge),
                 const SizedBox(height: AppTheme.s4),
                 Text(
                   formatDate(a.startedAt),
-                  style: text.bodyMedium!
-                      .copyWith(color: cs.onSurface.withValues(alpha: 0.6)),
+                  style: text.bodyMedium!.copyWith(color: cs.onSurfaceVariant),
                 ),
                 const SizedBox(height: AppTheme.s20),
                 _StatsGrid(a: a, locale: locale),
@@ -143,25 +169,25 @@ class _StatsGrid extends StatelessWidget {
       (a.elevationGainM.toStringAsFixed(0), L10n.tr('elev_gain', locale)),
     ];
     return GridView.count(
-      crossAxisCount: 3,
+      crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: AppTheme.s12,
-      crossAxisSpacing: AppTheme.s12,
-      childAspectRatio: 1.6,
+      mainAxisSpacing: AppTheme.s8,
+      crossAxisSpacing: AppTheme.s8,
+      childAspectRatio: 2.1,
+      padding: EdgeInsets.zero,
       children: items
           .map((s) => Container(
-                padding: const EdgeInsets.all(AppTheme.s12),
+                padding: const EdgeInsets.symmetric(horizontal: AppTheme.s16, vertical: AppTheme.s12),
                 decoration: BoxDecoration(
                   color: cs.surface,
-                  borderRadius: BorderRadius.circular(AppTheme.r12),
+                  borderRadius: BorderRadius.circular(AppTheme.r16),
                 ),
-                child: Center(
-                  child: MetricTile(
-                    value: s.$1,
-                    label: s.$2,
-                    variant: MetricVariant.card,
-                  ),
+                alignment: Alignment.centerLeft,
+                child: MetricTile(
+                  value: s.$1,
+                  label: s.$2,
+                  variant: MetricVariant.card,
                 ),
               ))
           .toList(),
@@ -306,7 +332,6 @@ class _LearningInsightCard extends StatelessWidget {
       final idx = a.id.hashCode.abs() % legends.length;
       legend = legends[idx];
     }
-    final accent = legendAccent(legend);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,19 +339,11 @@ class _LearningInsightCard extends StatelessWidget {
         Text(L10n.tr('learning_insight', locale), style: text.titleLarge),
         const SizedBox(height: AppTheme.s12),
         AppCard(
-          onTap: () => context.go('/learn/legends/${legend.slug}'),
+          onTap: () => context.push('/legends/${legend.slug}'),
           useInkWell: true,
           child: Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.18),
-                  shape: BoxShape.circle,
-                ),
-                child: Text(legend.emoji, style: const TextStyle(fontSize: 24)),
-              ),
+              LegendAvatar(legend: legend, size: 48),
               const SizedBox(width: AppTheme.s16),
               Expanded(
                 child: Column(

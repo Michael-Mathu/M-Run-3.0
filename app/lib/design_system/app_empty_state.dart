@@ -25,7 +25,7 @@ class AppEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 48, color: cs.onSurface.withValues(alpha: 0.2)),
+            Icon(icon, size: 52, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
             const SizedBox(height: AppTheme.s16),
             Text(message, style: text.titleMedium, textAlign: TextAlign.center),
             if (actionLabel != null && onAction != null) ...[
@@ -34,7 +34,6 @@ class AppEmptyState extends StatelessWidget {
                 onPressed: onAction,
                 icon: const Icon(Icons.play_arrow_rounded, size: 18),
                 label: Text(actionLabel!),
-                style: FilledButton.styleFrom(backgroundColor: AppTheme.brand),
               ),
             ],
           ],

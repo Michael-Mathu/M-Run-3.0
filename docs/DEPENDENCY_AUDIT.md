@@ -23,7 +23,8 @@ Full table in the command output; highlights:
 | Package | Current | Latest | Decision |
 |---|---|---|---|
 | `permission_handler` | 11.4.0 | 13.0.1 (2 majors behind) | **Defer, but track** — this package gates location/notification permission flows, which are safety/tracking-critical (see `SEC-14` on iOS permission handling already pending). A major bump here should be its own carefully-tested change, not bundled with anything else. |
-| `google_fonts` | 6.3.3 | 8.2.1 (2 majors behind) | **Defer** — cosmetic-only package, low urgency, but a 2-major gap is worth closing eventually to avoid a bigger jump later. |
+| ~~`google_fonts`~~ | — | — | **Removed (2026-11-09).** Fonts are bundled instead: system San Francisco on iOS, Inter (SIL OFL, `app/assets/fonts/`) on Android — no runtime font download. |
+| `cupertino_icons` | 1.0.9 | — | **Added (2026-11-10)** for SF Symbols-style icons. |
 | `shimmer` | 3.0.0 | 4.0.0 (major) | **Defer** — cosmetic loading-skeleton package, low risk either way. |
 | `sqlite3_flutter_libs` | 0.5.42 | 0.6.0+eol | **Investigate before upgrading** — the `+eol` build suffix on the latest version is worth understanding before bumping (could mean the *current* 0.5.x line is what's end-of-lifed, i.e. this may actually be more urgent than a routine bump — check the package's changelog). Flagging, not deciding, since this needs a read of the actual release notes. |
 | `flutter_riverpod` / `riverpod` | 3.3.2 | 3.4.2 | **Upgrade opportunistically** — minor version, core state-management dependency, worth staying current. Re-run the full test suite after. |

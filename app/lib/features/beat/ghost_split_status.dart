@@ -4,6 +4,7 @@ import 'package:mwendo_app/core/l10n/app_strings.dart';
 import 'package:mwendo_app/core/theme/app_theme.dart';
 import 'package:mwendo_app/features/beat/ghost_race_controller.dart';
 import 'package:mwendo_app/features/beat/ghost_race_utils.dart';
+import 'package:mwendo_app/features/legends/legend_widgets.dart';
 
 /// Compact widget showing current split delta vs ghost.
 class GhostSplitStatus extends ConsumerWidget {
@@ -144,11 +145,7 @@ class GhostDrawer extends ConsumerWidget {
                   padding: const EdgeInsets.all(AppTheme.s16),
                   child: Row(
                     children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: racing.ghost.accent.withValues(alpha: 0.2),
-                        child: Text(racing.ghost.legend.emoji, style: const TextStyle(fontSize: 20)),
-                      ),
+                      LegendAvatar(legend: racing.ghost.legend, size: 40),
                       const SizedBox(width: AppTheme.s12),
                       Expanded(
                         child: Column(

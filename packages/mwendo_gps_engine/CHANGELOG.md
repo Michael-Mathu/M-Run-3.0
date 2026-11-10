@@ -1,3 +1,13 @@
+## Unreleased (2026-11-09)
+
+* **Breaking contract change: unknown speed is now `-1`, not `0`.** Android
+  (`MwendoTrackingService`) sends `-1.0` when `Location.hasSpeed()` is false;
+  iOS sends `-1.0` when `CLLocation.speed` is negative (invalid); Dart
+  `NormalizedFix` maps null/negative to `-1`. Previously a missing speed became
+  `0`, which the pipeline's stop detector read as "standing still" and which
+  could discard a whole run on phones that don't report speed. Consumers should
+  treat `speedMps < 0` as "not reported". `platform_parity_test.dart` covers it.
+
 ## 0.2.0
 
 * Platform parity & capture normalization across iOS and Android.

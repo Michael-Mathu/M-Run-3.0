@@ -149,6 +149,17 @@ class _RouteAnalysisScreenState extends ConsumerState<RouteAnalysisScreen> {
                     flex: 2,
                     child: MwendoMap(
                       points: _getPointsForLayer(),
+                      // Raw stays one line on purpose (diagnostic view).
+                      segments: _selectedLayer == MapLayer.filtered && _run != null
+                          ? [
+                              for (final seg in TrackSegments.split(_run!.filteredResults))
+                                [
+                                  for (final r in seg)
+                                    latlong.LatLng(r.smoothedLat ?? r.raw.lat,
+                                        r.smoothedLng ?? r.raw.lng),
+                                ],
+                            ]
+                          : null,
                       mode: MapMode.replay,
                       locationEnabled: false,
                       isRecording: false,

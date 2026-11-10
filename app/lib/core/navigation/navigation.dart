@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -9,9 +10,8 @@ import 'package:go_router/go_router.dart';
 const Map<String, String> _branchRoots = {
   '/': '/',
   '/run': '/run',
-  '/explore': '/explore',
+  '/legends': '/legends',
   '/learn': '/learn',
-  '/learn/legends': '/learn',
   '/you': '/you',
   '/activity': '/activity',
   '/beat': '/beat',
@@ -33,7 +33,7 @@ String? branchRootFor(String location) {
     return '/learn';
   }
   if (location.startsWith('/challenges/')) return '/challenges';
-  if (location.startsWith('/learn/legends/')) return '/learn';
+  if (location.startsWith('/legends/')) return '/legends';
   if (location.startsWith('/activity/')) return '/activity';
   if (location.startsWith('/beat/')) return '/beat';
   return null;
@@ -85,8 +85,10 @@ class AppBackButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final loc = GoRouter.of(context).state.matchedLocation;
     if (loc == '/') return const SizedBox.shrink();
+    // iOS-style back chevron in the tint colour (was a Material arrow).
     return IconButton(
-      icon: Icon(Icons.arrow_back_rounded, color: color),
+      icon: Icon(CupertinoIcons.chevron_back,
+          size: 26, color: color ?? Theme.of(context).colorScheme.primary),
       onPressed: () => onAppBack(context),
       tooltip: MaterialLocalizations.of(context).backButtonTooltip,
     );

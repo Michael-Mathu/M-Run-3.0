@@ -107,7 +107,6 @@ class _LevelHeader extends ConsumerWidget {
       decoration: BoxDecoration(
         color: cs.surface,
         borderRadius: BorderRadius.circular(AppTheme.r24),
-        border: Border.all(color: AppTheme.brand.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
@@ -152,13 +151,12 @@ class _FilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: AppTheme.s16, vertical: AppTheme.s8),
         decoration: BoxDecoration(
-          color: active ? AppTheme.brand.withValues(alpha: 0.18) : cs.surface,
+          color: active ? cs.primary : cs.surface,
           borderRadius: BorderRadius.circular(AppTheme.rFull),
-          border: active ? Border.all(color: AppTheme.brand) : null,
         ),
         child: Text(label,
             style: text.labelMedium!.copyWith(
-                color: active ? AppTheme.brand : cs.onSurface.withValues(alpha: 0.7),
+                color: active ? cs.onPrimary : cs.onSurface,
                 fontWeight: active ? FontWeight.w700 : FontWeight.w600)),
       ),
     );
@@ -183,15 +181,10 @@ class _ChallengeCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [cs.surface, color.withValues(alpha: 0.08)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        // Flat card: tier as a quiet tint, completion as a crisp edge.
+        color: Color.alphaBlend(color.withValues(alpha: 0.07), cs.surface),
         borderRadius: BorderRadius.circular(AppTheme.r16),
-        boxShadow: done
-            ? <BoxShadow>[BoxShadow(color: progressColor.withValues(alpha: 0.45), blurRadius: 16, spreadRadius: 1)]
-            : null,
+        border: done ? Border.all(color: progressColor, width: 1.5) : null,
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppTheme.r16),

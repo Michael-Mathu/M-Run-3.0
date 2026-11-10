@@ -32,7 +32,7 @@ Mwendo is engineered as an offline-first, reactive sports telemetry and geospati
 | • 2D ENU Kalman Filter  |                                               │
 | • Stationary Clusterer  |  +----------------------------------+         │
 | • Signal Gap Detector   |  | Native Rust FFI Engine           |         │
-| • OSRM Map Matcher      |  | (packages/mwendo_fit_parser)     |         │
+| • TrackSegments/Distance|  | (packages/mwendo_fit_parser)     |         │
 | • Session Quality Stats |  | • Fast binary FIT parsing        |         │
 +-------------------------+  +----------------------------------+         │
                                                                           │
@@ -52,7 +52,9 @@ Mwendo is engineered as an offline-first, reactive sports telemetry and geospati
 
 ## 2. Telemetry Processing Pipeline (`packages/gps_pipeline`)
 
-The GPS pipeline operates as a deterministic multi-stage filter. Raw fixes pass through 7 sequential stages before producing the display polyline and calculated run metrics:
+> **Updated 2026-11-09.** Fixes for phantom/jagged lines and distance overshoot changed several stages: a cold-start warm-up gate was added, the Kalman filter no longer dead-reckons (it re-anchors on real fixes), the outlier detector accounts for GPS uncertainty, tracks are split into segments at gaps, distance is integrated from Doppler speed, and post-session map matching is no longer called by the app. Background and measurements: [REVAMP_PLAN.md](REVAMP_PLAN.md).
+
+The GPS pipeline operates as a deterministic multi-stage filter. Raw fixes pass through these stages before producing the display polyline and calculated run metrics:
 
 ```
 [RawFix]
@@ -61,13 +63,16 @@ The GPS pipeline operates as a deterministic multi-stage filter. Raw fixes pass 
 1. FixValidator ─────────────► [Invalid Lat/Lng, Non-monotonic Time, Mocked] ──► REJECT
    │
    ▼
-2. QualityGate ──────────────► [Accuracy > 30m Run / 75m Cycle / 100m Drive] ──► REJECT
+1b. Warm-up gate ────────────► [No point accepted yet AND accuracy > 12m, first 20s] ► REJECT
    │
    ▼
-3. OutlierDetector ──────────► [Implied Speed > Max Speed OR 3-Point Spike] ──► REJECT
+2. QualityGate ──────────────► [Accuracy > profile limit, e.g. 20m Run] ────────► REJECT
    │
    ▼
-4. KalmanFilter ─────────────► [2D ENU State Space: Mahalanobis Gate > 25.0] ──► REJECT
+3. OutlierDetector ──────────► [Uncertainty-adjusted speed > Max OR 3-Point Spike] ► REJECT
+   │
+   ▼
+4. KalmanFilter ─────────────► [2D ENU, Mahalanobis Gate > 25.0] ──► REJECT (re-anchor after 3)
    │
    ▼
 5. StationarySuppressor ─────► [Speed < 0.5 m/s for 5s] ──────────────────────► Centroid Cluster
@@ -76,7 +81,12 @@ The GPS pipeline operates as a deterministic multi-stage filter. Raw fixes pass 
 6. GapDetector ──────────────► [dt > 10s: gapShort | dt > 60s: gapLong] ──────► Segment Break
    │
    ▼
-7. MapMatcher (Post-Session) ► [OSRM Hidden Markov Road Snapping] ────────────► Snapped Polyline
+7. TrackSegments ────────────► [gapLong, or gapShort with chord > 50m] ────────► New line segment
+   │
+   ▼
+8. DistanceAccumulator ──────► [∫ Doppler speed dt; accuracy-aware hop fallback] ► Distance
+
+   (MapMatcher still exists in the package but the app no longer calls it.)
 ```
 
 ### Stage 1: Fix Validator (`FixValidator`)
@@ -84,16 +94,27 @@ The GPS pipeline operates as a deterministic multi-stage filter. Raw fixes pass 
 * Enforces strict chronological monotonicity ($t_k > t_{k-1}$).
 * Rejects software-mocked or spoofed provider fixes (`isMocked == true`).
 
+### Stage 1b: Warm-up gate (`GpsPipeline`)
+Until the first point of a run is accepted, fixes worse than 12 m are rejected for up to 20 s. Cold-start fixes often come from cell towers or Wi-Fi (via mobile data) and are 20–50 m off; accepting one drew a "hook" at the start of the run. After 20 s the gate opens anyway so a run in poor signal still records.
+
 ### Stage 2: Quality Gate (`QualityGate`)
-* Rejects fixes where horizontal accuracy radius exceeds activity limits (30m for Running, 75m for Cycling, 100m for Driving).
+* Rejects fixes where horizontal accuracy radius exceeds the activity profile limit:
+
+  | Profile | `maxAccuracyM` | `maxSpeedMps` |
+  | :--- | :--- | :--- |
+  | run | 20 | 10 |
+  | walk | 25 | 4 |
+  | cycle | 20 | 20 |
+  | hike | 30 | 6 |
+  | drive | 30 | 60 |
 * Computes inverse-variance weighting factor:
   $$w = \frac{1}{\max(\sigma_{\text{accuracy}}^2, 25.0)}$$
   Capping minimum variance at $25\text{ m}^2$ prevents sensor overfitting.
 
 ### Stage 3: Outlier & Spike Detector (`OutlierDetector`)
 * Computes implied speed between successive fixes:
-  $$v_{\text{implied}} = \frac{\text{Haversine}(P_{k-1}, P_k)}{\Delta t}$$
-  Rejects fixes exceeding the activity profile maximum (e.g. $8.0\text{ m/s} = 28.8\text{ km/h}$ for running).
+  $$v_{\text{implied}} = \frac{\max\left(0,\ \text{Haversine}(P_{k-1}, P_k) - \tfrac{1}{2}(\sigma_{k-1} + \sigma_k)\right)}{\Delta t}$$
+  Subtracting half of each fix's accuracy radius stops normal 1 Hz jitter from looking like sprinting. Rejects fixes exceeding the activity profile maximum (e.g. $10\text{ m/s} = 36\text{ km/h}$ for running).
 * **3-Point Lookahead Spike Detection**:
   Maintains a 1-point buffer $[A, B, C]$. If point $B$ is $> 15\text{ m}$ away from both $A$ and $C$, but $A$ and $C$ are within $50\%$ of that distance, $B$ is classified as a multipath reflection spike and rejected.
 
@@ -102,9 +123,10 @@ The GPS pipeline operates as a deterministic multi-stage filter. Raw fixes pass 
   $$e = (\lambda - \lambda_0) \cdot R \cdot \cos(\phi_0)$$
   $$n = (\phi - \phi_0) \cdot R$$
 * State Vector: $x = [e, n, v_e, v_n]^T$
-* Dynamic Process Covariance Matrix $Q$ adjusts based on motion state:
+* Dynamic Process Covariance Matrix $Q$ adjusts based on motion state, where $v = \max(v_{\text{device}}, v_{\text{filter}})$ so a fix with no reported speed is not mistaken for "standing still":
   $$\sigma = \begin{cases} 3.0\text{ m/s}^2 & \text{if } v > 0.3\text{ m/s} \\ 0.3\text{ m/s}^2 & \text{if stationary} \end{cases}$$
-* Innovation Gating: Rejects updates where squared Mahalanobis distance exceeds $25.0$ ($\sim 5\sigma$).
+* Measurement noise $R = \sigma_{\text{accuracy}}^2$ using the fix's real accuracy, floored at 3 m (no upper cap).
+* Innovation Gating: Rejects updates where squared Mahalanobis distance exceeds $25.0$ ($\sim 5\sigma$). A gated fix is **dropped**; the filter never emits its own prediction as a track point (the old dead-reckoning drew straight lines through corners). After **3 consecutive** gated fixes the filter re-anchors on the measured position.
 
 ### Stage 5: Stationary Suppressor (`StationarySuppressor`)
 Eliminates GPS drift when runners pause at traffic lights. Uses a 4-state automaton (*moving, maybeStationary, stationary, maybeMoving*) requiring 5 consecutive seconds of low velocity ($<0.5\text{ m/s}$) to enter or exit stationary state. While stationary, incoming points are aggregated into a weighted centroid cluster.
@@ -113,8 +135,19 @@ Eliminates GPS drift when runners pause at traffic lights. Uses a 4-state automa
 * Flags short sensor blackouts ($10\text{s} < \Delta t \le 60\text{s}$) as `FilterStatus.gapShort`.
 * Flags extended outages ($\Delta t > 60\text{s}$) as `FilterStatus.gapLong`, prompting an internal Kalman covariance reinitialization.
 
-### Stage 7: Map Matcher (`MapMatcher`)
-Post-session batch processing that streams accepted polyline chunks (up to 90 points per request) to OSRM `/match/v1/foot` endpoints, snapping noisy urban tracks to known OpenStreetMap pedestrian ways and recalculating verified distance metrics.
+### Stage 7: Track segments (`TrackSegments`, `track_segments.dart`)
+One rule, shared by the live map, the saved route, distance and GPX export: a new line segment starts at a `gapLong`, or at a `gapShort` whose straight-line chord exceeds 50 m (`maxBridgeM`). Short gaps (a bridge, tree cover) are still joined; pauses and long outages are drawn as gaps, never as a straight "phantom" line. GPX export writes one `<trkseg>` per segment.
+
+### Stage 8: Distance (`DistanceAccumulator`, `track_segments.dart`)
+Summing point-to-point hops adds every sideways wobble (~+50% on realistic noise). Distance is instead:
+1. **Doppler speed integration** (trapezoid rule) when the device reports speed — the method Apple Watch and Garmin use. Speeds above the profile maximum are ignored; steps longer than 5 s fall back to (3).
+2. **Short hold:** if a speed reading is missing, the last speed is reused for up to 3 s.
+3. **Fallback hop:** otherwise, distance is counted from an anchor point only once displacement exceeds the fix's accuracy, clamped to 8–15 m, so stationary jitter adds nothing.
+
+The live dashboard and the saved run use the same accumulator (`TrackSegments.distanceM`), so the two numbers agree. Device speed is **−1 when unknown** (never 0) end to end: Android, iOS, `NormalizedFix`, and the pipeline.
+
+### Map Matcher (`MapMatcher`) — not used by the app
+The package still contains the OSRM `/match/v1/foot` client, but the app no longer calls it. It uploaded the whole trace over mobile data to a public demo server with car-only road data, would snap park/footpath runs onto roads, and its result wasn't used. Strava and Apple Fitness don't snap runs to roads either.
 
 ---
 

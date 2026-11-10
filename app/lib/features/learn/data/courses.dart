@@ -7,8 +7,8 @@ enum CourseCategory { science, technique, health, heritage }
 extension CourseCategoryMeta on CourseCategory {
   static const Map<String, LocalizedText> _labels = {
     'science': (en: 'Running Science', sw: 'Sayansi ya Mbio'),
-    'technique': (en: 'Technique & Health', sw: 'Ufundi na Afya'),
-    'health': (en: 'Technique & Health', sw: 'Ufundi na Afya'),
+    'technique': (en: 'Technique', sw: 'Ufundi'),
+    'health': (en: 'Health & Nutrition', sw: 'Afya na Lishe'),
     'heritage': (en: 'Heritage & Culture', sw: 'Urithi na Utamaduni'),
   };
 

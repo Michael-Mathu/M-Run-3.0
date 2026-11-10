@@ -4,7 +4,8 @@ import 'package:latlong2/latlong.dart' as latlong;
 import 'package:mwendo_app/widgets/mwendo_map.dart';
 
 // Re-exported so existing imports of route_map.dart keep resolving these.
-export 'package:mwendo_app/widgets/mwendo_map.dart' show kDarkStyle, kDefaultCenter;
+export 'package:mwendo_app/widgets/mwendo_map.dart'
+    show kDarkStyle, kLightStyle, kDefaultCenter;
 
 /// Static replay of a finished route, used on the activity detail screen.
 ///
@@ -14,11 +15,16 @@ export 'package:mwendo_app/widgets/mwendo_map.dart' show kDarkStyle, kDefaultCen
 /// moves; the polyline redraws whenever [points] changes.
 class RouteMap extends StatelessWidget {
   final List<latlong.LatLng> points;
+
+  /// Optional pause-aware segments; when given, these are drawn instead of
+  /// joining [points] into one line.
+  final List<List<latlong.LatLng>>? segments;
   final double zoom;
 
   const RouteMap({
     super.key,
     required this.points,
+    this.segments,
     this.zoom = 14,
   });
 
@@ -26,6 +32,7 @@ class RouteMap extends StatelessWidget {
   Widget build(BuildContext context) {
     return MwendoMap(
       points: points,
+      segments: segments,
       mode: MapMode.replay,
       zoom: zoom,
     );

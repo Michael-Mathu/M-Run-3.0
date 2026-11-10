@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 
-/// Mwendo design system.
-/// Opinionated, athletic, high-contrast — built to hold a candle to Strava / NRC.
+/// Mwendo design system — v3 "Clarity" refresh (see docs/REVAMP_PLAN.md).
+///
+/// Follows Apple's Human Interface Guidelines / Liquid Glass principles on
+/// both platforms: content first, one tint colour for actions, semantic
+/// colours for state, the platform system font with tabular figures for every
+/// number, neutral grouped surfaces, and translucent "glass" only on the
+/// navigation layer (tab bar, floating controls, sheets).
 class AppTheme {
   // ---- "Red Earth" palette ----------------------------------------------
   // Drawn from the material the app is actually about: the laterite roads of
@@ -20,35 +26,45 @@ class AppTheme {
   static const Color brand = earth;
   static const Color brandSoft = Color(0xFFD6714E);
   // Live/alert red — a warm flag red that harmonises with the earth accent.
-  static const Color recording = Color(0xFFC5283D); // live red pulse
-  static const Color sos = Color(0xFFC5283D); // SOS / danger
-  static const Color paused = dawn; // amber pause
-  static const Color idle = Color(0xFF8A8078); // warm neutral grey
+  static const Color recording = Color(0xFFFF3B30); // live red (system red)
+  static const Color sos = Color(0xFFFF3B30); // SOS / danger
+  static const Color paused = Color(0xFFFF9500); // system orange
+  static const Color idle = Color(0xFF8E8E93); // system grey
   static const Color achievement = dawn; // dawn gold
 
   // Highland green mapped to UI roles (success / data-viz / "ahead").
-  static const Color flagGreen = highland; // dark-theme green
-  static const Color flagGreenLight = highlandLight; // light-theme green
-  static const Color flagRed = Color(0xFFC5283D);
+  static const Color flagGreen = Color(0xFF30D158); // system green (dark)
+  static const Color flagGreenLight = Color(0xFF248A3D); // accessible green (light)
+  static const Color flagRed = Color(0xFFFF3B30);
 
-  // Semantic colors (success, warning, danger)
-  static const Color success = highlandLight;
-  static const Color danger = Color(0xFFC5283D);
-  static const Color warning = dawn;
+  // Semantic colors (success, warning, danger) — Apple system colours.
+  static const Color success = Color(0xFF34C759);
+  static const Color danger = Color(0xFFFF3B30);
+  static const Color warning = Color(0xFFFF9500);
 
-  // Warm-ink dark surfaces (not pure black)
-  static const Color darkScaffold = Color(0xFF17110C);
-  static const Color darkCard = Color(0xFF221A13);
-  static const Color darkElevated = Color(0xFF2C2219);
+  /// Apple "secondary label" style text colours (60% / 30% of the ink).
+  static const Color secondaryLabelLight = Color(0x993C3C43);
+  static const Color secondaryLabelDark = Color(0x99EBEBF5);
+  static const Color separatorLight = Color(0x4A3C3C43);
+  static const Color separatorDark = Color(0x99545458);
 
-  // Unbleached "paper" light surfaces (warm, not clinical white)
-  static const Color lightScaffold = Color(0xFFF7F1E8);
+  /// Glass tint for the navigation layer (tab bar, floating controls).
+  static const Color glassLight = Color(0xCCF9F9F9);
+  static const Color glassDark = Color(0xB31C1C1E);
+
+  // Neutral grouped surfaces (Apple systemGroupedBackground family). The
+  // warm "paper" tints competed with the content; neutral greys let the
+  // route, the numbers and the single brand tint carry the screen.
+  static const Color darkScaffold = Color(0xFF000000);
+  static const Color darkCard = Color(0xFF1C1C1E);
+  static const Color darkElevated = Color(0xFF2C2C2E);
+
+  static const Color lightScaffold = Color(0xFFF2F2F7);
   static const Color lightCard = Color(0xFFFFFFFF);
-  static const Color lightElevated = Color(0xFFF0E7D8);
+  static const Color lightElevated = Color(0xFFE5E5EA);
 
-  // Warm text colors, replacing the old cool near-black.
-  static const Color onLight = Color(0xFF211A14); // ink on paper
-  static const Color onDark = Color(0xFFF3E9DC); // cream on ink
+  static const Color onLight = Color(0xFF000000); // label
+  static const Color onDark = Color(0xFFFFFFFF); // label (dark)
 
   // Spacing scale (4pt grid)
   static const double s2 = 2;
@@ -65,34 +81,47 @@ class AppTheme {
   static const double s32 = 32;
   static const double s48 = 48;
 
-  // Radius scale
+  // Radius scale (continuous-corner feel: grouped sections use r12, cards r16,
+  // sheets/glass bars r24+, buttons are capsules).
   static const double r8 = 8;
   static const double r12 = 12;
   static const double r16 = 16;
   static const double r24 = 24;
   static const double rFull = 999;
 
-  // Motion
-  static const Duration dFast = Duration(milliseconds: 150);
-  static const Duration dMed = Duration(milliseconds: 300);
-  static const Duration dSlow = Duration(milliseconds: 520);
-  static const Curve curveSnappy = Curves.easeOutCubic;
-  static const Curve curveSpring = Curves.elasticOut;
+  /// Minimum touch target (Apple HIG: 44 × 44 pt).
+  static const double minTap = 44;
 
-  // Elevation / shadow tokens
+  /// Bottom padding a scrolling tab page needs so its last item clears the
+  /// floating glass tab bar (the shell Scaffold uses `extendBody`, which puts
+  /// the bar's height into the body's MediaQuery bottom padding).
+  static double tabBarClearance(BuildContext context) =>
+      MediaQuery.paddingOf(context).bottom + s24;
+
+  // Motion — short, critically-damped, interruptible. No bouncy overshoot.
+  static const Duration dFast = Duration(milliseconds: 150);
+  static const Duration dMed = Duration(milliseconds: 280);
+  static const Duration dSlow = Duration(milliseconds: 350);
+  static const Curve curveSnappy = Curves.easeOutCubic;
+  // Was Curves.elasticOut (toy-like wobble). A gentle overshoot reads as a
+  // spring without the bounce.
+  static const Curve curveSpring = Curves.easeOutBack;
+
+  /// Durations collapse to zero when the user has Reduce Motion enabled.
+  static Duration motion(BuildContext context, Duration d) =>
+      MediaQuery.maybeDisableAnimationsOf(context) == true ? Duration.zero : d;
+
+  // Elevation / shadow tokens. Content sits flat on grouped backgrounds (no
+  // shadows); only floating navigation-layer elements get a soft, wide shadow.
   static const List<BoxShadow> elevation0 = [];
-  static const List<BoxShadow> elevation1 = [
-    BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1)),
-  ];
-  static const List<BoxShadow> elevation2 = [
-    BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 2)),
-  ];
-  /// Elevation tokens for shadows and depth.
+  static const List<BoxShadow> elevation1 = [];
+  static const List<BoxShadow> elevation2 = [];
+  /// Floating controls (glass buttons, tab bar).
   static const List<BoxShadow> elevation3 = [
-    BoxShadow(color: Colors.black26, blurRadius: 16, offset: Offset(0, 4)),
+    BoxShadow(color: Color(0x1F000000), blurRadius: 20, offset: Offset(0, 6)),
   ];
   static const List<BoxShadow> elevation4 = [
-    BoxShadow(color: Colors.black38, blurRadius: 24, offset: Offset(0, 8)),
+    BoxShadow(color: Color(0x29000000), blurRadius: 30, offset: Offset(0, 10)),
   ];
 
   // Icon container sizes
@@ -144,10 +173,31 @@ class AppTheme {
       );
 
   // ---- Type system -------------------------------------------------------
-  // Big Shoulders Display — condensed, athletic, "stadium scoreboard". Carries
-  // display/headline/large-title sizes and the big metric numbers.
-  // Work Sans — every sentence a runner actually reads.
-  // IBM Plex Mono — reserved for data: pace, distance, splits, eyebrow labels.
+  // The platform system font: SF Pro on iOS, Roboto on Android. It's already
+  // on the device — the previous three Google Fonts were downloaded over the
+  // network on first launch (slow on mobile data, text visibly re-flowed as
+  // they arrived) and a condensed all-caps display face is hard to read at
+  // arm's length mid-run. Every number uses tabular figures so digits don't
+  // jitter as they tick.
+  //
+  // The three helpers keep their old names/signatures so existing call sites
+  // re-skin without edits:
+  //   displayFont — large titles & big metrics (heavy, slightly tight)
+  //   bodyFont    — everything a runner reads
+  //   monoFont    — data labels; now the system font with tabular figures
+  static const List<FontFeature> _tabular = [FontFeature.tabularFigures()];
+
+  /// Font family for a given size/weight. On Apple platforms this is null so
+  /// the real system font (San Francisco) is used. Elsewhere the bundled
+  /// Inter stands in for it: "InterDisplay" (tighter, like SF Pro Display)
+  /// for bold text from 20 pt up, "Inter" (like SF Pro Text) for the rest.
+  static String? fontFamilyFor(double size, FontWeight weight) {
+    final apple = defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS;
+    if (apple) return null;
+    return size >= 20 && weight.value >= 600 ? 'InterDisplay' : 'Inter';
+  }
+
   static TextStyle displayFont({
     required double size,
     FontWeight weight = FontWeight.w700,
@@ -155,12 +205,17 @@ class AppTheme {
     double height = 1.0,
     Color? color,
   }) =>
-      GoogleFonts.bigShouldersDisplay(
-        fontSize: size,
+      TextStyle(
+        // The old condensed face was ~30% narrower; scale large sizes down a
+        // touch so existing layouts (metric rows) don't overflow.
+        fontSize: size >= 20 ? size * 0.88 : size,
+        fontFamily: fontFamilyFor(size, weight),
         fontWeight: weight,
-        letterSpacing: spacing,
-        height: height,
+        // Apple tracks large text slightly tighter.
+        letterSpacing: size >= 28 ? -0.5 : 0,
+        height: height == 1.0 ? 1.1 : height,
         color: color,
+        fontFeatures: _tabular,
       );
 
   static TextStyle bodyFont({
@@ -170,10 +225,11 @@ class AppTheme {
     double height = 1.4,
     Color? color,
   }) =>
-      GoogleFonts.workSans(
+      TextStyle(
         fontSize: size,
+        fontFamily: fontFamilyFor(size, weight),
         fontWeight: weight,
-        letterSpacing: spacing,
+        letterSpacing: spacing == 0 ? null : spacing.clamp(-0.5, 0.4),
         height: height,
         color: color,
       );
@@ -184,32 +240,47 @@ class AppTheme {
     double spacing = 0,
     Color? color,
   }) =>
-      GoogleFonts.ibmPlexMono(
-        fontSize: size,
+      TextStyle(
+        fontSize: size < 11 ? 11 : size,
+        fontFamily: fontFamilyFor(size, weight),
         fontWeight: weight,
-        letterSpacing: spacing,
+        letterSpacing: spacing.clamp(0, 0.6),
         color: color,
-        fontFeatures: const [FontFeature.tabularFigures()],
+        fontFeatures: _tabular,
       );
 
+  /// Apple-style type ramp (iOS default "Large" content size, in points).
   static TextTheme _text(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
     final ink = isDark ? onDark : onLight;
+    TextStyle t(double size, FontWeight w, {double ls = 0, double h = 1.25}) =>
+        TextStyle(
+          fontSize: size,
+          fontFamily: fontFamilyFor(size, w),
+          fontWeight: w,
+          letterSpacing: ls,
+          height: h,
+          color: ink,
+          // Tabular figures only on the big number styles: in Inter, 'tnum'
+          // also widens punctuation, so "walk-run" read as "walk - run".
+          fontFeatures: size >= 36 ? _tabular : null,
+        );
     return TextTheme(
-      // Display + headline + large titles: Big Shoulders (condensed athletic).
-      displayLarge: displayFont(size: 56, weight: FontWeight.w800, color: ink),
-      displayMedium: displayFont(size: 44, weight: FontWeight.w800, color: ink),
-      headlineLarge: displayFont(size: 34, weight: FontWeight.w700, color: ink),
-      headlineMedium: displayFont(size: 28, weight: FontWeight.w700, color: ink),
-      titleLarge: displayFont(size: 22, weight: FontWeight.w700, color: ink),
-      // Small titles + body + labels: Work Sans (readable at text sizes).
-      titleMedium: bodyFont(size: 16, weight: FontWeight.w600, color: ink),
-      bodyLarge: bodyFont(size: 16, color: ink),
-      bodyMedium: bodyFont(size: 14, color: ink),
-      labelLarge: bodyFont(size: 14, weight: FontWeight.w600, color: ink),
-      labelMedium: bodyFont(size: 12, weight: FontWeight.w600, spacing: 0.4, color: ink),
-      // Tiny eyebrow labels: mono, uppercase, tracked.
-      labelSmall: monoFont(size: 10, weight: FontWeight.w600, spacing: 1.4, color: ink),
+      displayLarge: t(48, FontWeight.w800, ls: -1.0, h: 1.05),
+      displayMedium: t(40, FontWeight.w800, ls: -0.8, h: 1.05),
+      displaySmall: t(36, FontWeight.w700, ls: -0.6, h: 1.1),
+      headlineLarge: t(34, FontWeight.w700, ls: -0.6, h: 1.12), // Large Title
+      headlineMedium: t(28, FontWeight.w700, ls: -0.4, h: 1.15), // Title 1
+      headlineSmall: t(24, FontWeight.w700, ls: -0.3, h: 1.2),
+      titleLarge: t(22, FontWeight.w700, ls: -0.3, h: 1.2), // Title 2
+      titleMedium: t(17, FontWeight.w600, ls: -0.2, h: 1.3), // Headline
+      titleSmall: t(15, FontWeight.w600, ls: -0.1, h: 1.3), // Subheadline
+      bodyLarge: t(17, FontWeight.w400, ls: -0.2, h: 1.35), // Body
+      bodyMedium: t(15, FontWeight.w400, ls: -0.1, h: 1.35), // Subheadline
+      bodySmall: t(13, FontWeight.w400, h: 1.3), // Footnote
+      labelLarge: t(15, FontWeight.w600, ls: -0.1), // buttons
+      labelMedium: t(13, FontWeight.w600), // Footnote emphasised
+      labelSmall: t(11, FontWeight.w600, ls: 0.3), // Caption 2 / eyebrows
     );
   }
 
@@ -264,22 +335,23 @@ class AppExtensions extends ThemeExtension<AppExtensions> {
     required this.label,
   });
 
-  // Metric numbers ride the display face (Big Shoulders) with tabular figures
-  // so a "10.42 km" reads like a scoreboard and columns of digits align.
+  // Metric numbers: heavy system font with tabular figures (Apple Fitness
+  // style) so "10.42 km" reads instantly and columns of digits line up.
   static TextStyle get _metricValue =>
-      AppTheme.displayFont(size: 32, weight: FontWeight.w700, spacing: 0.2);
+      AppTheme.displayFont(size: 32, weight: FontWeight.w700);
   static TextStyle get _metricLabel =>
-      AppTheme.monoFont(size: 10, weight: FontWeight.w600, spacing: 1.2, color: AppTheme.idle);
+      AppTheme.monoFont(size: 12, weight: FontWeight.w600, spacing: 0.2, color: AppTheme.idle);
   static TextStyle get _displayMetric =>
-      AppTheme.displayFont(size: 60, weight: FontWeight.w800, spacing: 0.3);
+      AppTheme.displayFont(size: 60, weight: FontWeight.w800);
   static TextStyle get _heroMetric =>
-      AppTheme.displayFont(size: 46, weight: FontWeight.w800, spacing: 0.3);
-  static TextStyle get _title => AppTheme.displayFont(size: 22, weight: FontWeight.w700);
-  static TextStyle get _subtitle => AppTheme.bodyFont(size: 14);
-  static TextStyle get _body => AppTheme.bodyFont(size: 16);
+      AppTheme.displayFont(size: 46, weight: FontWeight.w800);
+  static TextStyle get _title =>
+      AppTheme.bodyFont(size: 22, weight: FontWeight.w700, height: 1.2);
+  static TextStyle get _subtitle => AppTheme.bodyFont(size: 15);
+  static TextStyle get _body => AppTheme.bodyFont(size: 17);
   static TextStyle get _caption =>
-      AppTheme.bodyFont(size: 12, weight: FontWeight.w600, spacing: 0.4);
-  static TextStyle get _label => AppTheme.bodyFont(size: 14, weight: FontWeight.w600);
+      AppTheme.bodyFont(size: 13, weight: FontWeight.w500);
+  static TextStyle get _label => AppTheme.bodyFont(size: 15, weight: FontWeight.w600);
 
   @override
   AppExtensions copyWith({
@@ -461,16 +533,16 @@ class ColorPalette {
         secondary = AppTheme.dawn,
         secondaryContainer = const Color(0xFFF5E4BC),
         gradientEnd = AppTheme.dawn,
-        danger = const Color(0xFFC5283D),
-        warning = AppTheme.dawn,
-        success = AppTheme.highlandLight,
+        danger = AppTheme.danger,
+        warning = AppTheme.warning,
+        success = AppTheme.success,
         achievement = AppTheme.dawn,
-        idle = const Color(0xFF8A8078),
-        recording = const Color(0xFFC5283D),
-        paused = AppTheme.dawn,
-        sos = const Color(0xFFC5283D),
-        flagGreen = AppTheme.highland,
-        flagGreenLight = AppTheme.highlandLight,
+        idle = AppTheme.idle,
+        recording = AppTheme.recording,
+        paused = AppTheme.paused,
+        sos = AppTheme.sos,
+        flagGreen = AppTheme.flagGreen,
+        flagGreenLight = AppTheme.flagGreenLight,
         tierBronze = const Color(0xFFCD7F32),
         tierSilver = const Color(0xFFC0C6CC),
         tierGold = AppTheme.dawn,
@@ -483,16 +555,16 @@ class ColorPalette {
         secondary = const Color(0xFFFFD15C),
         secondaryContainer = const Color(0xFFFFE8A0),
         gradientEnd = const Color(0xFFFF8A3D),
-        danger = const Color(0xFFC5283D),
-        warning = const Color(0xFFF5A623),
-        success = const Color(0xFF0E5C36),
+        danger = AppTheme.danger,
+        warning = AppTheme.warning,
+        success = AppTheme.success,
         achievement = const Color(0xFFFFD15C),
-        idle = const Color(0xFF8A8A8E),
-        recording = const Color(0xFFC5283D),
-        paused = const Color(0xFFF5A623),
-        sos = const Color(0xFFC5283D),
-        flagGreen = const Color(0xFF1B8A5A),
-        flagGreenLight = const Color(0xFF0E5C36),
+        idle = AppTheme.idle,
+        recording = AppTheme.recording,
+        paused = AppTheme.paused,
+        sos = AppTheme.sos,
+        flagGreen = AppTheme.flagGreen,
+        flagGreenLight = AppTheme.flagGreenLight,
         tierBronze = const Color(0xFFCD7F32),
         tierSilver = const Color(0xFFC0C6CC),
         tierGold = const Color(0xFFFFD15C),
@@ -505,16 +577,16 @@ class ColorPalette {
         secondary = const Color(0xFFFFD15C),
         secondaryContainer = const Color(0xFFFFE8A0),
         gradientEnd = const Color(0xFF2FD17A),
-        danger = const Color(0xFFC5283D),
-        warning = const Color(0xFFF5A623),
-        success = const Color(0xFF0E5C36),
+        danger = AppTheme.danger,
+        warning = AppTheme.warning,
+        success = AppTheme.success,
         achievement = const Color(0xFFFFD15C),
-        idle = const Color(0xFF8A8A8E),
-        recording = const Color(0xFFC5283D),
-        paused = const Color(0xFFF5A623),
-        sos = const Color(0xFFC5283D),
-        flagGreen = const Color(0xFF1B8A5A),
-        flagGreenLight = const Color(0xFF0E5C36),
+        idle = AppTheme.idle,
+        recording = AppTheme.recording,
+        paused = AppTheme.paused,
+        sos = AppTheme.sos,
+        flagGreen = AppTheme.flagGreen,
+        flagGreenLight = AppTheme.flagGreenLight,
         tierBronze = const Color(0xFFCD7F32),
         tierSilver = const Color(0xFFC0C6CC),
         tierGold = const Color(0xFFFFD15C),
@@ -527,16 +599,16 @@ class ColorPalette {
         secondary = const Color(0xFFFFD15C),
         secondaryContainer = const Color(0xFFFFE8A0),
         gradientEnd = const Color(0xFF6BB3F0),
-        danger = const Color(0xFFC5283D),
-        warning = const Color(0xFFF5A623),
-        success = const Color(0xFF0E5C36),
+        danger = AppTheme.danger,
+        warning = AppTheme.warning,
+        success = AppTheme.success,
         achievement = const Color(0xFFFFD15C),
-        idle = const Color(0xFF8A8A8E),
-        recording = const Color(0xFFC5283D),
-        paused = const Color(0xFFF5A623),
-        sos = const Color(0xFFC5283D),
-        flagGreen = const Color(0xFF1B8A5A),
-        flagGreenLight = const Color(0xFF0E5C36),
+        idle = AppTheme.idle,
+        recording = AppTheme.recording,
+        paused = AppTheme.paused,
+        sos = AppTheme.sos,
+        flagGreen = AppTheme.flagGreen,
+        flagGreenLight = AppTheme.flagGreenLight,
         tierBronze = const Color(0xFFCD7F32),
         tierSilver = const Color(0xFFC0C6CC),
         tierGold = const Color(0xFFFFD15C),
@@ -549,16 +621,16 @@ class ColorPalette {
         secondary = const Color(0xFFFFD15C),
         secondaryContainer = const Color(0xFFFFE8A0),
         gradientEnd = const Color(0xFFFF5DA2),
-        danger = const Color(0xFFC5283D),
-        warning = const Color(0xFFF5A623),
-        success = const Color(0xFF0E5C36),
+        danger = AppTheme.danger,
+        warning = AppTheme.warning,
+        success = AppTheme.success,
         achievement = const Color(0xFFFFD15C),
-        idle = const Color(0xFF8A8A8E),
-        recording = const Color(0xFFC5283D),
-        paused = const Color(0xFFF5A623),
-        sos = const Color(0xFFC5283D),
-        flagGreen = const Color(0xFF1B8A5A),
-        flagGreenLight = const Color(0xFF0E5C36),
+        idle = AppTheme.idle,
+        recording = AppTheme.recording,
+        paused = AppTheme.paused,
+        sos = AppTheme.sos,
+        flagGreen = AppTheme.flagGreen,
+        flagGreenLight = AppTheme.flagGreenLight,
         tierBronze = const Color(0xFFCD7F32),
         tierSilver = const Color(0xFFC0C6CC),
         tierGold = const Color(0xFFFFD15C),
@@ -587,70 +659,297 @@ class ColorPalette {
 /// This is the single source of truth for theme construction.
 ThemeData buildTheme(ColorPalette palette, Brightness brightness) {
   final isDark = brightness == Brightness.dark;
-  final seedColor = palette.primary;
+  // On black, the brand tint is lifted a little so it keeps contrast.
+  final primary = isDark
+      ? Color.lerp(palette.primary, Colors.white, 0.18)!
+      : palette.primary;
+  final ink = isDark ? AppTheme.onDark : AppTheme.onLight;
+  final secondaryInk =
+      isDark ? AppTheme.secondaryLabelDark : AppTheme.secondaryLabelLight;
+  final card = isDark ? AppTheme.darkCard : AppTheme.lightCard;
+  final elevated = isDark ? AppTheme.darkElevated : AppTheme.lightElevated;
+  final scaffold = isDark ? AppTheme.darkScaffold : AppTheme.lightScaffold;
+  final separator = isDark ? AppTheme.separatorDark : AppTheme.separatorLight;
 
   final scheme = ColorScheme.fromSeed(
-    seedColor: seedColor,
+    seedColor: palette.primary,
     brightness: brightness,
   ).copyWith(
-    primary: palette.primary,
-    primaryContainer: palette.primaryContainer,
-    onPrimaryContainer: Colors.white,
+    primary: primary,
+    onPrimary: Colors.white,
+    primaryContainer: primary.withValues(alpha: isDark ? 0.28 : 0.14),
+    onPrimaryContainer: isDark ? Colors.white : palette.primary,
     secondary: palette.secondary,
     secondaryContainer: palette.secondaryContainer,
-    // secondaryContainer is a light "dawn tint" cream in every preset, so its
-    // text must be dark ink in both themes (a Material SegmentedButton's
-    // selected segment uses this pair; without it the label went invisible).
+    // secondaryContainer is a light tint in every preset, so its text must be
+    // dark ink in both themes.
     onSecondaryContainer: AppTheme.onLight,
     error: palette.danger,
     onError: Colors.white,
-    surface: isDark ? AppTheme.darkCard : AppTheme.lightCard,
-    onSurface: isDark ? AppTheme.onDark : AppTheme.onLight,
-    surfaceContainerHighest: isDark ? AppTheme.darkElevated : AppTheme.lightElevated,
+    surface: card,
+    onSurface: ink,
+    onSurfaceVariant: secondaryInk,
+    surfaceContainerLowest: scaffold,
+    surfaceContainerLow: card,
+    surfaceContainer: card,
+    surfaceContainerHigh: elevated,
+    surfaceContainerHighest: elevated,
+    outline: separator,
+    outlineVariant: separator,
+    surfaceTint: Colors.transparent,
   );
 
   final extensions = AppExtensions.fromPalette(palette, brightness);
+  final text = AppTheme._text(brightness);
+  const capsule = StadiumBorder();
+  final buttonText = AppTheme.bodyFont(size: 17, weight: FontWeight.w600);
 
   return ThemeData(
     useMaterial3: true,
+    // Behave like iOS on every platform: bouncing scroll physics, iOS
+    // navigation bars and back chevrons, Cupertino switches/dialogs/pickers
+    // from the adaptive constructors, iOS text-selection handles.
+    platform: TargetPlatform.iOS,
     brightness: brightness,
     colorScheme: scheme,
-    scaffoldBackgroundColor: isDark ? AppTheme.darkScaffold : AppTheme.lightScaffold,
-    textTheme: AppTheme._text(brightness),
-    cardTheme: CardThemeData(
-      color: isDark ? AppTheme.darkCard : AppTheme.lightCard,
+    scaffoldBackgroundColor: scaffold,
+    canvasColor: scaffold,
+    textTheme: text,
+    // No Material ink ripples — a quiet press highlight instead (iOS-style
+    // "dim on press").
+    splashFactory: NoSplash.splashFactory,
+    splashColor: Colors.transparent,
+    highlightColor: ink.withValues(alpha: 0.06),
+    hoverColor: ink.withValues(alpha: 0.04),
+    // Native push with edge swipe-back on every platform.
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.fuchsia: CupertinoPageTransitionsBuilder(),
+      },
+    ),
+    // Adaptive widgets (Switch.adaptive, AlertDialog.adaptive, ...) pick this up.
+    cupertinoOverrideTheme: CupertinoThemeData(
+      brightness: brightness,
+      primaryColor: primary,
+      scaffoldBackgroundColor: scaffold,
+      barBackgroundColor: isDark ? AppTheme.glassDark : AppTheme.glassLight,
+      textTheme: CupertinoTextThemeData(
+        primaryColor: primary,
+        textStyle: AppTheme.bodyFont(size: 17, color: ink),
+        navTitleTextStyle:
+            AppTheme.bodyFont(size: 17, weight: FontWeight.w600, color: ink),
+        navLargeTitleTextStyle: TextStyle(
+          fontSize: 34,
+          fontFamily: AppTheme.fontFamilyFor(34, FontWeight.w700),
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.8,
+          height: 1.1,
+          color: ink,
+        ),
+        navActionTextStyle: AppTheme.bodyFont(size: 17, color: primary),
+      ),
+    ),
+    appBarTheme: AppBarTheme(
+      backgroundColor: scaffold,
+      foregroundColor: ink,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: true,
+      titleTextStyle: text.titleMedium,
+      iconTheme: IconThemeData(color: primary, size: 24),
+      actionsIconTheme: IconThemeData(color: primary, size: 24),
+    ),
+    cardTheme: CardThemeData(
+      color: card,
+      elevation: 0,
+      shadowColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.r16)),
       margin: EdgeInsets.zero,
     ),
-    iconTheme: const IconThemeData(size: 24, fill: 1, weight: 600),
+    iconTheme: IconThemeData(size: 24, color: ink),
+    dividerTheme: DividerThemeData(color: separator, thickness: 0.5, space: 0.5),
+    listTileTheme: ListTileThemeData(
+      tileColor: Colors.transparent,
+      iconColor: primary,
+      textColor: ink,
+      titleTextStyle: text.bodyLarge,
+      subtitleTextStyle: text.bodySmall?.copyWith(color: secondaryInk),
+      minVerticalPadding: 10,
+      contentPadding: const EdgeInsets.symmetric(horizontal: AppTheme.s16),
+    ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: AppTheme.s24, vertical: AppTheme.s16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.r12)),
-        // Big Shoulders on buttons: the label reads like a start line.
-        textStyle: AppTheme.displayFont(size: 17, weight: FontWeight.w700, spacing: 0.4),
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
+        minimumSize: const Size(AppTheme.minTap, 50),
+        padding: const EdgeInsets.symmetric(horizontal: AppTheme.s24, vertical: AppTheme.s14),
+        shape: capsule,
+        elevation: 0,
+        textStyle: buttonText,
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
+        minimumSize: const Size(AppTheme.minTap, 50),
+        padding: const EdgeInsets.symmetric(horizontal: AppTheme.s24, vertical: AppTheme.s14),
+        shape: capsule,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        textStyle: buttonText,
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
+      // "Tinted" button: tint-coloured label on a soft tint fill, no outline.
       style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: AppTheme.s24, vertical: AppTheme.s16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.r12)),
-        textStyle: AppTheme.displayFont(size: 17, weight: FontWeight.w700, spacing: 0.4),
+        foregroundColor: primary,
+        backgroundColor: primary.withValues(alpha: isDark ? 0.22 : 0.12),
+        side: BorderSide.none,
+        minimumSize: const Size(AppTheme.minTap, 50),
+        padding: const EdgeInsets.symmetric(horizontal: AppTheme.s24, vertical: AppTheme.s14),
+        shape: capsule,
+        textStyle: buttonText,
       ),
     ),
-    navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: isDark ? AppTheme.darkScaffold : AppTheme.lightScaffold,
-      indicatorColor: palette.primary.withValues(alpha: isDark ? 0.20 : 0.14),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: primary,
+        minimumSize: const Size(AppTheme.minTap, AppTheme.minTap),
+        shape: capsule,
+        textStyle: AppTheme.bodyFont(size: 17, weight: FontWeight.w500),
+      ),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        minimumSize: const Size(AppTheme.minTap, AppTheme.minTap),
+      ),
+    ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: primary,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      focusElevation: 0,
+      hoverElevation: 0,
+      highlightElevation: 0,
+      shape: capsule,
+      extendedTextStyle: buttonText,
+    ),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      // iOS segmented-control look: grey track, raised selected segment.
+      style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected) ? card : elevated),
+        foregroundColor: WidgetStateProperty.all(ink),
+        side: WidgetStateProperty.all(BorderSide(color: elevated, width: 2)),
+        shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(9))),
+        textStyle: WidgetStateProperty.all(
+            AppTheme.bodyFont(size: 13, weight: FontWeight.w600)),
+        visualDensity: VisualDensity.compact,
+      ),
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: elevated,
+      selectedColor: primary,
+      secondarySelectedColor: primary,
+      labelStyle: AppTheme.bodyFont(size: 15, weight: FontWeight.w500, color: ink),
+      secondaryLabelStyle:
+          AppTheme.bodyFont(size: 15, weight: FontWeight.w600, color: Colors.white),
+      side: BorderSide.none,
+      shape: capsule,
+      showCheckmark: false,
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.s8, vertical: AppTheme.s4),
+    ),
+    switchTheme: SwitchThemeData(
+      // iOS switch colours: green track when on.
+      thumbColor: WidgetStateProperty.all(Colors.white),
+      trackColor: WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.selected) ? AppTheme.success : elevated),
+      trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: primary,
+      linearTrackColor: elevated,
+      circularTrackColor: Colors.transparent,
+    ),
+    sliderTheme: SliderThemeData(
+      activeTrackColor: primary,
+      inactiveTrackColor: elevated,
+      thumbColor: Colors.white,
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: isDark ? AppTheme.darkElevated : AppTheme.lightCard,
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: AppTheme.s16, vertical: AppTheme.s14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppTheme.r12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppTheme.r12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppTheme.r12),
+        borderSide: BorderSide(color: primary, width: 1.5),
+      ),
+      hintStyle: TextStyle(color: secondaryInk),
+    ),
+    navigationBarTheme: const NavigationBarThemeData(
+      backgroundColor: Colors.transparent,
+      indicatorColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
     ),
+    // Floating, rounded "toast" instead of a full-width Material snackbar.
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: isDark ? AppTheme.darkElevated : AppTheme.onLight,
-      contentTextStyle: TextStyle(color: isDark ? AppTheme.onDark : AppTheme.lightScaffold),
-      actionTextColor: palette.secondary,
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: isDark ? AppTheme.darkElevated : const Color(0xF21C1C1E),
+      contentTextStyle:
+          AppTheme.bodyFont(size: 15, weight: FontWeight.w500, color: Colors.white),
+      actionTextColor:
+          isDark ? primary : Color.lerp(palette.primary, Colors.white, 0.35),
+      elevation: 0,
+      insetPadding:
+          const EdgeInsets.fromLTRB(AppTheme.s16, 0, AppTheme.s16, AppTheme.s24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.r16)),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: isDark ? AppTheme.darkElevated : AppTheme.lightCard,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.r24)),
+      titleTextStyle: text.titleMedium,
+      contentTextStyle: text.bodyMedium,
+    ),
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: isDark ? AppTheme.darkCard : AppTheme.lightScaffold,
+      modalBackgroundColor: isDark ? AppTheme.darkCard : AppTheme.lightScaffold,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      modalElevation: 0,
+      showDragHandle: true,
+      dragHandleColor: separator,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.r24)),
+      ),
+    ),
+    tooltipTheme: TooltipThemeData(
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkElevated : const Color(0xF21C1C1E),
+        borderRadius: BorderRadius.circular(AppTheme.r8),
+      ),
+      textStyle: AppTheme.bodyFont(size: 13, color: Colors.white),
     ),
     extensions: [extensions],
   );

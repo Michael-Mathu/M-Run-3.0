@@ -4,7 +4,7 @@ export 'track_version.dart';
 enum ActivityProfile {
   run(
     maxAccuracyM: 20,
-    maxSpeedMps: 12,
+    maxSpeedMps: 10, // 36 km/h — well above any distance-running pace
     stationarySpeedMps: 0.5,
     spikeMultiplier: 4,
     status: 'Priority — calibrated',
@@ -89,6 +89,9 @@ class RawFix {
   final double lng;
   final double elevation;
   final DateTime timestamp;
+
+  /// Device-reported (Doppler) speed in m/s. Negative = not reported by the
+  /// device (common for Wi-Fi / cell assisted fixes) — never treat it as 0.
   final double speedMps;
   final int? heartRate;
   final int? cadence;
