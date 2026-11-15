@@ -31,7 +31,7 @@ android {
     defaultConfig {
         // The app's permanent identity on Google Play: it can never be changed
         // after the first upload.
-        applicationId = "com.mwendo.mwendo_app"
+        applicationId = "com.mwendo.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

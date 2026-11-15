@@ -486,6 +486,7 @@ no athlete photos. The owner's steps are in [`PLAY_STORE.md`](PLAY_STORE.md).
 | `PRIVACY.md`, `docs/PLAY_STORE.md`, `docs/play-store/` (listing text, 512 px icon, feature graphic, 9:16 screenshots) | Required by the store listing and App content forms |
 | Legends, Legend profile and Beat the Legends screenshots removed from the README and repository | They showed athlete portraits; the images remain in earlier git history |
 | Live metrics panel sized to its content (was a fixed 45% of the screen) | On short phones the pause and stop buttons sat on top of time, pace and calories |
+| Application ID `com.mwendo.mwendo_app` → `com.mwendo.app` (code namespace unchanged) | Permanent once uploaded to Play, so cleaned up first. Android treats it as a different app: earlier APK installs do not update to it |
 | Version 1.2.0+5 | Play requires a new build number per upload |
 
 Not done: adaptive launcher icon, online account/leaderboard, iOS build.

@@ -63,9 +63,8 @@ repeated number.
 When asked, accept **Play App Signing** (Google keeps the real signing key;
 yours is only the upload key, which can be reset if lost).
 
-> The package name `com.mwendo.mwendo_app` becomes permanent at the first
-> upload. If you want a different one (for example `com.mwendo.app`), say so
-> before uploading.
+> The package name is `com.mwendo.app`. It becomes permanent at the first
+> upload and can never be changed afterwards.
 
 ### 5. "App content" declarations
 
@@ -124,9 +123,9 @@ intellectual-property rules bite.
 ### 7. Test, then release
 
 1. **Testing → Internal testing**: upload the `.aab`, add yourself, install
-   from the opt-in link and do a real run. (Uninstall the GitHub APK first:
-   it is signed with a different key, and Android will refuse to install over
-   it. Runs stored in it are lost.)
+   from the opt-in link and do a real run. (The Play version installs next to
+   any earlier GitHub APK as a separate app, because the package name changed.
+   Uninstall the old one to avoid two "Mwendo" icons; its runs do not carry over.)
 2. **Testing → Closed testing**: add your 12+ testers and send them the
    opt-in link. Leave it running 14 days.
 3. **Production → Apply for access**, answer the questions about your test,
