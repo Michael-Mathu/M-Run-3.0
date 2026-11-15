@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -8,6 +9,14 @@ const String kApiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
   defaultValue: 'http://10.0.2.2:8080',
 );
+
+/// Whether the online features (account sign-in, cloud sync, leaderboard) are
+/// offered. The default [kApiBaseUrl] is a local development server, so a
+/// release build only shows them when a real backend was supplied with
+/// --dart-define=API_BASE_URL=... . Without it the app is fully offline:
+/// nothing about the user leaves the phone, and the store build has no
+/// sign-in screen that cannot work.
+const bool kBackendEnabled = bool.hasEnvironment('API_BASE_URL') || kDebugMode;
 
 /// Thin Dio wrapper that attaches the stored auth token and reads/writes it.
 class ApiClient {

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -74,6 +75,47 @@ class ActivityDetailPage extends ConsumerWidget {
                 onPressed: () => context.push('/route-analysis/${run.id}'),
               ),
             ),
+          Padding(
+            padding: const EdgeInsets.only(right: AppTheme.s8),
+            child: GlassIconButton(
+              icon: CupertinoIcons.trash,
+              size: 44,
+              semanticLabel: L10n.tr('delete', locale),
+              onPressed: () async {
+                // Your data, your call: remove this activity (and its route)
+                // from the phone for good.
+                final ok = await showCupertinoDialog<bool>(
+                  context: context,
+                  builder: (dlg) => CupertinoAlertDialog(
+                    title: Text(L10n.tr('delete_activity_title', locale)),
+                    content: Text(L10n.tr('delete_activity_body', locale)),
+                    actions: [
+                      CupertinoDialogAction(
+                        onPressed: () => Navigator.of(dlg).pop(false),
+                        child: Text(L10n.tr('cancel', locale)),
+                      ),
+                      CupertinoDialogAction(
+                        isDestructiveAction: true,
+                        onPressed: () => Navigator.of(dlg).pop(true),
+                        child: Text(L10n.tr('delete', locale)),
+                      ),
+                    ],
+                  ),
+                );
+                if (ok != true) return;
+                await ref.read(activityRepositoryProvider).delete(id);
+                ref.invalidate(activitiesProvider);
+                ref.invalidate(activityByIdProvider);
+                if (context.mounted) {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/');
+                  }
+                }
+              },
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: AppTheme.s12),
             child: GlassIconButton(

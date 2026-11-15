@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:mwendo_app/core/gamification/gamification_provider.dart';
 import 'package:mwendo_app/core/gamification/leaderboard_data.dart';
 import 'package:mwendo_app/core/l10n/app_strings.dart';
+import 'package:mwendo_app/core/network/api_client.dart';
 import 'package:mwendo_app/core/network/leaderboard_provider.dart';
 import 'package:mwendo_app/core/network/session_provider.dart';
 import 'package:mwendo_app/core/profile/profile_provider.dart';
@@ -179,6 +180,7 @@ class _YouPageState extends ConsumerState<YouPage> {
                             value: '${g.racedLegends.length + g.titles.length}',
                             onTap: () => open(const _AchievementsPage()),
                           ),
+                          if (kBackendEnabled)
                           GroupedRow(
                             icon: CupertinoIcons.chart_bar_fill,
                             iconColor: const Color(0xFF5856D6),
@@ -212,6 +214,7 @@ class _YouPageState extends ConsumerState<YouPage> {
                           ),
                         ],
                       ),
+                      if (kBackendEnabled)
                       GroupedSection(
                         header: L10n.tr('account', locale),
                         children: [

@@ -40,18 +40,17 @@ On top of that honest core, Mwendo adds the two things that make it more than a 
 <td align="center" width="33%"><img src="docs/screenshots/run.png" width="240" alt="Run tab with the OpenStreetMap map and an iOS-style activity picker"/><br/><sub><b>Run</b> · OpenStreetMap</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="docs/screenshots/legends.png" width="240" alt="Legends tab with legend of the day, race-a-legend cards and the roster with photos"/><br/><sub><b>Legends</b></sub></td>
-<td align="center"><img src="docs/screenshots/legend-detail.png" width="240" alt="A legend's profile page with portrait, personal bests and story"/><br/><sub><b>Legend profile</b></sub></td>
-<td align="center"><img src="docs/screenshots/beat-legends.png" width="240" alt="Beat the Legends with legend picker, target time, difficulty and pace chart"/><br/><sub><b>Beat the Legends</b></sub></td>
+<td align="center"><img src="docs/screenshots/recording.png" width="240" alt="Recording a run: live route on the map with distance, time, pace and calories"/><br/><sub><b>Recording</b></sub></td>
+<td align="center"><img src="docs/screenshots/activity.png" width="240" alt="A finished run with its route, distance, pace and time"/><br/><sub><b>Finished run</b></sub></td>
+<td align="center"><img src="docs/screenshots/learn.png" width="240" alt="Learn tab with course shelves"/><br/><sub><b>Mwendo Academy</b></sub></td>
 </tr>
 <tr>
-<td align="center"><img src="docs/screenshots/learn.png" width="240" alt="Learn tab with course shelves"/><br/><sub><b>Mwendo Academy</b></sub></td>
 <td align="center"><img src="docs/screenshots/challenges.png" width="240" alt="Challenges with XP level and goals"/><br/><sub><b>Challenges & XP</b></sub></td>
 <td align="center"><img src="docs/screenshots/profile.png" width="240" alt="You tab with stats grid and settings"/><br/><sub><b>You</b></sub></td>
 </tr>
 </table>
 
-<sub>Screenshots: Android emulator, dark mode, November 2026 build. Legend photos: Wikimedia Commons (credited in-app).</sub>
+<sub>Screenshots: Android emulator, dark mode, November 2026 build.</sub>
 
 ---
 

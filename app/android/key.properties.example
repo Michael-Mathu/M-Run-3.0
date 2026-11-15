@@ -1,0 +1,7 @@
+# Copy this file to key.properties (same folder) and fill in your passwords.
+# key.properties and the .jks file are git-ignored: never commit or share them.
+# See docs/PLAY_STORE.md, step 2.
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=upload
+storeFile=C:/Users/YOUR_WINDOWS_USER/mwendo-upload.jks

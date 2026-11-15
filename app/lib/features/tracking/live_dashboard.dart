@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/cupertino.dart';
 import 'dart:async';
 
@@ -29,7 +30,6 @@ import 'package:mwendo_app/widgets/celebration_overlay.dart';
 import 'package:mwendo_app/widgets/glass.dart';
 import 'package:mwendo_app/widgets/metric_tile.dart';
 import 'package:mwendo_app/widgets/mwendo_map.dart';
-import 'package:mwendo_app/design_system/app_permission_card.dart';
 import 'package:mwendo_gps_engine/mwendo_gps_engine.dart';
 import 'package:go_router/go_router.dart';
 
@@ -120,12 +120,21 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
 
     final issueSpace = m.gpsIssue != GpsIssue.none ? kGpsIssueBannerSpace : 0.0;
 
+    // The metrics panel is 45% of the screen, but never shorter than its
+    // content plus the floating control bar and tab bar: on short phones a
+    // fixed 45% left the pause/stop buttons sitting on top of the metrics.
+    final screenH = MediaQuery.sizeOf(context).height;
+    final panelHeight = math.min(
+      screenH * 0.62,
+      math.max(screenH * 0.45, 318.0 + MediaQuery.paddingOf(context).bottom),
+    );
+
     return Scaffold(
       body: Stack(
         children: [
           Column(
             children: [
-              // Map takes full height when idle, split when recording
+              // Map takes the rest of the height (all of it when idle)
               Expanded(
                 flex: isIdle ? 100 : 55,
                 child: Stack(
@@ -264,8 +273,8 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
               ],
               // Bottom panel - only show metrics when not idle
               if (!isIdle)
-                Expanded(
-                  flex: 45,
+                SizedBox(
+                  height: panelHeight,
                   child: Container(
                     decoration: BoxDecoration(
                       color: cs.surface,
@@ -466,75 +475,6 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
       }
     }
 
-    // 3. Background Location (Android 11+)
-    // We cannot request this concurrently with foreground location.
-    // If not granted, explain and let them go to Settings, OR skip.
-    if (context.mounted) {
-      final bgStatus = await Permission.locationAlways.status;
-      if (!context.mounted) return;
-      if (!bgStatus.isGranted) {
-        final shouldGoToSettings = await showModalBottomSheet<bool>(
-          context: context,
-          showDragHandle: false,
-          isDismissible: false,
-          enableDrag: false,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (ctx) => Container(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + AppTheme.s16,
-              left: AppTheme.s16,
-              right: AppTheme.s16,
-              top: AppTheme.s16,
-            ),
-            decoration: BoxDecoration(
-              color: Theme.of(ctx).colorScheme.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppTheme.r24)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: AppTheme.s16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                AppPermissionCard(
-                  icon: Icons.location_on_rounded,
-                  title: L10n.tr('gps_required_title', locale),
-                  description: "For reliable tracking when your phone is locked, allow background location. Note: Android will restart the app when you grant this in Settings.",
-                  actionLabel: L10n.tr('open_settings', locale),
-                  onAction: () {
-                    Navigator.of(ctx).pop(true);
-                  },
-                ),
-                const SizedBox(height: AppTheme.s8),
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(false),
-                    child: Text(L10n.tr('continue_without_background_location', locale)),
-                  ),
-                ),
-                const SizedBox(height: AppTheme.s8),
-              ],
-            ),
-          ),
-        );
-
-        if (shouldGoToSettings == true) {
-          openAppSettings();
-          // Stop here. The user goes to settings. When they grant the permission,
-          // Android will kill and restart the app. They can tap Start Run again.
-          return;
-        }
-      }
-    }
-    
     // Wait for Android to fully transition the Activity to the foreground state
     // and for the OS to sync the newly granted permissions across its services.
     await Future.delayed(const Duration(milliseconds: 600));

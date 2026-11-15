@@ -469,3 +469,23 @@ measured 0.25 km (~240 m expected); stopping a simulated walk opened the
 saved Walk with its route and 0.18 km; the You header no longer overlaps.
 Kotlin compiled; Swift not (no Xcode). app 68/68, gps_pipeline 57/57,
 engine 3/3.
+
+## Round 7 (15 November 2026): Google Play readiness
+
+Goal: a build that can be uploaded to Play Console, and store material with
+no athlete photos. The owner's steps are in [`PLAY_STORE.md`](PLAY_STORE.md).
+
+| Change | Why |
+| :--- | :--- |
+| `ACCESS_BACKGROUND_LOCATION` removed (app and engine manifests) and the "Allow all the time" prompt dropped | Recording runs in a foreground service started while the app is visible, so the permission was never needed; keeping it triggers Play's background-location review |
+| Release signing from `app/android/key.properties` (falls back to the debug key when the file is absent) | Play needs a bundle signed with the owner's upload key; CI and local builds still work without it |
+| App label `mwendo_app` → `Mwendo` | The name shown under the launcher icon |
+| Manifest `<queries>` for `sms`, `tel` and `https` | Android 11+ package visibility: without it the SOS message and photo-credit links can fail to open |
+| Leaderboard and Account hidden unless `API_BASE_URL` is set (`kBackendEnabled`) | No production server exists; a sign-in that cannot work fails review and would add an account-deletion requirement |
+| Delete button on the activity page | The privacy policy promises that activities can be deleted |
+| `PRIVACY.md`, `docs/PLAY_STORE.md`, `docs/play-store/` (listing text, 512 px icon, feature graphic, 9:16 screenshots) | Required by the store listing and App content forms |
+| Legends, Legend profile and Beat the Legends screenshots removed from the README and repository | They showed athlete portraits; the images remain in earlier git history |
+| Live metrics panel sized to its content (was a fixed 45% of the screen) | On short phones the pause and stop buttons sat on top of time, pace and calories |
+| Version 1.2.0+5 | Play requires a new build number per upload |
+
+Not done: adaptive launcher icon, online account/leaderboard, iOS build.
