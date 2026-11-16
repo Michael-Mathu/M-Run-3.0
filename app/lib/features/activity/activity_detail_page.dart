@@ -4,7 +4,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:latlong2/latlong.dart' as latlong;
 import 'package:go_router/go_router.dart';
 import 'package:mwendo_app/core/l10n/app_strings.dart';
@@ -14,6 +13,7 @@ import 'package:mwendo_app/core/navigation/navigation.dart';
 import 'package:mwendo_app/data/repositories/activity_repository.dart';
 import 'package:mwendo_app/data/sample_activities.dart';
 import 'package:mwendo_app/design_system/app_share_card.dart';
+import 'package:mwendo_app/features/activity/share_activity.dart';
 import 'package:mwendo_app/features/learn/data/legends.dart';
 import 'package:mwendo_app/widgets/metric_tile.dart';
 import 'package:mwendo_app/widgets/route_map.dart';
@@ -122,11 +122,7 @@ class ActivityDetailPage extends ConsumerWidget {
               icon: Icons.ios_share_rounded,
               size: 44,
               semanticLabel: L10n.tr('share', ref.read(localeProvider)),
-              onPressed: () => SharePlus.instance.share(ShareParams(
-                text: 'I just completed a ${a.type} — '
-                    '${formatDistance(a.distanceM)} in ${formatDuration(a.durationMs)} '
-                    'via Mwendo!',
-              )),
+              onPressed: () => shareActivity(context, ref, a),
             ),
           ),
         ],
@@ -176,10 +172,19 @@ class ActivityDetailPage extends ConsumerWidget {
                 // ---- Share Card ----
                 Text(L10n.tr('share', locale), style: text.titleLarge),
                 const SizedBox(height: AppTheme.s12),
-                AppShareCard(
-                  metricValue: formatDistance(a.distanceM),
-                  metricLabel: L10n.tr('distance', locale),
-                  subtitle: '${a.type} · ${formatDuration(a.durationMs)}',
+                // Tap to share a story-sized image of this run.
+                Semantics(
+                  button: true,
+                  label: L10n.tr('share_image', locale),
+                  child: GestureDetector(
+                    onTap: () => shareActivity(context, ref, a),
+                    child: AppShareCard(
+                      metricValue: formatDistance(a.distanceM),
+                      metricLabel: L10n.tr('distance', locale),
+                      subtitle: '${a.type} · ${formatDuration(a.durationMs)}'
+                          ' · ${L10n.tr('share_image', locale)}',
+                    ),
+                  ),
                 ),
                 const SizedBox(height: AppTheme.s24),
 

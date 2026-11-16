@@ -516,3 +516,27 @@ spoken lines, maker detection). App 88 pass, engine 3 pass.
 To check on a real phone: voice with the screen locked and with music
 playing; auto-pause at a real road crossing; the guide's menu names on a
 Tecno or Infinix; calories against a known run.
+
+## Round 9 (16 November 2026): backup and share image
+
+Second slice of the roadmap: do not lose a runner's history, and give every
+run a way to travel. Unit-tested and the share image inspected as a rendered
+PNG; **not yet run on a phone, and the new `file_picker` plugin has not been
+through an Android build**.
+
+| Change | Why |
+| :--- | :--- |
+| **Back up** (Settings, "Your data"): every activity plus settings, level and emergency contacts in one gzip file (`data/backup.dart`, `.mwendo`), sent through the share sheet. Shows the date of the last backup | Runs live only on the phone, and phones are lost, stolen and replaced. Works with Drive, WhatsApp or email, with no account and no server |
+| **Restore from backup** (`features/profile/backup_actions.dart`, `file_picker`): adds activities that are not on the phone (matched by id); settings, level and contacts come back only on a phone with no activities | Restoring twice, or restoring an old file, never duplicates or overwrites newer data |
+| Backup carries an allow-list of preferences | Sign-in tokens, the profile photo path and device flags never leave the phone |
+| Also reads the previous "Export data" JSON file; that row is replaced by Back up | Older exports stay usable |
+| **Share as image** (`features/activity/share_card.dart`): a 1080 x 1920 card with the route as a white line on the brand colours, distance, time, pace (speed for cycling) and calories, in the user's units and language. From the share button and the share card on an activity | The growth loop: sized for WhatsApp Status and Instagram stories. Drawn on a canvas, so it works offline and shows no map tiles (no attribution needed). Falls back to a text caption if the image cannot be made |
+| Version 1.4.0+7 | |
+
+Tests: `app/test/backup_share_test.dart` (10 cases: round trip, allow-list,
+legacy file, damaged entries, wrong files, route projection, PNG render).
+App 98 pass.
+
+To check on a real phone: restore on a second phone or after clearing app
+data; send a backup through WhatsApp and open it; the share image in a
+WhatsApp Status.

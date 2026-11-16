@@ -47,6 +47,7 @@ On top of that honest core, Mwendo adds the two things that make it more than a 
 <tr>
 <td align="center"><img src="docs/screenshots/challenges.png" width="240" alt="Challenges with XP level and goals"/><br/><sub><b>Challenges & XP</b></sub></td>
 <td align="center"><img src="docs/screenshots/profile.png" width="240" alt="You tab with stats grid and settings"/><br/><sub><b>You</b></sub></td>
+<td align="center"><img src="docs/screenshots/share-card.png" width="240" alt="A shareable run image: the route as a white line, distance, time, pace and calories"/><br/><sub><b>Share image</b></sub></td>
 </tr>
 </table>
 

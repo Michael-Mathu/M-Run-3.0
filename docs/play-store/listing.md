@@ -40,12 +40,14 @@ LEARN AS YOU GO
 STAY MOTIVATED
 • Weekly distance, streaks, challenges, XP and levels
 • Your full activity history with route, pace and elevation
-• Export an activity as GPX, or share a summary
+• Share any run as a story-sized image for WhatsApp Status or Instagram
+• Export an activity as GPX
 
 YOUR DATA STAYS WITH YOU
 • No account and no sign-up
 • No ads, no analytics
 • Runs are stored on your phone only, and you can delete any of them
+• One-tap backup file, so a lost or new phone never costs you your history
 • SOS button that prepares a message with your location for your emergency contacts
 
 Available in English and Kiswahili, in light and dark mode.

@@ -1,7 +1,7 @@
 name: mwendo_app
 description: "Mwendo running tracker"
 publish_to: 'none'
-version: 1.3.0+6
+version: 1.4.0+7
 
 environment:
   sdk: ^3.12.2
@@ -36,6 +36,7 @@ dependencies:
   latlong2: ^0.10.1
   cupertino_icons: ^1.0.8
   flutter_tts: ^4.2.5
+  file_picker: ^13.3.3
 
 dev_dependencies:
   flutter_test:

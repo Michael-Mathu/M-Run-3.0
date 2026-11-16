@@ -5,9 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:mwendo_app/core/gamification/gamification_provider.dart';
 import 'package:mwendo_app/core/gamification/leaderboard_data.dart';
 import 'package:mwendo_app/core/l10n/app_strings.dart';
@@ -16,7 +13,6 @@ import 'package:mwendo_app/core/network/leaderboard_provider.dart';
 import 'package:mwendo_app/core/network/session_provider.dart';
 import 'package:mwendo_app/core/profile/profile_provider.dart';
 import 'package:mwendo_app/core/safety/safety_provider.dart';
-import 'package:mwendo_app/data/gpx_export.dart';
 import 'package:mwendo_app/data/models/run_record.dart';
 import 'package:mwendo_app/data/repositories/activity_repository.dart';
 import 'package:mwendo_app/features/learn/data/beat_legends.dart';
@@ -38,6 +34,7 @@ import 'package:mwendo_app/core/audio/voice_coach.dart';
 import 'package:mwendo_app/core/device/keep_alive.dart';
 import 'package:mwendo_app/core/settings/run_settings.dart';
 import 'package:mwendo_app/features/profile/keep_alive_page.dart';
+import 'package:mwendo_app/features/profile/backup_actions.dart';
 
 
 class YouPage extends ConsumerStatefulWidget {
@@ -378,6 +375,7 @@ class _SettingsPage extends ConsumerWidget {
     final units = ref.watch(unitsProvider);
     final run = ref.watch(runSettingsProvider);
     final battery = ref.watch(batteryStatusProvider).value;
+    final lastBackup = ref.watch(lastBackupProvider).value;
     final weightLabel = units == Units.imperial
         ? '${(run.weightKg * 2.20462).round()} lb'
         : '${run.weightKg.round()} kg';
@@ -496,12 +494,23 @@ class _SettingsPage extends ConsumerWidget {
           ],
         ),
         GroupedSection(
+          header: L10n.tr('backup_header', locale),
+          footer: L10n.tr('backup_footer', locale),
           children: [
             GroupedRow(
-              icon: Icons.ios_share_rounded,
+              icon: CupertinoIcons.cloud_upload_fill,
+              iconColor: const Color(0xFF007AFF),
+              title: L10n.tr('backup_now', locale),
+              value: lastBackup == null
+                  ? L10n.tr('backup_never', locale)
+                  : formatDate(lastBackup),
+              onTap: () => createBackup(context, ref, locale),
+            ),
+            GroupedRow(
+              icon: CupertinoIcons.arrow_counterclockwise_circle_fill,
               iconColor: const Color(0xFFFF9500),
-              title: L10n.tr('export_data', locale),
-              onTap: () => _exportData(context, ref, locale),
+              title: L10n.tr('backup_restore', locale),
+              onTap: () => restoreBackup(context, ref, locale),
             ),
           ],
         ),
@@ -876,32 +885,6 @@ class _ThemeSwatch extends StatelessWidget {
     if (key == 'ocean') return L10n.tr('theme_midnight_blue', locale);
     if (key == 'berry') return L10n.tr('theme_berry', locale);
     return '';
-  }
-}
-
-Future<void> _exportData(
-    BuildContext context, WidgetRef ref, AppLocale locale) async {
-  final repo = ref.read(activityRepositoryProvider);
-  final runs = await repo.list();
-  if (runs.isEmpty) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(L10n.tr('nothing_recorded', locale))),
-      );
-    }
-    return;
-  }
-  final json = jsonFromRuns(runs);
-  final dir = await getTemporaryDirectory();
-  final file = File(p.join(dir.path, 'mwendo_activities.json'));
-  await file.writeAsString(json);
-  if (context.mounted) {
-    await SharePlus.instance.share(
-      ShareParams(
-        text: L10n.tr('exported', locale),
-        files: [XFile(file.path)],
-      ),
-    );
   }
 }
 

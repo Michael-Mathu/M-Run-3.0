@@ -23,6 +23,14 @@ storage. It is not uploaded to us or to anyone else.
 Uninstalling the app, or clearing its data in Android settings, deletes all
 of it. You can also delete individual activities inside the app.
 
+**Backups are yours.** "Back up" in Settings writes your activities and
+settings into one file and hands it to the app you choose (for example
+Google Drive or WhatsApp). Mwendo does not upload it anywhere itself, and
+the file never includes sign-in details or your profile photo. Separately,
+if Android's own backup is switched on in your phone settings, Android may
+include Mwendo's data in the backup of your phone kept in your Google
+account; that copy is controlled by you and Google, not by us.
+
 ## Location
 
 Mwendo asks for **precise location while the app is in use**. Location is
@@ -48,8 +56,8 @@ reads your location when you are not using it.
   with a message to your emergency contacts containing a link to your current
   position. Nothing is sent unless you press Send in that app.
 - **Sharing.** If you choose to share or export an activity (for example a
-  GPX file or a summary), it goes to the app you pick in Android's share
-  sheet.
+  GPX file, or an image of your route and stats), it goes to the app you
+  pick in Android's share sheet.
 - **Links.** Photo-credit links open in your web browser.
 - **Voice cues.** Spoken updates are produced by the text-to-speech
   engine already installed on your phone (usually Google's). Mwendo passes
