@@ -9,6 +9,10 @@ import 'package:mwendo_app/data/repositories/session_draft_repository.dart';
 import 'package:mwendo_gps_engine/mwendo_gps_engine.dart';
 import 'package:gps_pipeline/gps_pipeline.dart';
 import 'package:latlong2/latlong.dart' as ll;
+import '../../core/settings/run_settings.dart';
+import '../../core/utils/calories.dart';
+import 'auto_pause.dart';
+
 enum AppEngineState { idle, recording, paused, recovering }
 
 /// Something that will stop a run from recording a route, shown as a banner on
@@ -86,6 +90,10 @@ class TrackingState {
 
   final GpsIssue gpsIssue;
 
+  /// Recording, but the clock is stopped because the runner is standing
+  /// still (auto-pause). GPS keeps running so it can resume by itself.
+  final bool autoPaused;
+
   const TrackingState({
     required this.state,
     this.distanceM = 0,
@@ -103,6 +111,7 @@ class TrackingState {
     this.previewLat,
     this.previewLng,
     this.gpsIssue = GpsIssue.none,
+    this.autoPaused = false,
   });
 
   static const initial = TrackingState(state: AppEngineState.idle);
@@ -124,6 +133,7 @@ class TrackingState {
     double? previewLat,
     double? previewLng,
     GpsIssue? gpsIssue,
+    bool? autoPaused,
   }) {
     return TrackingState(
         state: state ?? this.state,
@@ -142,6 +152,7 @@ class TrackingState {
         previewLat: previewLat ?? this.previewLat,
         previewLng: previewLng ?? this.previewLng,
         gpsIssue: gpsIssue ?? this.gpsIssue,
+        autoPaused: autoPaused ?? this.autoPaused,
       );
   }
 }
@@ -344,7 +355,9 @@ class TrackingModel extends Notifier<TrackingState> {
       );
     } else {
       // Keep what was recorded; Resume retries the GPS, Stop saves it.
-      state = state.copyWith(state: AppEngineState.paused, gpsIssue: GpsIssue.startFailed);
+      _autoPause.reset();
+      state = state.copyWith(
+          state: AppEngineState.paused, gpsIssue: GpsIssue.startFailed, autoPaused: false);
     }
   }
 
@@ -370,7 +383,59 @@ class TrackingModel extends Notifier<TrackingState> {
 
   void setProfile(ActivityProfile profile) {
     _pipeline = GpsPipeline(profile: profile);
+    _autoPause = AutoPauseDetector(profile);
     state = state.copyWith(profile: profile);
+  }
+
+  /// Calories for the run so far, from body weight, distance and climb
+  /// (see [estimateCalories]). Replaces a flat 11 kcal per minute.
+  int _calories({required int movingMs, required int elapsedMs}) => estimateCalories(
+        profile: state.profile,
+        weightKg: ref.read(runSettingsProvider).weightKg,
+        distanceM: state.distanceM,
+        elevationGainM: _elevationGain,
+        movingMs: movingMs,
+        elapsedMs: elapsedMs,
+      );
+
+  // ---- Auto-pause ---------------------------------------------------------
+  // A soft pause: the clock stops but the GPS keeps running, so the run
+  // resumes by itself when the runner moves again. (A manual pause stops
+  // the GPS, which could never notice movement.)
+
+  AutoPauseDetector _autoPause = AutoPauseDetector(ActivityProfile.run);
+
+  void _updateAutoPause(TrackPoint p) {
+    if (state.state != AppEngineState.recording) return;
+    final enabled = ref.read(runSettingsProvider).autoPause &&
+        AutoPauseDetector.supports(state.profile);
+    if (!enabled) {
+      if (state.autoPaused) _exitAutoPause();
+      return;
+    }
+    final change = _autoPause.update(
+      lat: p.lat,
+      lng: p.lng,
+      speedMps: p.speedMps,
+      accuracyM: p.accuracy.toDouble(),
+      timestamp: p.timestamp,
+    );
+    if (change == AutoPauseChange.paused && !state.autoPaused) {
+      _stopTicker();
+      // Take the seconds already spent standing back off the clock.
+      final still = _autoPause.lastStillDuration.inMilliseconds;
+      _accumulatedMs = max(0, _accumulatedMs - still);
+      state = state.copyWith(autoPaused: true, elapsedMs: _accumulatedMs);
+    } else if (change == AutoPauseChange.resumed && state.autoPaused) {
+      _exitAutoPause();
+    }
+  }
+
+  void _exitAutoPause() {
+    _autoPause.reset();
+    if (!state.autoPaused) return;
+    state = state.copyWith(autoPaused: false);
+    if (state.state == AppEngineState.recording) _startTicker();
   }
 
   /// Drives `elapsedMs` from the wall clock so the timer ticks live regardless
@@ -392,7 +457,7 @@ class TrackingModel extends Notifier<TrackingState> {
       state = state.copyWith(
         elapsedMs: total,
         movingTimeMs: movingMs,
-        calories: (movingMs / 60000 * 11).round(),
+        calories: _calories(movingMs: movingMs, elapsedMs: total),
       );
     });
   }
@@ -548,9 +613,10 @@ class TrackingModel extends Notifier<TrackingState> {
         // path) so a recovered run actually records (fixes C3) without ever
         // auto-starting GPS on page load — which crashed when location
         // permission wasn't granted yet.
+        _autoPause = AutoPauseDetector(state.profile);
         _listenToRecording(recovering: true);
         _startTicker();
-        state = state.copyWith(state: AppEngineState.recording);
+        state = state.copyWith(state: AppEngineState.recording, autoPaused: false);
         return;
       }
     }
@@ -579,7 +645,9 @@ class TrackingModel extends Notifier<TrackingState> {
       elevationGainM: 0,
       calories: 0,
       pointCount: 0,
+      autoPaused: false,
     );
+    _autoPause = AutoPauseDetector(state.profile);
     diagnostics.reset();
     state = state.copyWith(gpsIssue: GpsIssue.none);
     _startTicker();
@@ -611,6 +679,7 @@ class TrackingModel extends Notifier<TrackingState> {
     if (state.gpsIssue == GpsIssue.noSignal) {
       state = state.copyWith(gpsIssue: GpsIssue.none);
     }
+    _updateAutoPause(p);
 
     final result = _pipeline.process(raw);
     if (result != null) {
@@ -755,7 +824,10 @@ class TrackingModel extends Notifier<TrackingState> {
       ),
       heartRate: originalPt?.heartRate ?? result.raw.heartRate,
       cadence: originalPt?.cadence ?? result.raw.cadence,
-      state: originalPt?.state ?? result.filterStatus.name,
+      // The pipeline's verdict, not the native engine's 'recording' label:
+      // moving time (and so calories) is counted between consecutive
+      // `filtered` points, and with the native label it never advanced.
+      state: result.filterStatus.name,
     );
     _pts.add(acceptedPt);
     _addDisplayPoint(acceptedPt, result, newSegment: newSegment);
@@ -848,7 +920,8 @@ class TrackingModel extends Notifier<TrackingState> {
         _pipeline.reset();
         _pendingWrite = _writeRecovery();
         await _pendingWrite;
-        state = state.copyWith(state: AppEngineState.paused);
+        _autoPause.reset();
+        state = state.copyWith(state: AppEngineState.paused, autoPaused: false);
       });
 
   void resume() => _enqueue(() async {
@@ -859,7 +932,8 @@ class TrackingModel extends Notifier<TrackingState> {
             state.state == AppEngineState.paused) {
           // The GPS failed mid-run: restart it and keep the recorded part.
           _resumedSinceLastPoint = true;
-          state = state.copyWith(gpsIssue: GpsIssue.none);
+          _autoPause.reset();
+          state = state.copyWith(gpsIssue: GpsIssue.none, autoPaused: false);
           _startTicker();
           _listenToRecording(recovering: false);
           state = state.copyWith(state: AppEngineState.recording);
@@ -871,9 +945,10 @@ class TrackingModel extends Notifier<TrackingState> {
         }
         _engine.resume();
         _resumedSinceLastPoint = true;
+        _autoPause.reset();
         diagnostics.listeningSince = DateTime.now();
         _startTicker();
-        state = state.copyWith(state: AppEngineState.recording);
+        state = state.copyWith(state: AppEngineState.recording, autoPaused: false);
       });
 
   Future<SessionDraft?> stop() => _enqueueWithResult(() async {

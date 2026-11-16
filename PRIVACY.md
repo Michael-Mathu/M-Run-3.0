@@ -1,6 +1,6 @@
 # Mwendo Privacy Policy
 
-_Last updated: 15 November 2026_
+_Last updated: 16 November 2026_
 
 Mwendo is a running, walking and cycling tracker. This policy explains what
 the Android app does with your information. The short version: **your runs
@@ -17,7 +17,8 @@ storage. It is not uploaded to us or to anyone else.
 | Your activities (date, type, distance, duration, calories, route) | Your activity history, statistics, challenges and levels |
 | The display name and profile photo you choose | Shown on the You tab |
 | Emergency contacts you add (name, phone number) | The SOS button |
-| App settings (units, language, theme, colour) | To remember your preferences |
+| Your body weight, if you enter it | To estimate calories |
+| App settings (units, language, theme, colour, auto-pause, voice cues) | To remember your preferences |
 
 Uninstalling the app, or clearing its data in Android settings, deletes all
 of it. You can also delete individual activities inside the app.
@@ -50,6 +51,9 @@ reads your location when you are not using it.
   GPX file or a summary), it goes to the app you pick in Android's share
   sheet.
 - **Links.** Photo-credit links open in your web browser.
+- **Voice cues.** Spoken updates are produced by the text-to-speech
+  engine already installed on your phone (usually Google's). Mwendo passes
+  it only the sentence to speak, such as your distance and pace.
 
 Nothing else is transmitted. Mwendo contains no advertising, analytics or
 crash-reporting software, and we do not sell or share personal information.

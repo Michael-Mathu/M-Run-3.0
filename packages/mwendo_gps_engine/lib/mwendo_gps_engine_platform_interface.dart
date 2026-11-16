@@ -61,6 +61,33 @@ class EnginePlatformMetadata {
   });
 }
 
+/// What the app needs to know to warn about phones that freeze background
+/// apps (see `batteryStatus`).
+class BatteryStatus {
+  /// Lower-cased maker, e.g. "tecno", "infinix", "samsung". Empty if unknown.
+  final String manufacturer;
+  final String model;
+  final int sdkInt;
+
+  /// True when the app is exempt from battery optimisation ("Unrestricted").
+  final bool ignoringBatteryOptimizations;
+
+  /// True while the phone's battery saver is on.
+  final bool powerSaveMode;
+
+  /// False when the platform could not report it (iOS, tests).
+  final bool known;
+
+  const BatteryStatus({
+    this.manufacturer = '',
+    this.model = '',
+    this.sdkInt = 0,
+    this.ignoringBatteryOptimizations = false,
+    this.powerSaveMode = false,
+    this.known = false,
+  });
+}
+
 abstract class MwendoGpsEnginePlatform extends PlatformInterface {
   MwendoGpsEnginePlatform() : super(token: _token);
   static final Object _token = Object();
@@ -101,4 +128,10 @@ abstract class MwendoGpsEnginePlatform extends PlatformInterface {
   Future<EnginePlatformMetadata> getPlatformMetadata() async {
     throw UnimplementedError('getPlatformMetadata() has not been implemented.');
   }
+
+  /// Maker and battery-optimisation state of this phone. Never throws.
+  Future<BatteryStatus> batteryStatus() async => const BatteryStatus();
+
+  /// Opens the system screen for this app's battery settings.
+  Future<bool> openBatterySettings() async => false;
 }

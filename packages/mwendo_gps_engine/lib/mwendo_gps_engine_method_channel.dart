@@ -121,4 +121,34 @@ class MethodChannelMwendoGpsEngine extends MwendoGpsEnginePlatform {
       appVersion: result?['appVersion'] as String? ?? 'unknown',
     );
   }
+
+  @override
+  Future<BatteryStatus> batteryStatus() async {
+    try {
+      final r = await methodChannel.invokeMethod<Map>('batteryStatus');
+      if (r == null) return const BatteryStatus();
+      final maker = (r['manufacturer'] as String? ?? '').trim();
+      final brand = (r['brand'] as String? ?? '').trim();
+      return BatteryStatus(
+        manufacturer: (maker.isNotEmpty ? maker : brand).toLowerCase(),
+        model: r['model'] as String? ?? '',
+        sdkInt: (r['sdkInt'] as num?)?.toInt() ?? 0,
+        ignoringBatteryOptimizations: r['ignoringBatteryOptimizations'] as bool? ?? false,
+        powerSaveMode: r['powerSaveMode'] as bool? ?? false,
+        known: true,
+      );
+    } catch (_) {
+      // Not implemented on this platform (iOS) or in tests.
+      return const BatteryStatus();
+    }
+  }
+
+  @override
+  Future<bool> openBatterySettings() async {
+    try {
+      return await methodChannel.invokeMethod<bool>('openBatterySettings') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
 }

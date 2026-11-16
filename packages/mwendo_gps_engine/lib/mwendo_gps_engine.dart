@@ -47,4 +47,10 @@ class MwendoGpsEngine {
   Future<EnginePlatformMetadata> getPlatformMetadata() {
     return MwendoGpsEnginePlatform.instance.getPlatformMetadata();
   }
+
+  /// Phone maker and battery-optimisation state (Android). Never throws.
+  Future<BatteryStatus> batteryStatus() => MwendoGpsEnginePlatform.instance.batteryStatus();
+
+  /// Opens this app's battery settings screen. False if nothing opened.
+  Future<bool> openBatterySettings() => MwendoGpsEnginePlatform.instance.openBatterySettings();
 }

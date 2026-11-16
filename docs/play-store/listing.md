@@ -23,6 +23,8 @@ TRACK EVERY RUN
 • Run, walk, cycle, hike or drive, with live distance, pace, time and elevation
 • A clean GPS line: bad fixes are filtered out, so no zig-zags and no phantom distance
 • Keeps recording with the screen off, shown by an ongoing notification
+• Voice cues every kilometre, in English or Kiswahili, so you never look at the screen
+• Auto-pause at traffic lights, and calories based on your weight
 • OpenStreetMap maps
 • GPS status at a glance, so you know when it is safe to start
 

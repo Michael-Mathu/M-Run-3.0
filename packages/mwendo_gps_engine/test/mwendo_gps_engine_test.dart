@@ -37,6 +37,12 @@ class MockMwendoGpsEnginePlatform
       );
 
   @override
+  Future<BatteryStatus> batteryStatus() async => const BatteryStatus();
+
+  @override
+  Future<bool> openBatterySettings() async => false;
+
+  @override
   Future<EnginePlatformMetadata> getPlatformMetadata() => Future.value(
         EnginePlatformMetadata(
           osVersion: 'unknown',

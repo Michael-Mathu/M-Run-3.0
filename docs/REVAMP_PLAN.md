@@ -490,3 +490,29 @@ no athlete photos. The owner's steps are in [`PLAY_STORE.md`](PLAY_STORE.md).
 | Version 1.2.0+5 | Play requires a new build number per upload |
 
 Not done: adaptive launcher icon, online account/leaderboard, iOS build.
+
+## Round 8 (16 November 2026): run reliability
+
+First slice of the "indie project to daily app" roadmap: the things a runner
+notices on day one. Written and unit-tested; **not yet run on a phone or
+emulator, and the Kotlin change has not been compiled** (the owner builds
+and tests this round).
+
+| Change | Why |
+| :--- | :--- |
+| **Moving time never advanced during a live run** (`tracking_controller.dart`): accepted points were stored with the native engine's `recording` label instead of the pipeline's `filtered` status, so the "consecutive filtered points" rule never matched | This is why calories stayed at 0 (issue 18), on real phones too, and why saved moving time silently fell back to total time |
+| Calories from body weight, distance and climb (`core/utils/calories.dart`), replacing a flat 11 kcal per minute for everyone | A 55 kg walker and a 90 kg runner got the same number. Run about 1.03 kcal/kg/km, walk 0.73, hike 0.85, plus the ACSM climbing term; cycling by MET for average speed; driving 0 |
+| Body weight setting (Settings, kg or lb), stored on the device only | Needed for the estimate; default 70 kg |
+| Auto-pause (`features/tracking/auto_pause.dart`), on by default, off for Drive and Indoor | Stops the clock at traffic lights. A soft pause: GPS keeps running so it resumes by itself. Pauses only when Doppler speed is below a shuffle **and** position has not drifted 12 m for 8 s, so a phone that reports no speed never pauses a moving runner; resumes after two moving fixes or 20 m |
+| Voice cues (`core/audio/voice_coach.dart`, `flutter_tts`): start, pause, resume, finish, and distance / time / average pace at each kilometre or mile, in English and Kiswahili | Runners do not look at the screen. Falls back to English if the phone has no Kiswahili voice; ducks music; cycling announces speed; none while driving |
+| "Keep Mwendo running" guide (`features/profile/keep_alive_page.dart`): shows whether the app is battery-unrestricted, lists the maker's own switches (Tecno / Infinix / itel, Xiaomi, Samsung, Oppo / Realme / Vivo, Huawei / Honor) and opens the settings screen. Offered once before the first run on those makers | Transsion phones are about half of African shipments and are widely reported to freeze apps with the screen off, foreground service or not. No `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` permission is used (Play restricts it) |
+| Engine plugin: `batteryStatus()` and `openBatterySettings()` (Android) | Maker, battery-optimisation state and the settings deep link |
+| Manifest `<queries>` for `TTS_SERVICE` | Android 11+ package visibility for the text-to-speech engine |
+| Version 1.3.0+6 | |
+
+Tests: `app/test/run_reliability_test.dart` (20 cases: calories, auto-pause,
+spoken lines, maker detection). App 88 pass, engine 3 pass.
+
+To check on a real phone: voice with the screen locked and with music
+playing; auto-pause at a real road crossing; the guide's menu names on a
+Tecno or Infinix; calories against a known run.

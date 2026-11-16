@@ -143,8 +143,58 @@ class MwendoGpsEnginePlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
                     "appVersion" to appVersion
                 ))
             }
+            "batteryStatus" -> {
+                // Whether this phone may freeze the recording: its maker,
+                // and whether the app is already exempt from battery
+                // optimisation (readable without any permission).
+                var exempt = false
+                var powerSave = false
+                try {
+                    val pm = context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                    exempt = pm.isIgnoringBatteryOptimizations(context.packageName)
+                    powerSave = pm.isPowerSaveMode
+                } catch (e: Exception) {
+                    // Leave the defaults.
+                }
+                result.success(mapOf(
+                    "manufacturer" to (android.os.Build.MANUFACTURER ?: ""),
+                    "brand" to (android.os.Build.BRAND ?: ""),
+                    "model" to (android.os.Build.MODEL ?: ""),
+                    "sdkInt" to android.os.Build.VERSION.SDK_INT,
+                    "ignoringBatteryOptimizations" to exempt,
+                    "powerSaveMode" to powerSave
+                ))
+            }
+            "openBatterySettings" -> result.success(openBatterySettings())
             else -> result.notImplemented()
         }
+    }
+
+    /**
+     * Opens the screen where the user can let the app run unrestricted.
+     * The app's own details page first (its Battery entry is where
+     * "Unrestricted" lives on Android 12+, and most vendor skins add their
+     * own switches there), then the system-wide battery optimisation list.
+     * No REQUEST_IGNORE_BATTERY_OPTIMIZATIONS permission is used: Google
+     * Play restricts it, and these screens need none.
+     */
+    private fun openBatterySettings(): Boolean {
+        val intents = listOf(
+            Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                android.net.Uri.fromParts("package", context.packageName, null)),
+            Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),
+            Intent(android.provider.Settings.ACTION_SETTINGS)
+        )
+        for (intent in intents) {
+            try {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+                return true
+            } catch (e: Exception) {
+                // Try the next screen.
+            }
+        }
+        return false
     }
 
     private fun startService(result: Result) {

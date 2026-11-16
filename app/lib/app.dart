@@ -5,6 +5,7 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/palette_provider.dart';
 import 'core/theme/theme_mode_provider.dart';
 import 'core/router/app_router.dart';
+import 'core/audio/voice_coach.dart';
 
 class MwendoApp extends ConsumerWidget {
   const MwendoApp({super.key});
@@ -13,6 +14,8 @@ class MwendoApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(themeModeProvider);
     final palette = ref.watch(paletteProvider);
+    // Spoken run updates; lives for the whole app so cues play on any tab.
+    ref.watch(voiceCoachProvider);
     return MaterialApp.router(
       title: 'Mwendo — Track Every Step',
       theme: buildTheme(palette, Brightness.light),

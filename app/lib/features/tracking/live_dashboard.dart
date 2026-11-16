@@ -32,6 +32,8 @@ import 'package:mwendo_app/widgets/metric_tile.dart';
 import 'package:mwendo_app/widgets/mwendo_map.dart';
 import 'package:mwendo_gps_engine/mwendo_gps_engine.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mwendo_app/core/device/keep_alive.dart';
+import 'package:mwendo_app/features/profile/keep_alive_page.dart';
 
 class LiveDashboard extends ConsumerStatefulWidget {
   const LiveDashboard({super.key});
@@ -177,6 +179,7 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
                           state: m.state,
                           accuracy: m.currentAccuracy,
                           gpsAvailable: _hasLocationPermission,
+                          autoPaused: m.autoPaused,
                         ),
                       ),
                     ),
@@ -472,6 +475,40 @@ class _LiveDashboardState extends ConsumerState<LiveDashboard> {
             content: Text(L10n.tr('enable_notifications', locale)),
           ),
         );
+      }
+    }
+
+    // 3. Phones that freeze background apps (Tecno, Infinix, itel, Xiaomi…):
+    // offer the keep-alive guide once, before the first run is lost to it.
+    if (context.mounted) {
+      final battery = await MwendoGpsEngine().batteryStatus();
+      if (shouldPromptKeepAlive(battery) && await takeKeepAlivePrompt() && context.mounted) {
+        final show = await showCupertinoDialog<bool>(
+          context: context,
+          builder: (dlg) => CupertinoAlertDialog(
+            title: Text(L10n.tr('keep_running_title', locale)),
+            content: Text(L10n.tr('keep_prompt_body', locale)),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.of(dlg).pop(false),
+                child: Text(L10n.tr('not_now', locale)),
+              ),
+              CupertinoDialogAction(
+                isDefaultAction: true,
+                onPressed: () => Navigator.of(dlg).pop(true),
+                child: Text(L10n.tr('keep_prompt_show', locale)),
+              ),
+            ],
+          ),
+        );
+        if (show == true) {
+          if (context.mounted) {
+            Navigator.of(context, rootNavigator: true).push(
+              CupertinoPageRoute<void>(builder: (_) => const KeepAlivePage()),
+            );
+          }
+          return;
+        }
       }
     }
 
@@ -900,7 +937,13 @@ class _StatusPill extends ConsumerWidget {
   final AppEngineState state;
   final double accuracy;
   final bool gpsAvailable;
-  const _StatusPill({required this.state, required this.accuracy, this.gpsAvailable = false});
+  final bool autoPaused;
+  const _StatusPill({
+    required this.state,
+    required this.accuracy,
+    this.gpsAvailable = false,
+    this.autoPaused = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -942,6 +985,12 @@ class _StatusPill extends ConsumerWidget {
         color = tokens.paused;
         label = L10n.tr('gps_searching', locale);
       }
+    }
+
+    // Standing still: the clock is stopped until the runner moves again.
+    if (state == AppEngineState.recording && autoPaused) {
+      color = tokens.paused;
+      label = L10n.tr('auto_paused', locale);
     }
 
     final text = Theme.of(context).textTheme;

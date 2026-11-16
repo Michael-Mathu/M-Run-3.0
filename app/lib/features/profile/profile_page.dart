@@ -34,6 +34,10 @@ import 'package:mwendo_app/widgets/ios.dart';
 import 'package:mwendo_app/core/perf/glass_quality.dart';
 import 'package:mwendo_app/features/legends/photo_credits_page.dart';
 import 'package:mwendo_app/features/legends/legend_widgets.dart';
+import 'package:mwendo_app/core/audio/voice_coach.dart';
+import 'package:mwendo_app/core/device/keep_alive.dart';
+import 'package:mwendo_app/core/settings/run_settings.dart';
+import 'package:mwendo_app/features/profile/keep_alive_page.dart';
 
 
 class YouPage extends ConsumerStatefulWidget {
@@ -372,6 +376,11 @@ class _SettingsPage extends ConsumerWidget {
     final locale = ref.watch(localeProvider);
     final mode = ref.watch(themeModeProvider);
     final units = ref.watch(unitsProvider);
+    final run = ref.watch(runSettingsProvider);
+    final battery = ref.watch(batteryStatusProvider).value;
+    final weightLabel = units == Units.imperial
+        ? '${(run.weightKg * 2.20462).round()} lb'
+        : '${run.weightKg.round()} kg';
     return _SubPage(
       title: L10n.tr('settings', locale),
       children: [
@@ -399,6 +408,53 @@ class _SettingsPage extends ConsumerWidget {
                   ? L10n.tr('metric', locale)
                   : L10n.tr('imperial', locale),
               onTap: () => ref.read(unitsProvider.notifier).toggle(),
+            ),
+          ],
+        ),
+        GroupedSection(
+          header: L10n.tr('run_settings_header', locale),
+          footer: L10n.tr('run_settings_footer', locale),
+          children: [
+            GroupedRow(
+              icon: Icons.monitor_weight_rounded,
+              iconColor: const Color(0xFFFF9500),
+              title: L10n.tr('body_weight', locale),
+              value: weightLabel,
+              onTap: () => _pickWeight(context, ref, units, run.weightKg),
+            ),
+            GroupedRow(
+              icon: Icons.pause_circle_filled_rounded,
+              iconColor: const Color(0xFFFF9F0A),
+              title: L10n.tr('auto_pause', locale),
+              trailing: CupertinoSwitch(
+                value: run.autoPause,
+                onChanged: (v) => ref.read(runSettingsProvider.notifier).setAutoPause(v),
+              ),
+            ),
+            GroupedRow(
+              icon: CupertinoIcons.speaker_2_fill,
+              iconColor: const Color(0xFF30B0C7),
+              title: L10n.tr('voice_cues', locale),
+              trailing: CupertinoSwitch(
+                value: run.voiceCues,
+                onChanged: (v) {
+                  ref.read(runSettingsProvider.notifier).setVoiceCues(v);
+                  // Let them hear the voice and volume straight away.
+                  if (v) ref.read(voiceCoachProvider).preview();
+                },
+              ),
+            ),
+            GroupedRow(
+              icon: CupertinoIcons.battery_charging,
+              iconColor: const Color(0xFF34C759),
+              title: L10n.tr('keep_running_title', locale),
+              value: battery == null || !battery.known
+                  ? null
+                  : L10n.tr(
+                      battery.ignoringBatteryOptimizations ? 'on_label' : 'keep_check', locale),
+              onTap: () => Navigator.of(context).push(
+                CupertinoPageRoute<void>(builder: (_) => const KeepAlivePage()),
+              ),
             ),
           ],
         ),
@@ -463,6 +519,63 @@ class _SettingsPage extends ConsumerWidget {
         ),
       ],
     );
+  }
+}
+
+/// Wheel picker for body weight, in the user's units; stored in kilograms.
+Future<void> _pickWeight(
+    BuildContext context, WidgetRef ref, Units units, double currentKg) async {
+  final imperial = units == Units.imperial;
+  final min = imperial ? 66 : RunSettings.minWeightKg.round();
+  final max = imperial ? 440 : RunSettings.maxWeightKg.round();
+  final current = (imperial ? currentKg * 2.20462 : currentKg).round().clamp(min, max);
+  var picked = current;
+  final locale = ref.read(localeProvider);
+  await showCupertinoModalPopup<void>(
+    context: context,
+    builder: (sheet) {
+      final cs = Theme.of(sheet).colorScheme;
+      return Container(
+        height: 300,
+        color: cs.surface,
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: CupertinoButton(
+                  onPressed: () => Navigator.of(sheet).pop(),
+                  child: Text(L10n.tr('save', locale)),
+                ),
+              ),
+              Expanded(
+                child: CupertinoPicker(
+                  itemExtent: 40,
+                  scrollController:
+                      FixedExtentScrollController(initialItem: current - min),
+                  onSelectedItemChanged: (i) => picked = min + i,
+                  children: [
+                    for (var v = min; v <= max; v++)
+                      Center(
+                        child: Text(
+                          '$v ${imperial ? 'lb' : 'kg'}',
+                          style: TextStyle(color: cs.onSurface, fontSize: 20),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+  if (picked != current) {
+    await ref
+        .read(runSettingsProvider.notifier)
+        .setWeightKg(imperial ? picked / 2.20462 : picked.toDouble());
   }
 }
 
